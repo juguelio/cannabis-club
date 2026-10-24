@@ -17,11 +17,13 @@ const FILTERS = [
 export default async function SociosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; estado?: string; filtro?: string }>;
+  searchParams: Promise<{ q?: string; estado?: string; filtro?: string; page?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const { q, estado, filtro } = await searchParams;
+  const { q, estado, filtro, page: pageRaw } = await searchParams;
+  const page = Math.max(1, Number(pageRaw) || 1);
+  const POR_PAGINA = 25;
 
   const members = await prisma.member.findMany({
     where: {
@@ -45,8 +47,12 @@ export default async function SociosPage({
         : {}),
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    take: 300,
+    take: POR_PAGINA + 1,
+    skip: (page - 1) * POR_PAGINA,
   });
+  // Se pide uno de más para saber si hay página siguiente sin contar toda la tabla.
+  const hayMas = members.length > POR_PAGINA;
+  const pagina = members.slice(0, POR_PAGINA);
 
   const activeKey = filtro === "reprocann" ? "reprocann" : estado ?? "";
 
@@ -54,7 +60,7 @@ export default async function SociosPage({
     <>
       <PageHead
         title="Socios"
-        subtitle={`${members.length} registros en esta vista · el legajo es la llave que usa el mostrador`}
+        subtitle={`Página ${page} · ${pagina.length} socios en esta vista · el legajo es la llave que usa el mostrador`}
         actions={<Link className="btn" href="/socios/nuevo">Nuevo socio</Link>}
       />
 
@@ -76,6 +82,26 @@ export default async function SociosPage({
         </form>
       </div>
 
+      <div className="flex items-center gap-2 mb-2">
+        {page > 1 ? (
+          <Link
+            className="btn btn-secondary btn-sm"
+            href={`/socios?${new URLSearchParams({ ...(q ? { q } : {}), ...(estado ? { estado } : {}), ...(filtro ? { filtro } : {}), page: String(page - 1) }).toString()}`}
+          >
+            ← Anterior
+          </Link>
+        ) : null}
+        {hayMas ? (
+          <Link
+            className="btn btn-secondary btn-sm"
+            href={`/socios?${new URLSearchParams({ ...(q ? { q } : {}), ...(estado ? { estado } : {}), ...(filtro ? { filtro } : {}), page: String(page + 1) }).toString()}`}
+          >
+            Siguiente →
+          </Link>
+        ) : null}
+        {!hayMas && page === 1 ? <span className="cell-meta">Todos los socios entran en esta vista.</span> : null}
+      </div>
+
       <Section title="Padrón" subtitle="Estado del socio, habilitación para retirar y previsión declarada">
         <div className="overflow-x-auto">
           <table className="data">
@@ -92,7 +118,7 @@ export default async function SociosPage({
               </tr>
             </thead>
             <tbody>
-              {members.map((m) => {
+              {pagina.map((m) => {
                 const st = MEMBER_STATUS[m.status] ?? { label: m.status, tone: "mute" as const };
                 const issue = reprocannIssue(m);
                 return (

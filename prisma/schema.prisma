@@ -51,6 +51,8 @@ enum BatchStage {
   COSECHA
   CURADO
   DISPONIBLE
+  /// Lote bloqueado: no se puede entregar hasta liberarlo (con motivo auditado).
+  CUARENTENA
   AGOTADO
   DESTRUIDO
 }
@@ -87,6 +89,14 @@ enum SignatureType {
   PIN
   FIRMA_DIGITAL
   QR
+}
+
+/// Días en que el dispensario no atiende: no se pueden reservar turnos ni retiros.
+model ClosedDay {
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  reason    String?
+  createdAt DateTime @default(now())
 }
 
 /// Configuración del club. Los topes son configuración, no constantes:

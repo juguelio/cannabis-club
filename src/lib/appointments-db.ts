@@ -5,6 +5,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { conflict, notFound, unprocessable } from "./errors";
+import { isClosedDay } from "./closed-days";
 import {
   addDaysKey,
   labelOf,
@@ -127,6 +128,8 @@ export async function bookAppointment(input: {
 }) {
   return prisma.$transaction(
     async (tx) => {
+      if (await isClosedDay(tx, input.dayKey))
+        throw unprocessable("DAY_CLOSED", "Ese día el dispensario no atiende.");
       const rules = await rulesFor(tx);
       const rows = await tx.appointment.findMany({
         where: { scheduledAt: dayRange(input.dayKey) },

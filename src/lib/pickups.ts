@@ -8,6 +8,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { conflict, notFound, unprocessable } from "./errors";
+import { isClosedDay } from "./closed-days";
 import { getClub, limitsFromClub } from "./club";
 import { memberUsage, memberUsageAt } from "./dispensary";
 import { evaluatePickup, round2 } from "./pickup-rules";
@@ -159,6 +160,8 @@ export async function createPickup(input: {
 
       const limits = limitsForMember(member, config);
       // El cupo se mide en la fecha del retiro, no con el consumo de hoy (R04 del REA).
+      if (await isClosedDay(tx, input.dayKey))
+        throw unprocessable("DAY_CLOSED", "Ese día el dispensario no atiende: elegí otra fecha.");
       const at = slotInstant(input.dayKey, input.startMin);
       const [usage, pendingRows, stockFisico, reservadoGlobal, dayRows] = await Promise.all([
         memberUsageAt(tx, member.id, club.timezone, at),
