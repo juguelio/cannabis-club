@@ -4,6 +4,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { prisma } from "./db";
 import { forbidden, unauthorized } from "./errors";
+import { assertNotLocked, recordFailure } from "./login-guard";
 
 export const SESSION_COOKIE = "cc_session";
 const SESSION_HOURS = 8;
@@ -106,12 +107,15 @@ export async function requireUser(roles?: Role[]): Promise<SessionUser> {
   return user;
 }
 
-export async function authenticate(email: string, password: string): Promise<SessionUser> {
-  const user = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
-  if (!user || !user.active) throw unauthorized("Credenciales inválidas");
-  if (user.role === "SOCIO" && !user.memberId) throw unauthorized("Credenciales inválidas");
-  const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) throw unauthorized("Credenciales inválidas");
+export async function authenticate(rawEmail: string, password: string, ip: string | null = null): Promise<SessionUser> {
+  const email = rawEmail.trim().toLowerCase();
+  await assertNotLocked(email);
+  const user = await prisma.user.findUnique({ where: { email } });
+  const ok = Boolean(user?.active) && !(user!.role === "SOCIO" && !user!.memberId) && (await verifyPassword(password, user!.passwordHash));
+  if (!user || !ok) {
+    await recordFailure(email, ip);
+    throw unauthorized("Email o contraseña incorrectos");
+  }
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   return { id: user.id, email: user.email, name: user.name, role: user.role as Role, memberId: user.memberId ?? null };
 }

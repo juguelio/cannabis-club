@@ -53,7 +53,12 @@ export type DispenseInput = {
   notes?: string | null;
   operatorId: string;
   ip?: string | null;
+  /** El operador confirmó que es otra entrega: misma cantidad, socio y lote hace menos de un minuto, con otra clave. */
+  confirmDuplicate?: boolean;
 };
+
+/** Ventana en la que una entrega idéntica se considera doble registro. */
+export const DUPLICATE_WINDOW_MS = 60_000;
 
 /**
  * Entrega a socio. Todo el chequeo y la escritura ocurren en una transacción Serializable:
@@ -99,6 +104,25 @@ export async function dispense(input: DispenseInput) {
         });
 
         if (!decision.ok) throw unprocessable(decision.code, decision.message, decision.snapshot);
+
+        if (!input.confirmDuplicate) {
+          const twin = await tx.dispensation.findFirst({
+            where: {
+              memberId: member.id,
+              batchId: batch.id,
+              grams: new Prisma.Decimal(input.grams.toFixed(2)),
+              voidedAt: null,
+              occurredAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
+            },
+            select: { id: true, occurredAt: true },
+          });
+          if (twin)
+            throw conflict(
+              "DUPLICATE_SUSPECTED",
+              `Hace menos de un minuto se registró la misma entrega (${input.grams} g del lote ${batch.code}). Si es otra entrega, confirmala de nuevo.`,
+              { dispensationId: twin.id },
+            );
+        }
 
         const available = await batchBalance(tx, batch.id);
         if (available + 1e-9 < input.grams)
@@ -147,6 +171,10 @@ export async function dispense(input: DispenseInput) {
           },
         });
 
+        // Lote vacío: deja de ofrecerse en el mostrador sin que nadie tenga que acordarse.
+        const after = Math.round((available - input.grams) * 100) / 100;
+        if (after <= 0) await tx.batch.update({ where: { id: batch.id }, data: { stage: "AGOTADO" } });
+
         // La reserva se cierra SÓLO si el mostrador vino con ese contexto (pickupId).
         // Antes se tomaba la más antigua del socio: una entrega de 5 g podía cerrar una reserva
         // de 20 g o una de otro día (R01 del REA de operación).
@@ -187,7 +215,8 @@ export async function dispense(input: DispenseInput) {
         return {
           dispensation,
           decision,
-          availableAfter: Math.round((available - input.grams) * 100) / 100,
+          availableAfter: after,
+          batchExhausted: after <= 0,
           pickupFulfilled: pickup?.id ?? null,
           replay: false as const,
         };
@@ -206,6 +235,9 @@ export async function dispense(input: DispenseInput) {
         continue;
       }
     }
+    // Sin clave de intento: dos entregas simultáneas chocan y Postgres aborta una (P2034).
+    if (code === "P2034")
+      throw conflict("CONCURRENT_UPDATE", "Otra entrega se registró al mismo tiempo. Revisá el saldo y volvé a confirmar.");
     throw error;
   }
   }
@@ -242,6 +274,11 @@ export async function voidDispensation(input: {
       where: { id: dispensation.id },
       data: { voidedAt: new Date(), voidedById: input.actorId, voidReason: input.reason },
     });
+
+    // El contra-asiento devuelve gramos: un lote que se había agotado vuelve a estar disponible.
+    const batch = await tx.batch.findUnique({ where: { id: dispensation.batchId }, select: { stage: true } });
+    if (batch?.stage === "AGOTADO" && (await batchBalance(tx, dispensation.batchId)) > 0)
+      await tx.batch.update({ where: { id: dispensation.batchId }, data: { stage: "DISPONIBLE" } });
 
     await tx.auditLog.create({
       data: {

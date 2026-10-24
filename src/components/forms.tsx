@@ -2,339 +2,400 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
+import { api, errMsg } from "@/lib/client";
+import { useToast } from "./toast";
+import { ReasonDialog } from "./dialog";
+import { ORIGIN, REPROCANN_STATUS, STAGE } from "@/lib/labels";
 
-async function post(url: string, body: unknown) {
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message ?? `Error ${res.status}`);
-  return data;
-}
-
-async function patch(url: string, body: unknown) {
-  const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message ?? `Error ${res.status}`);
-  return data;
-}
-
-function Msg({ error, ok }: { error: string | null; ok: string | null }) {
-  if (!error && !ok) return null;
-  return (
-    <p role={error ? "alert" : "status"} className={`alert mt-2 ${error ? "alert-danger" : "alert-ok"}`}>
-      {error ?? ok}
-    </p>
-  );
-}
-
-export function LogoutButton() {
-  const router = useRouter();
-  return (
-    <button
-      className="btn btn-ghost"
-      onClick={async () => {
-        await fetch("/api/auth/logout", { method: "POST" });
-        router.push("/login");
-        router.refresh();
-      }}
-    >
-      Salir
-    </button>
-  );
-}
+const num = (v: FormDataEntryValue | null) => {
+  const s = String(v ?? "").trim().replace(",", ".");
+  return s === "" ? undefined : Number(s);
+};
+const str = (v: FormDataEntryValue | null) => {
+  const s = String(v ?? "").trim();
+  return s === "" ? undefined : s;
+};
+const today = () => new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
 
 export function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [show, setShow] = useState(false);
   return (
     <form
-      className="card card-pad space-y-3 w-full" style={{ maxWidth: 400 }}
+      className="stack"
+      style={{ gap: 14 }}
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         setBusy(true);
         setError(null);
         try {
-          const data = await post("/api/auth/login", { email: f.get("email"), password: f.get("password") });
+          const data = await api<{ user: { role: string } }>("/api/auth/login", { body: { email: f.get("email"), password: f.get("password") } });
           router.push(data.user?.role === "SOCIO" ? "/portal" : "/");
           router.refresh();
         } catch (err) {
-          setError((err as Error).message);
-        } finally {
+          setError(errMsg(err));
           setBusy(false);
         }
       }}
     >
       <div>
-        <h1 className="text-[17px] font-semibold">Ingreso al club</h1>
-        <p className="cell-meta mt-1">Usá la cuenta que te dio la coordinación del club.</p>
-      </div>
-      <div>
         <label className="label" htmlFor="email">Email</label>
-        <input className="input" id="email" name="email" type="email" autoComplete="username" required />
+        <input className="input" id="email" name="email" type="email" autoComplete="username" required autoFocus />
       </div>
       <div>
         <label className="label" htmlFor="password">Contraseña</label>
-        <input className="input" id="password" name="password" autoComplete="current-password" type="password" required />
+        <div style={{ position: "relative" }}>
+          <input className="input" id="password" name="password" autoComplete="current-password" type={show ? "text" : "password"} required style={{ paddingRight: 44 }} />
+          <button type="button" className="icon-btn" onClick={() => setShow((s) => !s)} aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"} style={{ position: "absolute", right: 3, top: 3 }}>
+            {show ? <EyeOff /> : <Eye />}
+          </button>
+        </div>
       </div>
-      <button className="btn w-full justify-center" disabled={busy}>{busy ? "Ingresando…" : "Ingresar"}</button>
-      <Msg error={error} ok={null} />
+      {error ? <div className="note note-danger" role="alert">{error}</div> : null}
+      <button className="btn btn-lg btn-block" disabled={busy}><LogIn aria-hidden />{busy ? "Ingresando…" : "Ingresar"}</button>
+      <p className="hint" style={{ margin: 0 }}>¿Sos socio y no tenés acceso? Pedilo en la secretaría del club.</p>
     </form>
   );
 }
 
+/** Alta de socio en tres bloques: identidad, REPROCANN, consumo y consentimiento. */
 export function MemberForm() {
   const router = useRouter();
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [consent, setConsent] = useState("");
   return (
     <form
-      className="grid grid-cols-1 md:grid-cols-2 gap-3"
+      className="stack"
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         setError(null);
-        setOk(null);
+        setBusy(true);
         try {
-          const res = await post("/api/members", {
-            firstName: f.get("firstName"),
-            lastName: f.get("lastName"),
-            docNumber: f.get("docNumber"),
-            birthDate: f.get("birthDate"),
-            phone: f.get("phone") || undefined,
-            address: f.get("address") || undefined,
-            reprocannNumber: f.get("reprocannNumber") || undefined,
-            reprocannStatus: f.get("reprocannStatus"),
-            reprocannExpiresAt: f.get("reprocannExpiresAt") || undefined,
-            consumptionType: f.get("consumptionType"),
-            monthlyForecastG: f.get("monthlyForecastG") ? Number(f.get("monthlyForecastG")) : undefined,
-            consentSignedAt: f.get("consentSignedAt") || undefined,
-            status: f.get("status"),
+          const res = await api<{ member: { id: string; legajo: number; lastName: string } }>("/api/members", {
+            body: {
+              firstName: f.get("firstName"),
+              lastName: f.get("lastName"),
+              docNumber: f.get("docNumber"),
+              birthDate: f.get("birthDate"),
+              phone: str(f.get("phone")),
+              email: str(f.get("email")),
+              address: str(f.get("address")),
+              reprocannNumber: str(f.get("reprocannNumber")),
+              reprocannStatus: f.get("reprocannStatus"),
+              reprocannExpiresAt: str(f.get("reprocannExpiresAt")),
+              consumptionType: f.get("consumptionType"),
+              monthlyForecastG: num(f.get("monthlyForecastG")),
+              consentSignedAt: str(f.get("consentSignedAt")),
+              notes: str(f.get("notes")),
+              status: f.get("activate") === "on" ? "ACTIVO" : "PENDIENTE",
+            },
           });
-          setOk(`Socio ${res.member.legajo} creado.`);
+          toast({ tone: "ok", title: `Legajo ${res.member.legajo} creado`, text: `${res.member.lastName} ya está en el padrón.` });
+          router.push(`/socios/${res.member.id}`);
           router.refresh();
         } catch (err) {
-          setError((err as Error).message);
+          setError(errMsg(err));
+          setBusy(false);
         }
       }}
     >
-      <div><label className="label">Nombre</label><input className="input" name="firstName" required /></div>
-      <div><label className="label">Apellido</label><input className="input" name="lastName" required /></div>
-      <div><label className="label">Documento</label><input className="input" name="docNumber" required /></div>
-      <div><label className="label">Nacimiento</label><input className="input" name="birthDate" type="date" required /></div>
-      <div><label className="label">Teléfono</label><input className="input" name="phone" /></div>
-      <div><label className="label">Domicilio</label><input className="input" name="address" /></div>
-      <div><label className="label">N° REPROCANN</label><input className="input" name="reprocannNumber" /></div>
-      <div>
-        <label className="label">Estado REPROCANN</label>
-        <select className="select" name="reprocannStatus" defaultValue="EN_TRAMITE">
-          {["NO_APORTA", "EN_TRAMITE", "VIGENTE", "VENCIDO", "RECHAZADO"].map((s) => <option key={s}>{s}</option>)}
-        </select>
-      </div>
-      <div><label className="label">Vence REPROCANN</label><input className="input" name="reprocannExpiresAt" type="date" /></div>
-      <div>
-        <label className="label">Tipo de consumo</label>
-        <select className="select" name="consumptionType"><option>LUDICO</option><option>TERAPEUTICO</option></select>
-      </div>
-      <div><label className="label">Previsión g/mes</label><input className="input" name="monthlyForecastG" type="number" step="0.01" min="0" /></div>
-      <div><label className="label">Consentimiento firmado</label><input className="input" name="consentSignedAt" type="date" /></div>
-      <div>
-        <label className="label">Estado del socio</label>
-        <select className="select" name="status" defaultValue="ACTIVO">
-          {["PENDIENTE", "ACTIVO", "SUSPENDIDO", "BAJA"].map((s) => <option key={s}>{s}</option>)}
-        </select>
-      </div>
-      <div className="md:col-span-2 flex items-center gap-3">
-        <button className="btn">Guardar socio</button>
-        <span className="cell-meta">El legajo se asigna solo.</span>
-        <Msg error={error} ok={ok} />
+      <fieldset className="panel" disabled={busy}>
+        <div className="panel-head"><div><h2 className="panel-title">Identidad</h2><p className="panel-sub">Como figura en el DNI. El legajo se asigna solo.</p></div></div>
+        <div className="panel-body field-row">
+          <div><label className="label" htmlFor="lastName">Apellido</label><input className="input" id="lastName" name="lastName" required autoComplete="off" /></div>
+          <div><label className="label" htmlFor="firstName">Nombre</label><input className="input" id="firstName" name="firstName" required autoComplete="off" /></div>
+          <div><label className="label" htmlFor="docNumber">DNI</label><input className="input tnum" id="docNumber" name="docNumber" inputMode="numeric" required placeholder="30111222" /></div>
+          <div><label className="label" htmlFor="birthDate">Nacimiento</label><input className="input" id="birthDate" name="birthDate" type="date" max={today()} required /></div>
+          <div><label className="label" htmlFor="phone">Teléfono</label><input className="input" id="phone" name="phone" type="tel" autoComplete="off" /></div>
+          <div><label className="label" htmlFor="email">Email</label><input className="input" id="email" name="email" type="email" autoComplete="off" /><span className="hint">Lo necesita para entrar al portal.</span></div>
+          <div style={{ gridColumn: "1 / -1" }}><label className="label" htmlFor="address">Domicilio</label><input className="input" id="address" name="address" autoComplete="off" /></div>
+        </div>
+      </fieldset>
+
+      <fieldset className="panel" disabled={busy}>
+        <div className="panel-head"><div><h2 className="panel-title">REPROCANN</h2><p className="panel-sub">Sin REPROCANN vigente el dispensario no entrega, aunque el socio esté activo.</p></div></div>
+        <div className="panel-body field-row">
+          <div><label className="label" htmlFor="reprocannNumber">Número</label><input className="input" id="reprocannNumber" name="reprocannNumber" autoComplete="off" /></div>
+          <div>
+            <label className="label" htmlFor="reprocannStatus">Estado</label>
+            <select className="select" id="reprocannStatus" name="reprocannStatus" defaultValue="EN_TRAMITE">
+              {Object.entries(REPROCANN_STATUS).map(([v, s]) => <option key={v} value={v}>{s.label.replace("REPROCANN ", "")}</option>)}
+            </select>
+          </div>
+          <div><label className="label" htmlFor="reprocannExpiresAt">Vence</label><input className="input" id="reprocannExpiresAt" name="reprocannExpiresAt" type="date" /></div>
+        </div>
+      </fieldset>
+
+      <fieldset className="panel" disabled={busy}>
+        <div className="panel-head"><div><h2 className="panel-title">Consumo y consentimiento</h2><p className="panel-sub">La previsión ayuda a planificar el cultivo; no cambia los topes.</p></div></div>
+        <div className="panel-body field-row">
+          <div>
+            <label className="label" htmlFor="consumptionType">Tipo de consumo</label>
+            <select className="select" id="consumptionType" name="consumptionType" defaultValue="TERAPEUTICO">
+              <option value="TERAPEUTICO">Terapéutico</option>
+              <option value="LUDICO">Lúdico</option>
+            </select>
+          </div>
+          <div><label className="label" htmlFor="monthlyForecastG">Previsión mensual (g)</label><input className="input tnum" id="monthlyForecastG" name="monthlyForecastG" inputMode="decimal" /></div>
+          <div>
+            <label className="label" htmlFor="consentSignedAt">Consentimiento firmado el</label>
+            <input className="input" id="consentSignedAt" name="consentSignedAt" type="date" max={today()} value={consent} onChange={(e) => setConsent(e.target.value)} />
+          </div>
+          <div style={{ gridColumn: "1 / -1" }}><label className="label" htmlFor="notes">Notas internas</label><textarea className="textarea" id="notes" name="notes" /></div>
+          <label className="check" style={{ gridColumn: "1 / -1" }}>
+            <input type="checkbox" name="activate" disabled={!consent} />
+            <span>
+              Dar de alta como activo ahora
+              <span className="hint">{consent ? "Si no lo marcás, queda pendiente de alta." : "Necesita la fecha del consentimiento firmado."}</span>
+            </span>
+          </label>
+        </div>
+      </fieldset>
+
+      {error ? <div className="note note-danger" role="alert">{error}</div> : null}
+      <div className="flex flex-wrap items-center gap-3">
+        <button className="btn btn-lg" disabled={busy}>{busy ? "Guardando…" : "Crear legajo"}</button>
+        <span className="hint" style={{ margin: 0 }}>El alta queda en la auditoría con tu nombre.</span>
       </div>
     </form>
   );
 }
 
-export function MemberActions({ id, status }: { id: string; status: string }) {
+const NEW_STAGES = ["PROPAGACION", "VEGETATIVO", "FLORACION", "COSECHA", "CURADO", "DISPONIBLE"];
+
+export function BatchForm({ strains, onDone }: { strains: { id: string; name: string }[]; onDone?: () => void }) {
   const router = useRouter();
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
-  const next = status === "ACTIVO" ? "SUSPENDIDO" : "ACTIVO";
+  const [stage, setStage] = useState("PROPAGACION");
+  const [busy, setBusy] = useState(false);
   return (
-    <div className="flex items-center gap-2">
-      <button
-        className="btn btn-ghost"
-        onClick={async () => {
-          try {
-            await patch(`/api/members/${id}`, { status: next, statusReason: "Cambio manual desde panel" });
-            router.refresh();
-          } catch (err) {
-            setError((err as Error).message);
-          }
-        }}
-      >
-        Pasar a {next}
-      </button>
-      <Msg error={error} ok={null} />
-    </div>
+    <form
+      className="stack"
+      style={{ gap: 14 }}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const f = new FormData(form);
+        setError(null);
+        setBusy(true);
+        try {
+          const res = await api<{ batch: { code: string } }>("/api/batches", {
+            body: {
+              code: f.get("code"),
+              strainId: f.get("strainId"),
+              originType: f.get("originType"),
+              originProviderName: str(f.get("originProviderName")),
+              plantsCount: num(f.get("plantsCount")),
+              room: str(f.get("room")),
+              stage,
+              plantedAt: str(f.get("plantedAt")),
+              thcPct: num(f.get("thcPct")),
+              cbdPct: num(f.get("cbdPct")),
+              dryWeightG: stage === "DISPONIBLE" ? num(f.get("dryWeightG")) : undefined,
+            },
+          });
+          toast({ tone: "ok", title: `Lote ${res.batch.code} creado` });
+          form.reset();
+          setStage("PROPAGACION");
+          onDone?.();
+          router.refresh();
+        } catch (err) {
+          setError(errMsg(err));
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <fieldset disabled={busy} className="field-row">
+        <div><label className="label" htmlFor="b-code">Código</label><input className="input" id="b-code" name="code" placeholder="L-2026-004" required /></div>
+        <div>
+          <label className="label" htmlFor="b-strain">Cepa</label>
+          <select className="select" id="b-strain" name="strainId" required>
+            {strains.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="b-origin">Origen del material</label>
+          <select className="select" id="b-origin" name="originType" defaultValue="ESQUEJE">
+            {Object.entries(ORIGIN).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+        <div><label className="label" htmlFor="b-prov">Proveedor u origen</label><input className="input" id="b-prov" name="originProviderName" /></div>
+        <div><label className="label" htmlFor="b-plants">Plantas</label><input className="input tnum" id="b-plants" name="plantsCount" inputMode="numeric" /></div>
+        <div><label className="label" htmlFor="b-room">Sala</label><input className="input" id="b-room" name="room" /></div>
+        <div><label className="label" htmlFor="b-planted">Siembra</label><input className="input" id="b-planted" name="plantedAt" type="date" /></div>
+        <div><label className="label" htmlFor="b-thc">THC %</label><input className="input tnum" id="b-thc" name="thcPct" inputMode="decimal" /></div>
+        <div><label className="label" htmlFor="b-cbd">CBD %</label><input className="input tnum" id="b-cbd" name="cbdPct" inputMode="decimal" /></div>
+        <div>
+          <label className="label" htmlFor="b-stage">Etapa actual</label>
+          <select className="select" id="b-stage" value={stage} onChange={(e) => setStage(e.target.value)}>
+            {NEW_STAGES.map((s) => <option key={s} value={s}>{STAGE[s]?.label ?? s}</option>)}
+          </select>
+        </div>
+        {stage === "DISPONIBLE" ? (
+          <div><label className="label" htmlFor="b-dry">Peso seco (g)</label><input className="input tnum" id="b-dry" name="dryWeightG" inputMode="decimal" required /><span className="hint">Acredita stock al crear el lote.</span></div>
+        ) : null}
+      </fieldset>
+      {error ? <div className="note note-danger" role="alert">{error}</div> : null}
+      <div><button className="btn" disabled={busy}>{busy ? "Creando…" : "Crear lote"}</button></div>
+    </form>
   );
 }
 
-export function BatchForm({ strains }: { strains: { id: string; name: string }[] }) {
+export function HarvestForm({ batch, onDone }: { batch: { id: string; code: string; stage: string; wetWeightG: number | null }; onDone?: () => void }) {
   const router = useRouter();
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const dryStep = batch.wetWeightG != null;
   return (
     <form
-      className="grid grid-cols-1 md:grid-cols-3 gap-3"
+      className="stack"
+      style={{ gap: 12 }}
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        setError(null); setOk(null);
+        setError(null);
+        setBusy(true);
         try {
-          await post("/api/batches", {
-            code: f.get("code"),
-            strainId: f.get("strainId"),
-            originType: f.get("originType"),
-            originProviderName: f.get("originProviderName") || undefined,
-            plantsCount: f.get("plantsCount") ? Number(f.get("plantsCount")) : undefined,
-            room: f.get("room") || undefined,
-            stage: f.get("stage"),
-            thcPct: f.get("thcPct") ? Number(f.get("thcPct")) : undefined,
-            cbdPct: f.get("cbdPct") ? Number(f.get("cbdPct")) : undefined,
-            dryWeightG: f.get("dryWeightG") ? Number(f.get("dryWeightG")) : undefined,
+          await api(`/api/batches/${batch.id}/harvest`, {
+            body: dryStep
+              ? { dryWeightG: num(f.get("grams")), thcPct: num(f.get("thcPct")), cbdPct: num(f.get("cbdPct")) }
+              : { wetWeightG: num(f.get("grams")), harvestedAt: str(f.get("harvestedAt")) },
           });
-          setOk("Lote creado.");
+          toast({ tone: "ok", title: dryStep ? `Peso seco registrado: ${batch.code} disponible` : `Cosecha de ${batch.code} registrada` });
+          onDone?.();
           router.refresh();
-        } catch (err) { setError((err as Error).message); }
+        } catch (err) {
+          setError(errMsg(err));
+        } finally {
+          setBusy(false);
+        }
       }}
     >
-      <div><label className="label">Código de lote</label><input className="input" name="code" placeholder="L-2026-004" required /></div>
-      <div>
-        <label className="label">Cepa</label>
-        <select className="select" name="strainId" required>
-          {strains.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="label">Origen del material</label>
-        <select className="select" name="originType"><option>ESQUEJE</option><option>SEMILLA</option><option>COSECHA_PROPIA</option><option>PROVEEDOR_EXTERNO</option></select>
-      </div>
-      <div><label className="label">Proveedor / origen</label><input className="input" name="originProviderName" /></div>
-      <div><label className="label">Plantas</label><input className="input" name="plantsCount" type="number" min="0" /></div>
-      <div><label className="label">Sala</label><input className="input" name="room" /></div>
-      <div><label className="label">THC %</label><input className="input" name="thcPct" type="number" step="0.01" /></div>
-      <div><label className="label">CBD %</label><input className="input" name="cbdPct" type="number" step="0.01" /></div>
-      <div><label className="label">Peso seco (g) — solo si ya está cosechado</label><input className="input" name="dryWeightG" type="number" step="0.01" /></div>
-      <div>
-        <label className="label">Etapa</label>
-        <select className="select" name="stage" defaultValue="PROPAGACION">
-          {["PROPAGACION","VEGETATIVO","FLORACION","COSECHA","CURADO","DISPONIBLE"].map((s) => <option key={s}>{s}</option>)}
-        </select>
-      </div>
-      <div className="md:col-span-3 flex items-center gap-3"><button className="btn">Crear lote</button><Msg error={error} ok={ok} /></div>
+      <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+        {dryStep
+          ? `Húmedo cargado: ${batch.wetWeightG} g. El peso seco acredita el stock y deja el lote disponible para entregar.`
+          : "Primero el peso húmedo, al cortar. El seco se carga al terminar el secado."}
+      </p>
+      <fieldset disabled={busy} className="field-row">
+        <div>
+          <label className="label" htmlFor="h-g">{dryStep ? "Peso seco (g)" : "Peso húmedo (g)"}</label>
+          <input className="input tnum" id="h-g" name="grams" inputMode="decimal" required autoFocus />
+        </div>
+        {dryStep ? (
+          <>
+            <div><label className="label" htmlFor="h-thc">THC % medido</label><input className="input tnum" id="h-thc" name="thcPct" inputMode="decimal" /></div>
+            <div><label className="label" htmlFor="h-cbd">CBD % medido</label><input className="input tnum" id="h-cbd" name="cbdPct" inputMode="decimal" /></div>
+          </>
+        ) : (
+          <div><label className="label" htmlFor="h-date">Fecha de corte</label><input className="input" id="h-date" name="harvestedAt" type="date" defaultValue={today()} /></div>
+        )}
+      </fieldset>
+      {error ? <div className="note note-danger" role="alert">{error}</div> : null}
+      <div><button className="btn" disabled={busy}>{busy ? "Registrando…" : dryStep ? "Registrar peso seco" : "Registrar cosecha"}</button></div>
     </form>
   );
 }
 
-export function HarvestForm({ batches }: { batches: { id: string; code: string; wetWeightG?: number | null }[] }) {
+export function MovementForm({ batches, batchId, onDone }: { batches?: { id: string; code: string }[]; batchId?: string; onDone?: () => void }) {
   const router = useRouter();
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   return (
     <form
-      className="grid grid-cols-1 md:grid-cols-4 gap-3"
+      className="stack"
+      style={{ gap: 12 }}
       onSubmit={async (e) => {
         e.preventDefault();
-        const f = new FormData(e.currentTarget);
-        setError(null); setOk(null);
+        const form = e.currentTarget;
+        const f = new FormData(form);
+        setError(null);
+        setBusy(true);
         try {
-          await post(`/api/batches/${f.get("batchId")}/harvest`, {
-            wetWeightG: f.get("wetWeightG") ? Number(f.get("wetWeightG")) : undefined,
-            dryWeightG: f.get("dryWeightG") ? Number(f.get("dryWeightG")) : undefined,
-          });
-          setOk("Cosecha registrada.");
+          await api("/api/movements", { body: { batchId: batchId ?? f.get("batchId"), type: f.get("type"), grams: num(f.get("grams")), reason: f.get("reason") } });
+          toast({ tone: "ok", title: "Movimiento registrado en el libro" });
+          form.reset();
+          onDone?.();
           router.refresh();
-        } catch (err) { setError((err as Error).message); }
+        } catch (err) {
+          setError(errMsg(err));
+        } finally {
+          setBusy(false);
+        }
       }}
     >
-      <div>
-        <label className="label">Lote</label>
-        <select className="select" name="batchId" required>
-          {batches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.code}{b.wetWeightG ? ` · húmedo ${b.wetWeightG} g cargado` : ""}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div><label className="label">Peso húmedo (g)</label><input className="input" name="wetWeightG" type="number" step="0.01" /></div>
-      <div><label className="label">Peso seco (g) → acredita stock</label><input className="input" name="dryWeightG" type="number" step="0.01" /></div>
-      <div className="flex items-end"><button className="btn">Registrar</button></div>
-      <div className="md:col-span-4"><Msg error={error} ok={ok} /></div>
+      <fieldset disabled={busy} className="field-row">
+        {!batchId && batches ? (
+          <div>
+            <label className="label" htmlFor="mv-batch">Lote</label>
+            <select className="select" id="mv-batch" name="batchId" required>{batches.map((b) => <option key={b.id} value={b.id}>{b.code}</option>)}</select>
+          </div>
+        ) : null}
+        <div>
+          <label className="label" htmlFor="mv-type">Tipo</label>
+          <select className="select" id="mv-type" name="type">
+            <option value="AJUSTE_NEGATIVO">Ajuste negativo: faltante</option>
+            <option value="AJUSTE_POSITIVO">Ajuste positivo: sobrante</option>
+            <option value="DESTRUCCION">Destrucción documentada</option>
+            <option value="TRANSFERENCIA">Transferencia fuera del club</option>
+          </select>
+        </div>
+        <div><label className="label" htmlFor="mv-g">Gramos</label><input className="input tnum" id="mv-g" name="grams" inputMode="decimal" required /></div>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label className="label" htmlFor="mv-reason">Motivo</label>
+          <input className="input" id="mv-reason" name="reason" required minLength={3} placeholder="Ej.: pesaje de control semanal" />
+        </div>
+      </fieldset>
+      {error ? <div className="note note-danger" role="alert">{error}</div> : null}
+      <div><button className="btn" disabled={busy}>{busy ? "Registrando…" : "Registrar movimiento"}</button></div>
     </form>
   );
 }
 
-export function MovementForm({ batches }: { batches: { id: string; code: string }[] }) {
+export function VoidButton({ id, label }: { id: string; label?: string }) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
-  return (
-    <form
-      className="grid grid-cols-1 md:grid-cols-4 gap-3"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
-        setError(null); setOk(null);
-        try {
-          await post("/api/movements", {
-            batchId: f.get("batchId"),
-            type: f.get("type"),
-            grams: Number(f.get("grams")),
-            reason: f.get("reason"),
-          });
-          setOk("Movimiento registrado.");
-          router.refresh();
-        } catch (err) { setError((err as Error).message); }
-      }}
-    >
-      <div>
-        <label className="label">Lote</label>
-        <select className="select" name="batchId" required>{batches.map((b) => <option key={b.id} value={b.id}>{b.code}</option>)}</select>
-      </div>
-      <div>
-        <label className="label">Tipo</label>
-        <select className="select" name="type">
-          <option value="AJUSTE_POSITIVO">Ajuste positivo (aparece mercadería)</option>
-          <option value="AJUSTE_NEGATIVO">Ajuste negativo (faltante)</option>
-          <option value="DESTRUCCION">Destrucción (descarte documentado)</option>
-          <option value="TRANSFERENCIA">Transferencia (sale del club)</option>
-        </select>
-      </div>
-      <div><label className="label">Gramos</label><input className="input" name="grams" type="number" step="0.01" required /></div>
-      <div><label className="label">Motivo</label><input className="input" name="reason" required /></div>
-      <div className="md:col-span-4 flex items-center gap-3"><button className="btn">Registrar movimiento</button><Msg error={error} ok={ok} /></div>
-    </form>
-  );
-}
-
-export function VoidButton({ id }: { id: string }) {
-  const router = useRouter();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
     <>
-      <button
-        className="btn btn-ghost"
-        onClick={async () => {
-          const reason = window.prompt("Motivo de anulación (queda en el libro)");
-          if (!reason) return;
+      <button className="btn btn-sm btn-ghost" onClick={() => { setError(null); setOpen(true); }}>Anular</button>
+      <ReasonDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Anular la entrega"
+        description={<>Se registra un contra-asiento que devuelve los gramos al lote{label ? ` (${label})` : ""}. La entrega original queda en el libro, tachada.</>}
+        confirmLabel="Anular entrega"
+        reasonLabel="Motivo de la anulación"
+        danger
+        busy={busy}
+        error={error}
+        onConfirm={async (reason) => {
+          setBusy(true);
+          setError(null);
           try {
-            await post(`/api/dispensations/${id}/void`, { reason });
+            await api(`/api/dispensations/${id}/void`, { body: { reason } });
+            toast({ tone: "ok", title: "Entrega anulada", text: "El contra-asiento quedó en el libro." });
+            setOpen(false);
             router.refresh();
-          } catch (err) { setError((err as Error).message); }
+          } catch (err) {
+            setError(errMsg(err));
+          } finally {
+            setBusy(false);
+          }
         }}
-      >
-        Anular
-      </button>
-      <Msg error={error} ok={null} />
+      />
     </>
   );
 }

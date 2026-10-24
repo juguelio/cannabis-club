@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import { AppError } from "./errors";
+
+// Mensajes de validación en castellano para todas las rutas.
+z.config(z.locales.es());
+
+const FIELD: Record<string, string> = {
+  firstName: "Nombre", lastName: "Apellido", docNumber: "Documento", birthDate: "Nacimiento", email: "Email",
+  grams: "Gramos", reason: "Motivo", code: "Código", password: "Contraseña", name: "Nombre",
+  reprocannExpiresAt: "Vencimiento REPROCANN", consentSignedAt: "Consentimiento", dryWeightG: "Peso seco",
+  wetWeightG: "Peso húmedo", limiteDiarioG: "Tope diario", limiteMensualG: "Tope mensual", limiteMenorG: "Tope para menores",
+};
 
 export const json = (data: unknown, status = 200) => NextResponse.json(data, { status });
 
@@ -14,7 +24,15 @@ export function fail(error: unknown) {
   }
   if (error instanceof ZodError) {
     return NextResponse.json(
-      { error: "VALIDATION", message: "Datos inválidos", details: error.issues },
+      {
+        error: "VALIDATION",
+        message: (() => {
+          const issue = error.issues[0];
+          const key = String(issue?.path?.[0] ?? "");
+          return issue ? `${FIELD[key] ? `${FIELD[key]}: ` : ""}${issue.message}` : "Datos inválidos";
+        })(),
+        details: error.issues,
+      },
       { status: 400 },
     );
   }

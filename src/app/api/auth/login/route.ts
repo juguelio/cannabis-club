@@ -8,7 +8,7 @@ const Body = z.object({ email: z.string().email(), password: z.string().min(6) }
 export async function POST(req: Request) {
   try {
     const body = Body.parse(await req.json());
-    const user = await authenticate(body.email, body.password);
+    const user = await authenticate(body.email, body.password, clientIp(req));
     await startSession(user);
     await audit({ actorId: user.id, action: "LOGIN", entity: "User", entityId: user.id, ip: clientIp(req) });
     return json({ user });

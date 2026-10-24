@@ -1,3 +1,4 @@
+import { calendarDate, gramsAmount } from "@/lib/validation";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -6,11 +7,11 @@ import { clientIp, fail, json } from "@/lib/http";
 import { conflict, notFound } from "@/lib/errors";
 
 const Body = z.object({
-  wetWeightG: z.number().positive().optional(),
-  dryWeightG: z.number().positive().optional(),
+  wetWeightG: gramsAmount.optional(),
+  dryWeightG: gramsAmount.optional(),
   thcPct: z.number().min(0).max(100).optional(),
   cbdPct: z.number().min(0).max(100).optional(),
-  harvestedAt: z.string().optional(),
+  harvestedAt: calendarDate.optional(),
 });
 
 /**
@@ -36,6 +37,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const batch = await tx.batch.findUnique({ where: { id } });
       if (!batch) throw notFound("Lote inexistente");
       if (batch.dryWeightG) throw conflict("ALREADY_HARVESTED", "El lote ya tiene peso seco registrado.");
+      if (["AGOTADO", "DESTRUIDO"].includes(batch.stage)) throw conflict("BATCH_CLOSED", "El lote está cerrado.");
+      if (!body.wetWeightG && !body.dryWeightG) throw conflict("NOTHING_TO_RECORD", "Indicá el peso húmedo o el seco.");
+      const wet = body.wetWeightG ?? (batch.wetWeightG == null ? null : Number(batch.wetWeightG));
+      if (body.dryWeightG && wet != null && body.dryWeightG > wet)
+        throw conflict("DRY_OVER_WET", `El peso seco (${body.dryWeightG} g) no puede superar al húmedo (${wet} g).`);
       const b = await tx.batch.update({ where: { id }, data });
       if (body.dryWeightG) {
         await tx.stockMovement.create({

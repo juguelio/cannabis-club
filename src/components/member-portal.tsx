@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { REPROCANN_STATUS, MEMBER_STATUS } from "@/lib/labels";
+import { useEffect, useState } from "react";
+import { CalendarCheck2, CircleAlert, QrCode } from "lucide-react";
+import { api, errMsg } from "@/lib/client";
+import { ReasonDialog } from "./dialog";
+import { useToast } from "./toast";
+
 type Overview = {
   member: {
     legajo: number;
@@ -15,7 +18,7 @@ type Overview = {
     reprocannOk: boolean;
     reprocannDays: number | null;
   };
-  club: { nombre: string; aportePorGramo: number | null; timezone?: string };
+  club: { nombre: string; aportePorGramo: number | null };
   limits: { monthLimitG: number; dayLimitG: number; isMinor: boolean; thcMaxPct: number | null };
   usage: { dayGrams: number; monthGrams: number };
   pendingGrams: number;
@@ -25,155 +28,327 @@ type Overview = {
   tope: number;
   topeMotivo: "mes" | "dia" | "stock";
   aporteEstimadoTope: number | null;
-  pickups: {
-    id: string;
-    grams: number;
-    status: string;
-    createdAt: string;
-    pickupLabel: string | null;
-    pickupAt?: string | null;
-    aporteEstimado: number | null;
-    cancelReason: string | null;
-  }[];
+  pickups: { id: string; grams: number; status: string; createdAt: string; pickupLabel: string | null; aporteEstimado: number | null; cancelReason: string | null }[];
 };
 
 type Slot = { startMin: number; label: string; free: number; past: boolean; full: boolean };
 type Day = { key: string; weekday: number };
+
+const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
+const g = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")} g`;
+const WD = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+const WDL = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const dayParts = (key: string) => {
+  const [y, m, d] = key.split("-").map(Number);
+  const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return { wd: WD[wd], long: `${WDL[wd]} ${d}/${m}`, d };
+};
+const PICKUP_LABEL: Record<string, { label: string; tone: string }> = {
+  SOLICITADA: { label: "Reservado", tone: "brand" },
+  CONFIRMADA: { label: "Confirmado por el club", tone: "ok" },
+  RETIRADA: { label: "Retirado", tone: "mute" },
+  VENCIDA: { label: "Venció sin retirar", tone: "warn" },
+  CANCELADA: { label: "Cancelado", tone: "mute" },
+};
+
 export type MemberHistory = { id: string; at: string; grams: number; strain: string; batch: string; voided: boolean }[];
-const gramsLabel = (n: number) => `${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(n)} g`;
-const money = (n: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(n);
-const dateLabel = (value: string) => new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(value));
-const dayLabel = (value: string) => new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${value}T12:00:00Z`));
-const pickupLabel: Record<string, string> = { SOLICITADA: "Pendiente de confirmación", CONFIRMADA: "Confirmado por el club", RETIRADA: "Retirado", VENCIDA: "Solicitud vencida", CANCELADA: "Cancelado" };
-const isOpen = (status: string) => ["SOLICITADA", "CONFIRMADA"].includes(status);
+const fmtDay = (iso: string) =>
+  new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
+const fmtDate = (iso: string | null) =>
+  iso ? new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(iso)) : "—";
 
-async function request(url: string, body?: unknown) {
-  const response = await fetch(url, body === undefined ? { cache: "no-store" } : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(response.status === 401 ? "Tu sesión venció. Volvé a ingresar al portal." : result.message ?? "No pudimos conectar con el club. Volvé a intentar.");
-  return result;
-}
-
-export function MemberPortal({ initial, initialSlots, initialDay, history, consentDate }: { initial: Overview; initialSlots: Slot[]; initialDay: string; history: MemberHistory; consentDate: string | null }) {
-  const router = useRouter();
-  const [data, setData] = useState(initial);
+export function MemberPortal({
+  initial,
+  initialSlots,
+  initialDay,
+  qr,
+  history,
+  consentDate,
+}: {
+  initial: Overview;
+  initialSlots: Slot[];
+  initialDay: string;
+  qr: string;
+  history: MemberHistory;
+  consentDate: string | null;
+}) {
+  const toast = useToast();
+  const [data, setData] = useState<Overview>(initial);
   const [day, setDay] = useState(initialDay);
   const [days, setDays] = useState<Day[]>([]);
-  const [availability, setAvailability] = useState<{ day: string; slots: Slot[]; error: string | null; loading: boolean }>({ day: initialDay, slots: initialSlots, error: null, loading: true });
-  const [refresh, setRefresh] = useState(0);
-  const [amount, setAmount] = useState("");
+  const [slots, setSlots] = useState<Slot[]>(initialSlots);
+  const [grams, setGrams] = useState<string>("");
   const [slot, setSlot] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const submitting = useRef(false);
-  const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [cancelId, setCancelId] = useState<string | null>(null);
-  const [reason, setReason] = useState("");
-  const [review, setReview] = useState(false);
+  const [showCard, setShowCard] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    request(`/api/portal/slots?date=${day}`).then(result => {
-      if (!active) return;
-      setAvailability({ day, slots: result.slots, error: null, loading: false });
-      setDays(result.days);
-    }).catch(error => {
-      if (active) setAvailability({ day, slots: [], error: error.message, loading: false });
-    });
-    return () => { active = false; };
-  }, [day, refresh]);
+    let alive = true;
+    api<{ slots: Slot[]; days: Day[] }>(`/api/portal/slots?date=${day}`)
+      .then((d) => {
+        if (!alive) return;
+        setSlots(d.slots ?? []);
+        setDays(d.days ?? []);
+        setSlot(null);
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [day]);
 
-  const pending = data.pickups.filter(p => isOpen(p.status));
-  const next = [...pending].sort((a, b) => {
-    const time = (p: typeof a) => p.pickupAt ?? p.createdAt;
-    return time(a).localeCompare(time(b));
-  })[0];
-  const loadingSlots = availability.loading || availability.day !== day;
-  const slots = loadingSlots ? [] : availability.slots.filter(s => !s.past && !s.full);
-  const selected = slots.find(s => s.startMin === slot);
-  const grams = Number(amount.replace(",", "."));
-  const valid = Number.isFinite(grams) && grams > 0 && grams <= data.tope && Math.abs(grams * 100 - Math.round(grams * 100)) < 1e-6;
-  const enabled = data.member.status === "ACTIVO" && data.member.reprocannOk && data.tope > 0;
-  const estimate = data.club.aportePorGramo != null && valid ? money(data.club.aportePorGramo * grams) : "A confirmar en el club";
-  const blockedReason = data.member.status !== "ACTIVO" ? "Tu ficha necesita revisión. Consultá a la secretaría del club."
-    : !data.member.reprocannOk ? "Necesitamos revisar tu REPROCANN antes de tomar una solicitud. Consultá la sección Documentación."
-    : data.topeMotivo === "mes" ? "Tu cupo mensual está utilizado o comprometido en solicitudes pendientes."
-    : data.topeMotivo === "dia" ? "Alcanzaste la disponibilidad calculada para hoy. Consultá al club para coordinar otro día."
-    : "Por ahora no hay stock disponible para nuevas solicitudes.";
-  const pct = Math.max(0, Math.min(100, (data.usage.monthGrams + data.pendingGrams) / data.limits.monthLimitG * 100));
+  const open = data.member.reprocannOk && data.member.status === "ACTIVO" && data.tope > 0;
+  const gramsNum = Number(grams.replace(",", "."));
+  const validGrams = Number.isFinite(gramsNum) && gramsNum > 0 && gramsNum <= data.tope + 1e-9;
+  const estimated = data.club.aportePorGramo != null && validGrams ? data.club.aportePorGramo * gramsNum : null;
+  const chosen = slots.find((s) => s.startMin === slot);
+  const openPickup = data.pickups.find((p) => ["SOLICITADA", "CONFIRMADA"].includes(p.status));
 
-  function reloadSlots() {
-    setSlot(null); setReview(false);
-    setAvailability(a => ({ ...a, loading: true })); setRefresh(v => v + 1);
-  }
-  async function refreshAccount() {
-    if (submitting.current) return;
-    submitting.current = true; setBusy(true); setMessage(null);
+  async function reserve(event: React.FormEvent) {
+    event.preventDefault();
+    if (slot == null || !validGrams) return;
+    setBusy(true);
+    setError(null);
     try {
-      setData(await request("/api/portal/overview")); reloadSlots(); router.refresh();
-      setMessage({ error: false, text: "Tu información está actualizada." });
-    } catch (error) { setMessage({ error: true, text: (error as Error).message }); }
-    finally { submitting.current = false; setBusy(false); }
-  }
-  async function reserve() {
-    if (submitting.current || !enabled || !valid || !selected || loadingSlots) return;
-    submitting.current = true; setBusy(true); setMessage(null);
-    try {
-      const result = await request("/api/portal/pickups", { grams, date: day, startMin: slot });
-      setData(result.overview); setAmount(""); setReview(false); reloadSlots();
-      setMessage({ error: false, text: "Solicitud enviada. Podés seguir su confirmación en Próximo retiro." }); router.refresh();
-    } catch (error) {
-      setMessage({ error: true, text: `${(error as Error).message} Si se interrumpió la conexión, actualizá tus reservas antes de volver a enviar.` });
-    } finally { submitting.current = false; setBusy(false); }
-  }
-  async function cancel(event: React.FormEvent) {
-    event.preventDefault(); if (submitting.current || !cancelId || !reason.trim()) return;
-    submitting.current = true; setBusy(true); setMessage(null);
-    try {
-      const result = await request(`/api/portal/pickups/${cancelId}/cancel`, { reason: reason.trim() });
-      setData(result.overview); setCancelId(null); setReason(""); reloadSlots(); router.refresh();
-      setMessage({ error: false, text: "Solicitud cancelada. La disponibilidad se actualizó." });
-    } catch (error) { setMessage({ error: true, text: (error as Error).message }); }
-    finally { submitting.current = false; setBusy(false); }
+      const json = await api<{ overview: Overview }>("/api/portal/pickups", { body: { grams: gramsNum, date: day, startMin: slot } });
+      setData(json.overview);
+      setGrams("");
+      setSlot(null);
+      toast({ tone: "ok", title: "Reserva tomada", text: "El club la confirma y te espera en el horario elegido." });
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
-  return <div className="member-home">
-    <section className="member-welcome" id="inicio">
-      <div><p className="member-eyebrow">TU ESPACIO EN EL CLUB</p><h1>Hola, {data.member.firstName}<span>.</span></h1><p>Tu próximo encuentro, todo en un lugar.</p></div>
-      <a className="member-pass" href="#documentacion"><span className="member-avatar" aria-hidden="true">{data.member.firstName.slice(0, 1)}{data.member.lastName.slice(0, 1)}</span><span><small>MI LEGAJO</small><strong>#{String(data.member.legajo).padStart(4, "0")}</strong></span><span aria-hidden="true">↗</span></a>
-    </section>
-    <nav className="member-tabs" aria-label="Secciones del portal"><a href="#proximo">Próximo retiro</a><a href="#reservar">Solicitar</a><a href="#actividad">Actividad</a><a href="#documentacion">Documentación</a></nav>
-    {message && <div className={`alert ${message.error ? "alert-danger" : "alert-ok"}`} role={message.error ? "alert" : "status"}>{message.text}</div>}
-    <div className="member-overview-grid">
-      <section id="proximo" className="member-next">
-        <div className="member-eyebrow">{next ? "TU PRÓXIMO RETIRO" : "NOS VEMOS EN EL CLUB"}<span aria-hidden="true">◷</span></div>
-        <h2>{next ? next.pickupLabel ?? "Horario a coordinar" : "Tu próxima visita empieza acá"}</h2>
-        <p>{next ? `${gramsLabel(next.grams)} solicitados · ${pickupLabel[next.status]}` : "Elegí la cantidad y un horario. El equipo del club revisará tu solicitud."}</p>
-        {next ? <><div className="member-steps"><span className="done">1 · Solicitado</span><span className={next.status === "CONFIRMADA" ? "done" : ""}>2 · Confirmado</span><span>3 · Retiro</span></div><p className="member-next-note">Llevá tu documento y REPROCANN. La habilitación se vuelve a verificar al retirar.</p><a href="#actividad" className="member-light-button">Ver mis solicitudes →</a></> : <a href="#reservar" className="member-light-button">Planificar un retiro →</a>}
+  const limit = data.limits.monthLimitG;
+  const pct = (v: number) => `${Math.min(100, (v / limit) * 100)}%`;
+
+  return (
+    <>
+      <section className="allowance" aria-label="Tu saldo del mes">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div style={{ fontSize: 14, color: "#a9c0b3" }}>Hola, {data.member.firstName}. Te quedan este mes</div>
+            <div className="allowance-big" style={{ marginTop: 8 }}>{String(data.disponibleMes).replace(".", ",")}<small>g</small></div>
+          </div>
+          <button className="rail-out" onClick={() => setShowCard((s) => !s)} aria-expanded={showCard} aria-label="Mostrar mi carnet" title="Mi carnet" style={{ padding: 8 }}>
+            <QrCode size={20} />
+          </button>
+        </div>
+        <div className="gauge-track" style={{ marginTop: 18 }} aria-hidden>
+          <span className="gauge-used" style={{ width: pct(data.usage.monthGrams) }} />
+          <span className="gauge-now" style={{ left: pct(data.usage.monthGrams), width: pct(data.pendingGrams) }} />
+        </div>
+        <div className="gauge-row" style={{ marginTop: 8, marginBottom: 0 }}>
+          <span>Retiraste <b>{g(data.usage.monthGrams)}</b>{data.pendingGrams ? <>, reservaste <b>{g(data.pendingGrams)}</b></> : null}</span>
+          <span>de {g(limit)}</span>
+        </div>
+        <div className="flex flex-wrap gap-2" style={{ marginTop: 14, fontSize: 13, color: "#a9c0b3" }}>
+          <span>Legajo {data.member.legajo}</span>
+          <span>·</span>
+          <span style={{ color: data.member.reprocannOk ? "#a6e8bf" : "#ffb4a6" }}>
+            {data.member.reprocannOk
+              ? `REPROCANN vigente${data.member.reprocannDays != null ? `, vence en ${data.member.reprocannDays} días` : ""}`
+              : "REPROCANN vencido"}
+          </span>
+          {data.limits.isMinor ? <><span>·</span><span>Tope reducido por edad{data.limits.thcMaxPct != null ? `, hasta ${data.limits.thcMaxPct}% THC` : ""}</span></> : null}
+        </div>
+        {showCard ? (
+          <div className="flex items-center gap-4" style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #23453a" }}>
+            <div className="qr-box" style={{ width: 132, height: 132, flex: "none" }} dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label="Código QR de tu carnet" />
+            <div style={{ fontSize: 14 }}>
+              <div style={{ color: "#fff", fontWeight: 650, fontFamily: "var(--font-display)", fontSize: 18 }}>{data.member.lastName}, {data.member.firstName}</div>
+              <div style={{ color: "#a9c0b3" }}>Mostralo en el mostrador: abre tu legajo al instante.</div>
+            </div>
+          </div>
+        ) : null}
       </section>
-      <section className="member-card member-quota"><p className="member-eyebrow">TU MES, A SIMPLE VISTA</p><div className="member-quota-value">{gramsLabel(data.disponibleMes)}<span>de cupo restante</span></div><div className="meter" role="meter" aria-label="Cupo mensual disponible" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(100 - pct)}><span style={{ width: `${Math.round(100 - pct)}%` }} /></div><dl className="member-facts"><div><dt>Retirado</dt><dd>{gramsLabel(data.usage.monthGrams)}</dd></div><div><dt>Solicitado</dt><dd>{gramsLabel(data.pendingGrams)}</dd></div><div><dt>Tope mensual</dt><dd>{gramsLabel(data.limits.monthLimitG)}</dd></div></dl><p className="cell-meta">El cupo restante no garantiza stock ni confirma un retiro.</p></section>
-    </div>
-    <div className="member-content-grid">
-      <section id="reservar" className="member-card">
-        <p className="member-eyebrow">PLANIFICÁ TU VISITA</p><h2>Solicitar un retiro</h2><p className="member-description">Elegí un horario que te quede cómodo. El club confirma la solicitud y revisa la disponibilidad.</p>
-        {!enabled ? <p className="alert alert-warn mt-4">{blockedReason}</p> : <form onSubmit={e => { e.preventDefault(); if (valid && selected) setReview(true); }}>
-          <fieldset disabled={busy}>
-            <div className="member-form-row"><label className="label" htmlFor="portal-grams">01 · Cantidad en gramos<input id="portal-grams" className="input" inputMode="decimal" autoComplete="off" placeholder="Ej. 5" value={amount} onChange={e => { setAmount(e.target.value); setReview(false); }} aria-describedby="portal-amount-help" /></label><label className="label" htmlFor="portal-day">02 · Día de retiro<select id="portal-day" className="select" value={day} onChange={e => { setDay(e.target.value); setSlot(null); setReview(false); }}>{(days.length ? days : [{ key: initialDay }]).map(d => <option value={d.key} key={d.key}>{dayLabel(d.key)}</option>)}</select></label></div>
-            <p id="portal-amount-help" className="cell-meta">Podés solicitar hasta {gramsLabel(data.tope)} ahora ({data.topeMotivo === "dia" ? "tope diario" : data.topeMotivo === "mes" ? "cupo del mes" : "stock disponible"}). Máximo dos decimales.{amount && !valid ? " Revisá la cantidad ingresada." : ""}</p>
-            <div className="member-slot-heading"><h3>03 · Elegí un horario</h3><span>Hora del club</span></div>
-            {loadingSlots ? <p role="status" className="member-empty">Consultando horarios…</p> : availability.error ? <div className="alert alert-warn" role="alert">{availability.error}<button className="btn btn-secondary mt-2" type="button" onClick={reloadSlots}>Reintentar horarios</button></div> : slots.length ? <div className="member-slots" role="group" aria-label="Horarios disponibles">{slots.map(s => <button key={s.startMin} type="button" aria-pressed={slot === s.startMin} onClick={() => { setSlot(s.startMin); setReview(false); }}>{s.label}</button>)}</div> : <p className="member-empty">No quedan horarios disponibles para este día. Elegí otra fecha.</p>}
-            <div className="member-estimate"><span>Aporte de cultivo estimado<strong>{estimate}</strong></span><small>Se coordina al retirar.<br />No estás haciendo un pago online.</small></div>
-            {review && selected ? <div className="member-review" role="region" aria-label="Revisar solicitud"><h3>Revisá tu solicitud</h3><p>{gramsLabel(grams)} · {dayLabel(day)} · {selected.label}</p><p className="cell-meta">Quedará pendiente de confirmación. La reserva no habilita por sí sola la entrega.</p><div className="flex flex-wrap gap-2 mt-3"><button className="btn" type="button" disabled={busy} onClick={reserve}>{busy ? "Enviando…" : "Enviar solicitud"}</button><button className="btn btn-secondary" type="button" onClick={() => setReview(false)}>Volver a editar</button></div></div> : <button className="btn member-submit" disabled={busy || !valid || !selected || loadingSlots}>Revisar solicitud →</button>}
-          </fieldset>
-        </form>}
+
+      {openPickup ? (
+        <div className="note note-ok">
+          <CalendarCheck2 aria-hidden />
+          <div>
+            <b>Tenés un retiro de {g(openPickup.grams)}{openPickup.pickupLabel ? ` el ${openPickup.pickupLabel.replace(" · ", " a las ")}` : ""}.</b>{" "}
+            {openPickup.status === "CONFIRMADA" ? "El club ya lo confirmó." : "El club lo va a confirmar."} Traé tu DNI.
+          </div>
+        </div>
+      ) : null}
+
+      <section className="panel">
+        <div className="panel-head"><div>
+          <h1 className="panel-title" style={{ fontSize: 19 }}>Reservar un retiro</h1>
+          <p className="panel-sub">Reservás gramos de la producción del club y los retirás vos, en el club. El aporte de cultivo se abona al retirar y es un prorrateo de costos, no una venta.</p>
+        </div></div>
+        <div className="panel-body">
+          {!open ? (
+            <div className="note note-warn">
+              <CircleAlert aria-hidden />
+              <div>
+                {!data.member.reprocannOk
+                  ? "Tu REPROCANN está vencido: el club no puede reservarte un retiro hasta que lo renueves. Avisá en la secretaría cuando lo tengas."
+                  : data.member.status !== "ACTIVO"
+                    ? "Tu ficha no está activa. Hablá con la secretaría del club."
+                    : data.topeMotivo === "stock"
+                      ? "En este momento no hay stock para reservar. Probá en unos días."
+                      : "Ya usaste todo tu saldo disponible. Se renueva el mes que viene."}
+              </div>
+            </div>
+          ) : (
+            <form className="stack" style={{ gap: 18 }} onSubmit={reserve}>
+              <div>
+                <label className="label" htmlFor="p-grams">¿Cuántos gramos?</label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div style={{ position: "relative", width: 130 }}>
+                    <input id="p-grams" className="input tnum" inputMode="decimal" placeholder="0" value={grams} onChange={(e) => setGrams(e.target.value.replace(/[^\d.,]/g, ""))} style={{ fontSize: 20, fontWeight: 650, paddingRight: 30 }} aria-describedby="p-grams-hint" />
+                    <span style={{ position: "absolute", right: 12, top: 10, color: "var(--muted)", fontWeight: 600 }}>g</span>
+                  </div>
+                  {[5, 10].filter((v) => v < data.tope).map((v) => (
+                    <button key={v} type="button" className="btn btn-sm btn-quiet" onClick={() => setGrams(String(v))}>{v} g</button>
+                  ))}
+                  <button type="button" className="btn btn-sm btn-quiet" onClick={() => setGrams(String(data.tope))}>Todo ({g(data.tope)})</button>
+                </div>
+                <span className="hint" id="p-grams-hint">
+                  Hasta {g(data.tope)}{" "}
+                  {data.topeMotivo === "dia" ? `por el tope diario de ${g(data.limits.dayLimitG)}` : data.topeMotivo === "mes" ? "de tu saldo del mes" : "según el stock del club"}.
+                  {estimated != null ? ` Aporte estimado: ${MONEY.format(estimated)}.` : data.club.aportePorGramo != null ? ` Aporte: ${MONEY.format(data.club.aportePorGramo)} por gramo.` : ""}
+                </span>
+              </div>
+
+              <div>
+                <span className="label">¿Qué día?</span>
+                <div className="days" role="radiogroup" aria-label="Día del retiro">
+                  {(days.length ? days : [{ key: initialDay, weekday: 0 }]).map((d) => {
+                    const p = dayParts(d.key);
+                    return (
+                      <button key={d.key} type="button" className="day" aria-pressed={d.key === day} onClick={() => setDay(d.key)}>
+                        <small>{p.wd}</small><b className="tnum">{p.d}</b>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <span className="label">¿A qué hora?</span>
+                {slots.length === 0 ? (
+                  <p className="muted" style={{ margin: 0 }}>Ese día el club no atiende.</p>
+                ) : (
+                  <div className="slot-grid" role="radiogroup" aria-label="Horario del retiro">
+                    {slots.map((s) => (
+                      <button key={s.startMin} type="button" className="slot" disabled={s.full || s.past} aria-pressed={s.startMin === slot} onClick={() => setSlot(s.startMin)}>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {error ? <div className="note note-danger" role="alert">{error}</div> : null}
+              <button className="btn btn-lg btn-block" disabled={busy || !validGrams || slot == null}>
+                {busy ? "Reservando…" : validGrams && chosen ? `Reservar ${g(gramsNum)} el ${dayParts(day).long} a las ${chosen.label}` : "Reservar retiro"}
+              </button>
+            </form>
+          )}
+        </div>
       </section>
-      <aside id="documentacion" className="member-card member-docs"><p className="member-eyebrow">TU DOCUMENTACIÓN</p><h2>Mi legajo</h2><p className="member-description">Tu legajo y los datos que el club verifica antes de cada retiro.</p><dl><div><dt>Estado de tu ficha</dt><dd>{MEMBER_STATUS[data.member.status]?.label ?? "A revisar"}</dd></div><div><dt>REPROCANN</dt><dd>{REPROCANN_STATUS[data.member.reprocannStatus]?.label ?? "A revisar"}</dd><dd className="cell-meta">{data.member.reprocannNumber ?? "Número pendiente de cargar"}</dd></div><div><dt>Vencimiento registrado</dt><dd>{data.member.reprocannExpiresAt ? dateLabel(data.member.reprocannExpiresAt) : "Pendiente de cargar"}</dd></div><div><dt>Consentimiento</dt><dd>{consentDate ? `Registrado el ${dateLabel(consentDate)}` : "Pendiente de registrar"}</dd></div></dl>
-        {(!data.member.reprocannOk || data.member.reprocannDays != null && data.member.reprocannDays <= 30 || !data.member.reprocannExpiresAt) && <p className="alert alert-warn">{data.member.reprocannDays != null && data.member.reprocannDays >= 0 && data.member.reprocannOk ? "Tu vencimiento está cerca. Coordiná la actualización con el club." : "Consultá al club para revisar o completar tu documentación."}</p>}
-        <div className="member-help"><h3>¿Cambió algún dato?</h3><p>Pedile a la secretaría que actualice tu legajo. Este portal muestra la información registrada por el club.</p></div>
-      </aside>
-    </div>
-    <section id="actividad" className="member-card"><p className="member-eyebrow">TU ACTIVIDAD</p><div className="flex items-center justify-between gap-3"><h2>Mis solicitudes</h2><button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={refreshAccount}>Actualizar</button></div><p className="member-description">Últimas {data.pickups.length} solicitudes. Los retiros efectivos se muestran por separado.</p>
-      {data.pickups.length ? <ul className="member-activity">{data.pickups.map(p => <li key={p.id}><div className="member-activity-icon" aria-hidden="true">◷</div><div className="member-activity-detail"><strong>{p.pickupLabel ?? "Horario a coordinar"}</strong><span>{gramsLabel(p.grams)}{p.aporteEstimado != null ? ` · ${money(p.aporteEstimado)} estimados` : ""}</span>{p.cancelReason && <small>{p.cancelReason}</small>}</div><span className={`chip ${p.status === "CONFIRMADA" ? "chip-ok" : isOpen(p.status) ? "chip-warn" : ""}`}>{pickupLabel[p.status] ?? p.status}</span>{isOpen(p.status) && <button type="button" className="member-text-button" disabled={busy} onClick={() => { setCancelId(p.id); setReason(""); }}>Cancelar<span className="sr-only"> solicitud de {p.pickupLabel ?? p.createdAt}</span></button>}{cancelId === p.id && <form className="member-cancel" onSubmit={cancel}><label className="label">Motivo de cancelación<textarea className="textarea" value={reason} onChange={e => setReason(e.target.value)} required maxLength={300} disabled={busy} /></label><div className="flex gap-2"><button className="btn btn-danger" disabled={busy || !reason.trim()}>Confirmar cancelación</button><button type="button" className="btn btn-secondary" disabled={busy} onClick={() => setCancelId(null)}>Conservar solicitud</button></div></form>}</li>)}</ul> : <p className="member-empty">Todavía no tenés solicitudes. Cuando planifiques una visita, aparecerá acá.</p>}
-      <h3 className="member-history-title">Últimas entregas registradas</h3>{history.length ? <ul className="member-activity">{history.map(h => <li key={h.id}><div className="member-activity-icon" aria-hidden="true">↙</div><div className="member-activity-detail"><strong>{h.strain} · {gramsLabel(h.grams)}</strong><span>{new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: data.club.timezone ?? "America/Argentina/Buenos_Aires" }).format(new Date(h.at))} · Lote {h.batch}</span></div><span className={`chip ${h.voided ? "" : "chip-ok"}`}>{h.voided ? "Anulada" : "Entregada"}</span></li>)}</ul> : <p className="member-empty">Todavía no hay entregas registradas en tu legajo.</p>}
-    </section><footer className="member-footer">Tu información es personal. Cerrá la sesión si usás un dispositivo compartido.</footer>
-  </div>;
+
+      <section className="panel">
+        <div className="panel-head"><div>
+          <h2 className="panel-title">Tus reservas</h2>
+          <p className="panel-sub">Al retirar, el club vuelve a verificar tu REPROCANN y tus topes.</p>
+        </div></div>
+        {data.pickups.length === 0 ? (
+          <div className="empty">Todavía no reservaste ningún retiro.</div>
+        ) : (
+          <ul className="rows">
+            {data.pickups.map((p) => {
+              const st = PICKUP_LABEL[p.status] ?? { label: p.status, tone: "mute" };
+              const isOpen = ["SOLICITADA", "CONFIRMADA"].includes(p.status);
+              return (
+                <li key={p.id}>
+                  <div className="grow">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <b className="tnum">{g(p.grams)}</b>
+                      <span className={st.tone === "mute" ? "chip" : `chip chip-${st.tone}`}>{st.label}</span>
+                    </div>
+                    <div className="cell-meta">
+                      {p.pickupLabel ?? "sin horario"}
+                      {p.aporteEstimado != null ? ` · aporte ${p.status === "RETIRADA" ? "" : "estimado "}${MONEY.format(p.aporteEstimado)}` : ""}
+                      {p.cancelReason ? ` · ${p.cancelReason}` : ""}
+                    </div>
+                  </div>
+                  {isOpen ? <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => setCancelId(p.id)}>Cancelar</button> : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="panel-head"><div>
+          <h2 className="panel-title">Lo que retiraste</h2>
+          <p className="panel-sub">Tus últimas entregas en el club. Si una figura anulada, el club la corrigió y no cuenta para tu tope.</p>
+        </div></div>
+        {history.length === 0 ? (
+          <div className="empty">Todavía no retiraste nada.</div>
+        ) : (
+          <ul className="rows">
+            {history.map((h) => (
+              <li key={h.id} className={h.voided ? "voided" : undefined}>
+                <div className="grow">
+                  <div className="cell-main" style={h.voided ? { textDecoration: "line-through", color: "var(--muted)" } : undefined}>{h.strain}</div>
+                  <div className="cell-meta">{fmtDay(h.at)} · lote {h.batch}{h.voided ? " · anulada" : ""}</div>
+                </div>
+                <b className="tnum">{g(h.grams)}</b>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="panel" id="documentacion">
+        <div className="panel-head"><div>
+          <h2 className="panel-title">Tu documentación</h2>
+          <p className="panel-sub">Si algo no coincide con tus papeles, avisá en la secretaría: el club lo corrige en tu legajo.</p>
+        </div></div>
+        <div className="panel-body">
+          <dl className="dl">
+            <dt>Legajo</dt><dd className="tnum">{data.member.legajo}</dd>
+            <dt>REPROCANN</dt><dd>{data.member.reprocannNumber ?? "Sin número cargado"}</dd>
+            <dt>Vence</dt><dd>{fmtDate(data.member.reprocannExpiresAt)}</dd>
+            <dt>Consentimiento</dt><dd>{consentDate ? `Firmado el ${fmtDate(consentDate)}` : "Falta firmar en el club"}</dd>
+          </dl>
+        </div>
+      </section>
+
+      <ReasonDialog
+        open={cancelId != null}
+        onClose={() => setCancelId(null)}
+        title="Cancelar la reserva"
+        description="Los gramos vuelven a tu saldo del mes y el horario se libera."
+        confirmLabel="Cancelar reserva"
+        reasonLabel="¿Querés contarle al club por qué? (opcional)"
+        reasonRequired={false}
+        danger
+        busy={busy}
+        onConfirm={async (reason) => {
+          if (!cancelId) return;
+          setBusy(true);
+          try {
+            const json = await api<{ overview: Overview }>(`/api/portal/pickups/${cancelId}/cancel`, { body: { reason: reason || undefined } });
+            setData(json.overview);
+            setCancelId(null);
+            toast({ tone: "ok", title: "Reserva cancelada" });
+          } catch (err) {
+            toast({ tone: "bad", title: "No se pudo cancelar", text: errMsg(err) });
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+    </>
+  );
 }

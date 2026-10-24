@@ -64,9 +64,12 @@ src/app/*                 panel, socios, stock, dispensario, reportes
 scripts/dev-db.sh         cluster Postgres local descartable
 ```
 
+Rediseño y mejoras de backend del 24/10/2026: ver [`docs/rediseno-y-backend-2026-10-24.md`](docs/rediseno-y-backend-2026-10-24.md).
+Smoke de punta a punta contra la base local: `bash scripts/smoke-api.sh` (con la app corriendo y el seed recién aplicado).
+
 ## Límites conocidos
 
-- No hay módulo de cuotas/aportes, portal de socio, e-sign, QR de carnet ni import CSV todavía.
+- No hay módulo de cuotas/aportes ni e-sign. El portal del socio, el carnet QR y la importación del padrón ya existen.
 - El sistema **no reemplaza asesoría legal**: el club debe aportar nombre, CUIT, Director Médico y
   Responsable Técnico (Res. 1780/2025) y confirmar sus topes por escrito.
 - Datos de salud: consentimiento, minimización y retención 5 años son requisito, no feature.

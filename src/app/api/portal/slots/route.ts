@@ -32,7 +32,9 @@ export async function GET(req: Request) {
       const key = addDaysKey(today, i);
       const weekday = new Date(`${key}T00:00:00.000Z`).getUTCDay();
       const hasRule = rules.some((r) => r.weekday === weekday && r.active);
-      if (hasRule) days.push({ key, weekday });
+      // Hoy sólo cuenta si todavía queda algún horario por delante.
+      const stillOpen = i > 0 || buildSlots(rules as Rule[], key, []).some((s) => !s.past);
+      if (hasRule && stillOpen) days.push({ key, weekday });
     }
 
     return json({

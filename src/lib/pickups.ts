@@ -14,21 +14,13 @@ import { memberUsage, memberUsageAt } from "./dispensary";
 import { evaluatePickup, round2 } from "./pickup-rules";
 import { addDaysKey, dayKeyOf, evaluateBooking, labelOf, slotInstant, type Rule } from "./appointments";
 import { daysToExpiry } from "./labels";
+import { availableStock } from "./stock";
 
 type Tx = Prisma.TransactionClient | typeof prisma;
 
 const OPEN_STATUSES = ["SOLICITADA", "CONFIRMADA"] as const;
 
-async function stockTotal(tx: Tx): Promise<number> {
-  const rows = await tx.$queryRaw<{ balance: unknown }[]>`
-    SELECT COALESCE(SUM(CASE WHEN m.type IN ('INGRESO', 'AJUSTE_POSITIVO', 'DISPENSACION_REVERSA')
-      THEN m.grams ELSE -m.grams END), 0) AS balance
-    FROM "StockMovement" m
-    JOIN "Batch" b ON b.id = m."batchId"
-    WHERE b.stage = 'DISPONIBLE'
-  `;
-  return round2(Number(rows[0]?.balance ?? 0));
-}
+const stockTotal = (tx: Tx) => availableStock(tx);
 
 function ageYears(birth: Date, now = new Date()) {
   let a = now.getUTCFullYear() - birth.getUTCFullYear();
@@ -325,21 +317,32 @@ export async function listPickups() {
     pickupLabel: p.appointment
       ? `${dayKeyOf(p.appointment.scheduledAt).split("-").reverse().slice(0, 2).join("/")} · ${labelOf(p.appointment.scheduledAt)}`
       : null,
+    pickupAt: p.appointment?.scheduledAt.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
   }));
 }
 
-export async function markPickup(input: { id: string; status: "CONFIRMADA" | "VENCIDA"; actorId: string }) {
-  const pickup = await prisma.pickupRequest.findUnique({ where: { id: input.id } });
-  if (!pickup) throw notFound("Reserva inexistente");
-  if (!OPEN_STATUSES.includes(pickup.status as (typeof OPEN_STATUSES)[number])) {
-    throw conflict("PICKUP_NOT_OPEN", "Esa reserva ya está cerrada.");
-  }
-  return prisma.pickupRequest.update({
-    where: { id: pickup.id },
-    data: {
-      status: input.status,
-      confirmedAt: input.status === "CONFIRMADA" ? new Date() : pickup.confirmedAt,
-    },
+/**
+ * El mostrador sólo puede CONFIRMAR una reserva (o cancelarla con motivo).
+ * "Retirada" no es un botón: lo marca la entrega real, en la misma transacción.
+ */
+export async function confirmPickup(input: { id: string; actorId: string }) {
+  return prisma.$transaction(async (tx) => {
+    const pickup = await tx.pickupRequest.findUnique({ where: { id: input.id } });
+    if (!pickup) throw notFound("Reserva inexistente");
+    if (pickup.status !== "SOLICITADA") throw conflict("PICKUP_NOT_PENDING", "Esa reserva ya fue confirmada o cerrada.");
+    const updated = await tx.pickupRequest.update({
+      where: { id: pickup.id },
+      data: { status: "CONFIRMADA", confirmedAt: new Date() },
+    });
+    if (pickup.appointmentId) {
+      const appt = await tx.appointment.findUnique({ where: { id: pickup.appointmentId }, select: { status: true } });
+      if (appt?.status === "PENDIENTE")
+        await tx.appointment.update({ where: { id: pickup.appointmentId }, data: { status: "CONFIRMADO", operatorId: input.actorId } });
+    }
+    await tx.auditLog.create({
+      data: { actorId: input.actorId, action: "PICKUP_CONFIRM", entity: "PickupRequest", entityId: pickup.id },
+    });
+    return updated;
   });
 }

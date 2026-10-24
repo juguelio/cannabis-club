@@ -1,83 +1,65 @@
 import { redirect } from "next/navigation";
+import { Download } from "lucide-react";
 import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { PageHead } from "@/components/ui";
+import { fmtDate } from "@/lib/labels";
+import { dayKeyOf } from "@/lib/appointments";
 
-const REPORTS = [
-  {
-    slug: "padron",
-    title: "Padrón de socios",
-    purpose: "Mostrar quién está habilitado y con qué REPROCANN, ante el club o una inspección.",
-    items: ["Legajo y documento", "Estado y fecha de alta", "REPROCANN, estado y vencimiento", "Consentimiento firmado"],
-  },
-  {
-    slug: "dispensaciones",
-    title: "Libro de dispensaciones",
-    purpose: "El registro que se pide primero: qué se entregó, a quién, cuándo y con qué THC.",
-    items: ["Nombre y año de nacimiento", "Gramos, cepa y lote", "THC promedio", "Operador, firma y anulaciones"],
-  },
-  {
-    slug: "stock",
-    title: "Stock por lote",
-    purpose: "Conciliar lo cultivado contra lo entregado y lo destruido, lote por lote.",
-    items: ["Ingresado y dispensado", "Destruido y saldo", "Etapa y sala", "Cosecha"],
-  },
-  {
-    slug: "destrucciones",
-    title: "Libro de destrucciones",
-    purpose: "Justificar cada gramo que salió del stock sin haberse entregado.",
-    items: ["Fecha y lote", "Gramos y motivo", "Responsable"],
-  },
-  {
-    slug: "informe-anual",
-    title: "Informe anual por variedad",
-    purpose: "Cerrar un año concreto: cosechado, entregado, destruido y stock al cierre por variedad.",
-    items: ["Cosechado seco del año", "Entregado y destruido del año", "Stock al cierre del año", "THC y CBD de referencia de la variedad"],
-    yearly: true,
-  },
-] as const;
+export const metadata = { title: "Libros" };
 
-export default async function ReportesPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
+type Report = { slug: string; title: string; purpose: string; columns: string; filter?: "range" | "year" };
+const REPORTS: Report[] = [
+  { slug: "dispensaciones", title: "Libro de dispensaciones", purpose: "El registro que se pide primero: qué se entregó, a quién, cuándo y con qué THC.", columns: "Fecha, socio, año de nacimiento, documento, cepa, lote, gramos, THC, operador, firma y anulaciones.", filter: "range" },
+  { slug: "padron", title: "Padrón de socios", purpose: "Quién está habilitado y con qué REPROCANN, para el club o una inspección.", columns: "Legajo, documento, nacimiento, estado, REPROCANN y vencimiento, consumo, previsión, alta, baja y consentimiento." },
+  { slug: "stock", title: "Stock por lote", purpose: "Conciliar lo cultivado contra lo entregado y lo destruido, lote por lote.", columns: "Lote, cepa, etapa, plantas, sala, ingresado, dispensado neto, destruido, saldo, THC y cosecha." },
+  { slug: "destrucciones", title: "Libro de destrucciones", purpose: "Justificar cada gramo que salió del stock sin haberse entregado.", columns: "Fecha, lote, cepa, gramos, motivo y responsable.", filter: "range" },
+  { slug: "informe-anual", title: "Informe anual por variedad", purpose: "Cerrar el año: cosechado, entregado, destruido y stock al cierre, por variedad.", columns: "Año, variedad, lotes cosechados, cosechado seco, entregado, destruido, stock al cierre, y THC/CBD de referencia de la variedad (no es un promedio de entregas).", filter: "year" },
+];
+
+/** Primer día del mes en curso, hora del club. */
+function monthStartKey() {
+  return `${dayKeyOf(new Date()).slice(0, 8)}01`;
+}
+
+export default async function ReportesPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  const sp = await searchParams;
-  const thisYear = new Date().getUTCFullYear();
-  const year = sp?.year && /^\d{4}$/.test(sp.year) ? Number(sp.year) : thisYear;
-  const years = [thisYear, thisYear - 1, thisYear - 2];
+  const first = await prisma.stockMovement.findFirst({ orderBy: { occurredAt: "asc" }, select: { occurredAt: true } });
+  const thisYear = new Date().getFullYear();
+  const firstYear = first ? Math.min(thisYear, first.occurredAt.getFullYear()) : thisYear;
+  const years = Array.from({ length: thisYear - firstYear + 1 }, (_, i) => thisYear - i);
+  const monthStart = monthStartKey();
+
   return (
     <>
       <PageHead
-        title="Reportes y libros"
-        subtitle="CSV con separador “;” y BOM UTF-8: abre en Excel y se presenta tal cual."
+        title="Libros"
+        subtitle={`Se descargan en CSV con separador “;” y acentos correctos: abren directo en Excel. ${first ? `Hay registros desde el ${fmtDate(first.occurredAt)}.` : "Todavía no hay movimientos."}`}
       />
-      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,300px),1fr))" }}>
+      <div className="grid-auto">
         {REPORTS.map((r) => (
-          <div key={r.slug} className="card card-pad flex flex-col gap-3">
-            <div>
-              <div className="section-title">{r.title}</div>
-              <p className="section-sub mt-1">{r.purpose}</p>
-            </div>
-            <ul className="text-[12.5px] flex flex-col gap-1" style={{ color: "#475569" }}>
-              {r.items.map((i) => (
-                <li key={i}>· {i}</li>
-              ))}
-            </ul>
-            {"yearly" in r && r.yearly ? (
-              <form className="flex items-center gap-2 mt-auto" method="get">
-                <label className="cell-meta" htmlFor="year">Año</label>
-                <select id="year" name="year" defaultValue={String(year)} className="select" style={{ maxWidth: 120 }}>
-                  {years.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-                <button className="btn btn-secondary btn-sm">Elegir</button>
-                <a className="btn btn-sm" href={`/api/reports/${r.slug}?year=${year}`}>Descargar CSV</a>
+          <section key={r.slug} className="panel" style={{ display: "flex", flexDirection: "column" }}>
+            <div className="panel-head"><div><h2 className="panel-title">{r.title}</h2><p className="panel-sub">{r.purpose}</p></div></div>
+            <div className="panel-body" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
+              <p className="cell-meta" style={{ margin: 0 }}>Columnas: {r.columns}</p>
+              <form action={`/api/reports/${r.slug}`} method="get" className="stack" style={{ gap: 10, marginTop: "auto" }}>
+                {r.filter === "range" ? (
+                  <div className="field-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <div><label className="label" htmlFor={`${r.slug}-d`}>Desde</label><input className="input" id={`${r.slug}-d`} type="date" name="desde" defaultValue={monthStart} /></div>
+                    <div><label className="label" htmlFor={`${r.slug}-h`}>Hasta</label><input className="input" id={`${r.slug}-h`} type="date" name="hasta" /></div>
+                  </div>
+                ) : null}
+                {r.filter === "year" ? (
+                  <div><label className="label" htmlFor={`${r.slug}-y`}>Año</label>
+                    <select className="select" id={`${r.slug}-y`} name="anio" defaultValue={thisYear}>{years.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+                  </div>
+                ) : null}
+                <div><button className="btn btn-quiet"><Download aria-hidden />Descargar CSV</button></div>
+                {r.filter === "range" ? <span className="hint" style={{ marginTop: -4 }}>Dejá las fechas vacías para el libro completo.</span> : null}
               </form>
-            ) : (
-              <a className="btn btn-secondary btn-sm self-start mt-auto" href={`/api/reports/${r.slug}`}>
-                Descargar CSV
-              </a>
-            )}
-          </div>
+            </div>
+          </section>
         ))}
       </div>
     </>

@@ -3,17 +3,17 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { clientIp, fail, json } from "@/lib/http";
-import { conflict } from "@/lib/errors";
+import { conflict, unprocessable } from "@/lib/errors";
 
 const CreateBody = z.object({
-  firstName: z.string().trim().min(2),
-  lastName: z.string().trim().min(2),
+  firstName: z.string().trim().min(2, "Ingresá el nombre").max(80),
+  lastName: z.string().trim().min(2, "Ingresá el apellido").max(80),
   docType: z.string().default("DNI"),
-  docNumber: z.string().trim().min(6),
+  docNumber: z.string().trim().transform((v) => v.replace(/[.\s-]/g, "")).pipe(z.string().regex(/^[0-9A-Za-z]{6,12}$/, "Documento inválido")),
   birthDate: calendarDate.refine(v => new Date(v) <= new Date(), "El nacimiento no puede estar en el futuro"),
   address: z.string().optional(),
   phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
+  email: z.string().trim().email("Email inválido").optional().or(z.literal("")),
   reprocannNumber: z.string().optional(),
   reprocannStatus: z.enum(["NO_APORTA", "EN_TRAMITE", "VIGENTE", "VENCIDO", "RECHAZADO"]).default("NO_APORTA"),
   reprocannExpiresAt: optionalDate.optional(),
@@ -57,6 +57,8 @@ export async function POST(req: Request) {
     const user = await requireUser(["ADMIN", "OPERADOR"]);
     const body = CreateBody.parse(await req.json());
 
+    if (body.status === "ACTIVO" && !body.consentSignedAt)
+      throw unprocessable("CONSENT_REQUIRED", "Para dar de alta como activo hace falta la fecha del consentimiento firmado.");
     const existing = await prisma.member.findUnique({ where: { docNumber: body.docNumber } });
     if (existing) throw conflict("DOC_EXISTS", `Ya existe un socio con documento ${body.docNumber}.`);
 

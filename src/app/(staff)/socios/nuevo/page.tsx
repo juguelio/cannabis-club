@@ -1,24 +1,21 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { MemberForm } from "@/components/forms";
-import { PageHead, Section } from "@/components/ui";
+import { PageHead } from "@/components/ui";
+
+export const metadata = { title: "Nuevo socio" };
 
 export default async function NuevoSocio() {
   const session = await getSession();
   if (!session) redirect("/login");
   return (
-    <>
+    <div style={{ maxWidth: 880 }}>
       <PageHead
+        back={{ href: "/socios", label: "Socios" }}
         title="Alta de socio"
-        subtitle="La identidad se compone de DNI + REPROCANN: sin REPROCANN vigente el dispensario rechaza la entrega."
-        actions={<Link className="btn btn-secondary" href="/socios">Volver al padrón</Link>}
+        subtitle="Lo que no tengas a mano se completa después desde el legajo. Para retirar, el socio necesita estar activo y con REPROCANN vigente."
       />
-      <Section title="Datos del socio" subtitle="Lo que no sepas ahora se completa después; el alta queda auditada igual">
-        <div className="px-4 pb-4">
-          <MemberForm />
-        </div>
-      </Section>
-    </>
+      <MemberForm />
+    </div>
   );
 }

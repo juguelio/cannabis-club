@@ -1,4 +1,16 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
+import { CONSUMPTION, MEMBER_STATUS, REPROCANN_STATUS, STAGE } from "./labels";
+
+export type ReportOptions = { from?: string | null; to?: string | null; year?: number | null };
+
+/** Rango [desde, hasta] en hora del club (-03:00), inclusivo por día. */
+export function rangeOf(opts: ReportOptions): { gte?: Date; lt?: Date } {
+  const out: { gte?: Date; lt?: Date } = {};
+  if (opts.from) out.gte = new Date(`${opts.from}T00:00:00-03:00`);
+  if (opts.to) out.lt = new Date(new Date(`${opts.to}T00:00:00-03:00`).getTime() + 86_400_000);
+  return out;
+}
 
 export type ReportRow = (string | number | null)[];
 export type Report = { name: string; filename: string; headers: string[]; rows: ReportRow[] };
@@ -7,18 +19,18 @@ const fdate = (d: Date | null | undefined) =>
   d ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeZone: "UTC" }).format(d) : "";
 const fnum = (v: unknown) => (v == null ? "" : Math.round(Number(v) * 100) / 100);
 
-export async function buildReport(name: string, opts: { year?: number; timezone?: string } = {}): Promise<Report> {
+export async function buildReport(name: string, opts: ReportOptions = {}): Promise<Report> {
   switch (name) {
     case "padron":
       return padron();
     case "dispensaciones":
-      return dispensaciones();
+      return dispensaciones(opts);
     case "stock":
       return stock();
     case "destrucciones":
-      return destrucciones();
+      return destrucciones(opts);
     case "informe-anual":
-      return informeAnual(opts.year, opts.timezone ?? "America/Argentina/Buenos_Aires");
+      return informeAnual(opts.year ?? new Date().getFullYear());
     default:
       throw new Error(`Reporte desconocido: ${name}`);
   }
@@ -53,11 +65,11 @@ async function padron(): Promise<Report> {
       m.docType,
       m.docNumber,
       fdate(m.birthDate),
-      m.status,
+      MEMBER_STATUS[m.status]?.label ?? m.status,
       m.reprocannNumber ?? "",
-      m.reprocannStatus,
+      REPROCANN_STATUS[m.reprocannStatus]?.label ?? m.reprocannStatus,
       fdate(m.reprocannExpiresAt),
-      m.consumptionType,
+      CONSUMPTION[m.consumptionType] ?? m.consumptionType,
       fnum(m.monthlyForecastG),
       fdate(m.admittedAt),
       fdate(m.leftAt),
@@ -66,14 +78,16 @@ async function padron(): Promise<Report> {
   };
 }
 
-async function dispensaciones(): Promise<Report> {
+async function dispensaciones(opts: ReportOptions): Promise<Report> {
+  const range = rangeOf(opts);
   const rows = await prisma.dispensation.findMany({
+    where: range.gte || range.lt ? { occurredAt: range } : {},
     include: { member: true, batch: { include: { strain: true } }, operator: true },
     orderBy: { occurredAt: "desc" },
   });
   return {
     name: "Libro de dispensaciones",
-    filename: "libro-dispensaciones.csv",
+    filename: `libro-dispensaciones${opts.from ? `-${opts.from}` : ""}${opts.to ? `-a-${opts.to}` : ""}.csv`,
     headers: [
       "Fecha",
       "Apellido",
@@ -90,7 +104,7 @@ async function dispensaciones(): Promise<Report> {
       "Motivo anulación",
     ],
     rows: rows.map((d) => [
-      new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" }).format(d.occurredAt),
+      new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(d.occurredAt),
       d.member.lastName,
       d.member.firstName,
       d.member.birthDate.getUTCFullYear(),
@@ -127,7 +141,7 @@ async function stock(): Promise<Report> {
       return [
         b.code,
         b.strain.name,
-        b.stage,
+        STAGE[b.stage]?.label ?? b.stage,
         b.plantsCount ?? "",
         b.room ?? "",
         fnum(sum(["INGRESO", "AJUSTE_POSITIVO"])),
@@ -141,9 +155,10 @@ async function stock(): Promise<Report> {
   };
 }
 
-async function destrucciones(): Promise<Report> {
+async function destrucciones(opts: ReportOptions): Promise<Report> {
+  const range = rangeOf(opts);
   const rows = await prisma.stockMovement.findMany({
-    where: { type: "DESTRUCCION" },
+    where: { type: "DESTRUCCION", ...(range.gte || range.lt ? { occurredAt: range } : {}) },
     include: { batch: { include: { strain: true } }, actor: true },
     orderBy: { occurredAt: "desc" },
   });
@@ -152,7 +167,7 @@ async function destrucciones(): Promise<Report> {
     filename: "destrucciones.csv",
     headers: ["Fecha", "Lote", "Cepa", "Gramos", "Motivo", "Responsable"],
     rows: rows.map((m) => [
-      new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" }).format(m.occurredAt),
+      new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(m.occurredAt),
       m.batch.code,
       m.batch.strain.name,
       fnum(m.grams),
@@ -162,58 +177,46 @@ async function destrucciones(): Promise<Report> {
   };
 }
 
-async function informeAnual(year = new Date().getUTCFullYear(), timezone = "America/Argentina/Buenos_Aires"): Promise<Report> {
-  const strains = await prisma.strain.findMany({ include: { batches: true }, orderBy: { name: "asc" } });
-  // El informe es del año: antes sumaba todo el historial y lo llamaba "anual" (R05 del REA).
-  const entregas = await prisma.$queryRaw<{ strainId: string; total: unknown }[]>`
-    SELECT b."strainId" AS "strainId", COALESCE(SUM(d.grams), 0) AS total
-    FROM "Dispensation" d JOIN "Batch" b ON b.id = d."batchId"
-    WHERE d."voidedAt" IS NULL
-      AND EXTRACT(YEAR FROM (d."occurredAt" AT TIME ZONE ${timezone})) = ${year}
-    GROUP BY b."strainId"
-  `;
-  const destruido = await prisma.$queryRaw<{ strainId: string; total: unknown }[]>`
-    SELECT b."strainId" AS "strainId", COALESCE(SUM(m.grams), 0) AS total
-    FROM "StockMovement" m JOIN "Batch" b ON b.id = m."batchId"
-    WHERE m.type = 'DESTRUCCION'
-      AND EXTRACT(YEAR FROM (m."occurredAt" AT TIME ZONE ${timezone})) = ${year}
-    GROUP BY b."strainId"
-  `;
-  const eMap = new Map(entregas.map((r) => [r.strainId, Number(r.total)]));
-  const dMap = new Map(destruido.map((r) => [r.strainId, Number(r.total)]));
-  const saldo = await prisma.$queryRaw<{ strainId: string; total: unknown }[]>`
+/**
+ * Informe anual por variedad, acotado al año pedido (hora del club):
+ * cosechado = peso seco de lotes cosechados en el año; entregado/destruido = movimientos del año;
+ * stock final = saldo del libro al cierre del año.
+ */
+async function informeAnual(year: number): Promise<Report> {
+  const start = new Date(`${year}-01-01T00:00:00-03:00`);
+  const end = new Date(`${year + 1}-01-01T00:00:00-03:00`);
+  const strains = await prisma.strain.findMany({
+    include: { batches: { where: { harvestedAt: { gte: new Date(Date.UTC(year, 0, 1)), lt: new Date(Date.UTC(year + 1, 0, 1)) } } } },
+    orderBy: { name: "asc" },
+  });
+  const sums = await prisma.$queryRaw<{ strainId: string; entregado: unknown; destruido: unknown; saldo: unknown }[]>(Prisma.sql`
     SELECT b."strainId" AS "strainId",
-      COALESCE(SUM(CASE WHEN m.type IN ('INGRESO','AJUSTE_POSITIVO','DISPENSACION_REVERSA') THEN m.grams ELSE -m.grams END), 0) AS total
+      COALESCE(SUM(CASE WHEN m."occurredAt" >= ${start} AND m."occurredAt" < ${end} AND m.type = 'DISPENSACION' THEN m.grams
+                        WHEN m."occurredAt" >= ${start} AND m."occurredAt" < ${end} AND m.type = 'DISPENSACION_REVERSA' THEN -m.grams ELSE 0 END), 0) AS entregado,
+      COALESCE(SUM(CASE WHEN m."occurredAt" >= ${start} AND m."occurredAt" < ${end} AND m.type = 'DESTRUCCION' THEN m.grams ELSE 0 END), 0) AS destruido,
+      COALESCE(SUM(CASE WHEN m."occurredAt" < ${end} THEN
+        CASE WHEN m.type IN ('INGRESO','AJUSTE_POSITIVO','DISPENSACION_REVERSA') THEN m.grams ELSE -m.grams END ELSE 0 END), 0) AS saldo
     FROM "StockMovement" m JOIN "Batch" b ON b.id = m."batchId"
-    WHERE EXTRACT(YEAR FROM (m."occurredAt" AT TIME ZONE ${timezone})) <= ${year}
     GROUP BY b."strainId"
-  `;
-  const sMap = new Map(saldo.map((r) => [r.strainId, Number(r.total)]));
+  `);
+  const map = new Map(sums.map((r) => [r.strainId, r]));
   return {
-    name: `Informe anual ${year} por variedad`,
+    name: `Informe anual por variedad ${year}`,
     filename: `informe-anual-${year}.csv`,
-    headers: [
-      "Variedad",
-      "Lotes cosechados en el año",
-      "Cosechado seco g",
-      "Entregado g",
-      "Destruido g",
-      "Stock al cierre g",
-      "THC % (referencia de la variedad)",
-      "CBD % (referencia de la variedad)",
-    ],
+    headers: ["Año", "Variedad", "Lotes cosechados", "Cosechado seco g", "Entregado g", "Destruido g", "Stock al cierre g", "THC % (referencia de la variedad)", "CBD % (referencia de la variedad)"],
     // Solo el peso seco acredita stock: el húmedo no cuenta como cosecha disponible.
-    // THC/CBD son el valor declarado de la variedad, no un promedio de las entregas.
+    // THC/CBD son el valor declarado de la variedad, no un promedio de las entregas (R05).
     rows: strains.map((s) => {
-      const delAnio = s.batches.filter((b) => b.harvestedAt && b.harvestedAt.getUTCFullYear() === year);
-      const cosechado = delAnio.reduce((a, b) => a + Number(b.dryWeightG ?? 0), 0);
+      const r = map.get(s.id);
+      const cosechado = s.batches.reduce((a, b) => a + Number(b.dryWeightG ?? 0), 0);
       return [
+        year,
         s.name,
-        delAnio.length,
+        s.batches.filter((b) => b.dryWeightG != null).length,
         fnum(cosechado),
-        fnum(eMap.get(s.id) ?? 0),
-        fnum(dMap.get(s.id) ?? 0),
-        fnum(sMap.get(s.id) ?? 0),
+        fnum(r?.entregado ?? 0),
+        fnum(r?.destruido ?? 0),
+        fnum(r?.saldo ?? 0),
         fnum(s.thcPct),
         fnum(s.cbdPct),
       ];

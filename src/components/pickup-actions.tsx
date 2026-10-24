@@ -3,53 +3,67 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { api, errMsg } from "@/lib/client";
+import { ReasonDialog } from "./dialog";
+import { useToast } from "./toast";
 
-/**
- * El único camino a RETIRADA es registrar la entrega.
- * Acá sólo se confirma la reserva y se abre el mostrador con ese contexto
- * (socio + reserva + gramos), para que la entrega cierre exactamente esa reserva.
- */
-export function PickupActions({
-  id,
-  status,
-  memberId,
-}: {
-  id: string;
-  status: string;
-  memberId: string;
-}) {
+/** Reserva del portal: el mostrador confirma, entrega (en el dispensario) o cancela con motivo. */
+export function PickupActions({ id, status, memberId }: { id: string; status: string; memberId: string }) {
   const router = useRouter();
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
-
-  async function confirm() {
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/pickups/${id}/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "CONFIRMADA" }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        window.alert(data.message ?? "No se pudo confirmar la reserva");
-        return;
-      }
-      router.refresh();
-    } finally {
-      setBusy(false);
-    }
-  }
+  const [cancel, setCancel] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
       {status === "SOLICITADA" ? (
-        <button className="btn btn-sm btn-secondary" disabled={busy} onClick={confirm}>
+        <button
+          className="btn btn-sm btn-quiet"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await api(`/api/pickups/${id}/status`, { body: { status: "CONFIRMADA" } });
+              toast({ tone: "ok", title: "Reserva confirmada", text: "El socio la ve confirmada en su portal." });
+              router.refresh();
+            } catch (err) {
+              toast({ tone: "bad", title: "No se pudo confirmar", text: errMsg(err) });
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
           Confirmar
         </button>
       ) : null}
-      <Link className="btn btn-sm" href={`/dispensario?socio=${memberId}&pickup=${id}`}>
-        Atender reserva
-      </Link>
+      <Link className="btn btn-sm" href={`/dispensario?socio=${memberId}&pickup=${id}`}>Atender</Link>
+      <button className="btn btn-sm btn-ghost" onClick={() => { setError(null); setCancel(true); }} disabled={busy}>Cancelar</button>
+      <ReasonDialog
+        open={cancel}
+        onClose={() => setCancel(false)}
+        title="Cancelar la reserva"
+        description="El socio la ve cancelada en el portal, con el motivo. Su turno también se libera."
+        confirmLabel="Cancelar reserva"
+        reasonLabel="Motivo"
+        danger
+        busy={busy}
+        error={error}
+        onConfirm={async (reason) => {
+          setBusy(true);
+          setError(null);
+          try {
+            await api(`/api/pickups/${id}/cancel`, { body: { reason } });
+            toast({ tone: "ok", title: "Reserva cancelada" });
+            setCancel(false);
+            router.refresh();
+          } catch (err) {
+            setError(errMsg(err));
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
     </div>
   );
 }

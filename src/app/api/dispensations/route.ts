@@ -11,9 +11,10 @@ const Body = z.object({
   grams: gramsAmount.max(1000),
   signatureType: z.enum(["REGISTRO_OPERADOR", "PIN", "FIRMA_DIGITAL", "QR"]).optional(),
   signatureRef: z.string().optional(),
-  notes: z.string().optional(),
+  notes: z.string().max(500).optional(),
   pickupId: z.string().min(1).optional(),
   idempotencyKey: z.string().min(8).max(120).optional(),
+  confirmDuplicate: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
         limits: result.replay ? null : result.decision.snapshot,
         pickupFulfilled: result.pickupFulfilled,
         replay: result.replay,
+        batchExhausted: "batchExhausted" in result ? result.batchExhausted : false,
       },
       result.replay ? 200 : 201,
     );

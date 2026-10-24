@@ -160,8 +160,8 @@ async function main() {
   // Ingresos: el stock nace de un movimiento, nunca de un campo editable.
   await prisma.stockMovement.createMany({
     data: [
-      { batchId: b1.id, type: "INGRESO", grams: D(520), actorId: admin.id, reason: "Cosecha seca L-2026-001" },
-      { batchId: b2.id, type: "INGRESO", grams: D(340), actorId: admin.id, reason: "Cosecha seca L-2026-002" },
+      { batchId: b1.id, type: "INGRESO", grams: D(520), actorId: admin.id, reason: "Cosecha seca L-2026-001", occurredAt: date("2026-09-24") },
+      { batchId: b2.id, type: "INGRESO", grams: D(340), actorId: admin.id, reason: "Cosecha seca L-2026-002", occurredAt: date("2026-10-08") },
     ],
   });
 
@@ -224,6 +224,77 @@ async function main() {
       });
     }
   }
+
+  // ── Historia de demo: más socios, dos lotes en cultivo y dos semanas de entregas ──
+  const extra = [
+    ["Lucía", "Fernández", "35111222", "1991-06-14", "TERAPEUTICO", 25],
+    ["Martín", "Sosa", "31222333", "1985-01-30", "LUDICO", 20],
+    ["Valentina", "Romero", "40333444", "1998-12-02", "TERAPEUTICO", 30],
+    ["Diego", "Castro", "29444555", "1982-03-19", "LUDICO", 15],
+    ["Florencia", "Molina", "37555666", "1993-08-08", "TERAPEUTICO", 20],
+    ["Joaquín", "Herrera", "34666777", "1989-10-25", "LUDICO", 25],
+    ["Camila", "Aguirre", "42777888", "2000-05-11", "LUDICO", 10],
+    ["Nicolás", "Benítez", "27888999", "1979-02-07", "TERAPEUTICO", 30],
+  ] as const;
+  const soon = new Date(Date.now() + 18 * 86_400_000).toISOString().slice(0, 10);
+  for (const [i, [firstName, lastName, docNumber, birth, consumo, forecast]] of extra.entries()) {
+    const m = await prisma.member.create({
+      data: {
+        legajo: 6 + i, firstName, lastName, docNumber, birthDate: date(birth), status: "ACTIVO", admittedAt: date("2026-03-01"),
+        reprocannNumber: `REP-00${6 + i}00`, reprocannStatus: "VIGENTE",
+        reprocannExpiresAt: date(i === 2 ? soon : "2027-05-01"), consumptionType: consumo, monthlyForecastG: D(forecast),
+        consentSignedAt: date("2026-03-01"), phone: `+54 9 2972 40-${String(1000 + i * 37)}`,
+        email: `${firstName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}@correo.test`,
+      },
+    });
+    members.push({ id: m.id, legajo: m.legajo });
+  }
+
+  const sky = await prisma.strain.create({ data: { name: "Patagonia Kush", genetics: "Índica", thcPct: D(17), cbdPct: D(0.5) } });
+  await prisma.batch.create({ data: { code: "L-2026-004", strainId: sky.id, originType: "ESQUEJE", originProviderName: "Madre L-2026-001", plantsCount: 20, room: "Sala A", stage: "FLORACION", plantedAt: date("2026-08-05") } });
+  await prisma.batch.create({ data: { code: "L-2026-005", strainId: lemon.id, originType: "SEMILLA", originProviderName: "Banco comunitario", plantsCount: 16, room: "Sala B", stage: "VEGETATIVO", plantedAt: date("2026-09-20") } });
+
+  // Entregas pasadas (13 días): pocas por día, sin pasar topes. Determinístico.
+  let seedN = 7;
+  const rnd = () => ((seedN = (seedN * 9301 + 49297) % 233280) / 233280);
+  const takers = members.filter((m) => ![3, 5].includes(m.legajo)); // Ana (vencido) y Carla (pendiente) no retiran
+  const monthUsed = new Map<string, number>();
+  const nowMs = Date.now();
+  for (let back = 13; back >= 1; back -= 1) {
+    const dayStart = new Date(new Date(nowMs - back * 86_400_000 - 3 * 3600_000).toISOString().slice(0, 10) + "T00:00:00-03:00");
+    if (dayStart.getUTCDay() === 1 && back > 6) continue; // un lunes cerrado, para que el gráfico respire
+    const n = 1 + Math.floor(rnd() * 4);
+    for (let k = 0; k < n; k += 1) {
+      const m = takers[Math.floor(rnd() * takers.length)];
+      const grams = [2, 3, 5, 5, 7, 10][Math.floor(rnd() * 6)];
+      const sameMonth = dayStart.getMonth() === new Date().getMonth();
+      const used = sameMonth ? monthUsed.get(m.id) ?? 0 : 0;
+      const cap = m.legajo === 4 ? 25 : 45;
+      if (used + grams > cap) continue;
+      if (sameMonth) monthUsed.set(m.id, used + grams);
+      const batch = rnd() > 0.45 ? b1 : b2;
+      if (m.legajo === 4 && batch.id === b2.id) continue; // menor: Lemon Haze supera su THC
+      const at = new Date(dayStart.getTime() + (10 * 60 + Math.floor(rnd() * 500)) * 60_000);
+      const d = await prisma.dispensation.create({
+        data: {
+          memberId: m.id, batchId: batch.id, grams: D(grams), thcPct: batch.thcPct, operatorId: operador.id, signatureType: "REGISTRO_OPERADOR", occurredAt: at,
+          limitSnapshot: { seeded: true, grams, checkedAt: at.toISOString() },
+        },
+      });
+      await prisma.stockMovement.create({
+        data: { batchId: batch.id, type: "DISPENSACION", grams: D(grams), memberId: m.id, actorId: operador.id, dispensationId: d.id, occurredAt: at, reason: `Entrega a socio ${m.legajo}` },
+      });
+    }
+  }
+
+  // Una reserva del portal para hoy, colgada del turno de Julián.
+  const julianAppt = await prisma.appointment.findFirst({ where: { memberId: members[1].id }, orderBy: { scheduledAt: "desc" } });
+  await prisma.pickupRequest.create({
+    data: {
+      memberId: members[1].id, grams: D(10), status: "SOLICITADA", appointmentId: julianAppt?.id ?? null,
+      aportePorGramo: D(1200), aporteEstimado: D(12000), limitSnapshot: { seeded: true },
+    },
+  });
 
   const socioUser = await prisma.user.create({
     data: {
