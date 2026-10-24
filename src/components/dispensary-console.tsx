@@ -37,10 +37,21 @@ export function DispensaryConsole({
 }) {
   const router = useRouter();
   const [memberId, setMemberId] = useState(
-    initialMemberId && members.some((m) => m.id === initialMemberId) ? initialMemberId : (members[0]?.id ?? ""),
+    initialMemberId && members.some((m) => m.id === initialMemberId) ? initialMemberId : "",
   );
-  const [batchId, setBatchId] = useState(batches[0]?.id ?? "");
-  const [grams, setGrams] = useState(initialPickup ? String(initialPickup.grams) : "5");
+  const [batchId, setBatchId] = useState("");
+  const [grams, setGrams] = useState(initialPickup ? String(initialPickup.grams) : "");
+  const [search, setSearch] = useState("");
+  // Clave del intento: si el operador reintenta, se devuelve la entrega ya registrada.
+  const [intentKey, setIntentKey] = useState(() => (globalThis.crypto?.randomUUID?.() ?? String(Date.now())));
+  const [receipt, setReceipt] = useState<{
+    id: string;
+    member: string;
+    batch: string;
+    grams: number;
+    at: string;
+    replay: boolean;
+  } | null>(null);
   // Contexto de la reserva que se está atendiendo: sólo se cierra esta, no "la más vieja".
   const pickupId = initialPickup?.id ?? null;
   const [remote, setRemote] = useState<{ id: string; data: Status | null }>({ id: "", data: null });
@@ -61,6 +72,11 @@ export function DispensaryConsole({
   const status = remote.id === memberId ? remote.data : null;
   const loading = Boolean(memberId) && !status;
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter((m) => `${m.legajo} ${m.name}`.toLowerCase().includes(q) || m.name.toLowerCase().includes(q));
+  }, [members, search]);
   const batch = useMemo(() => batches.find((b) => b.id === batchId), [batches, batchId]);
   const amount = Number(grams.replace(",", ".")) || 0;
   const monthAfter = (status?.usage.monthGrams ?? 0) + amount;
@@ -78,11 +94,27 @@ export function DispensaryConsole({
       const res = await fetch("/api/dispensations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId, batchId, grams: amount, signatureType: "REGISTRO_OPERADOR", pickupId: pickupId ?? undefined }),
+        body: JSON.stringify({
+          memberId,
+          batchId,
+          grams: amount,
+          signatureType: "REGISTRO_OPERADOR",
+          pickupId: pickupId ?? undefined,
+          idempotencyKey: intentKey,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(`${data.error ?? "ERROR"}: ${data.message ?? "no se pudo entregar"}`);
-      setOk(`Entregado. Saldo del lote ${batch?.code}: ${g(data.balanceAfterG)}.`);
+      const quien = members.find((m) => m.id === memberId);
+      setReceipt({
+        id: data.dispensation?.id ?? "",
+        member: quien ? `${quien.legajo} · ${quien.name}` : "—",
+        batch: batch?.code ?? "—",
+        grams: amount,
+        at: new Date().toLocaleString("es-AR"),
+        replay: Boolean(data.replay),
+      });
+      setOk(null);
       setRemote((s) =>
         s.data
           ? { id: s.id, data: { ...s.data, usage: { dayGrams: s.data.usage.dayGrams + amount, monthGrams: s.data.usage.monthGrams + amount } } }
@@ -96,24 +128,46 @@ export function DispensaryConsole({
     }
   }
 
+  function nextMember() {
+    setMemberId("");
+    setBatchId("");
+    setGrams("");
+    setSearch("");
+    setReceipt(null);
+    setError(null);
+    setOk(null);
+    setIntentKey(globalThis.crypto?.randomUUID?.() ?? String(Date.now()));
+  }
+
   return (
     <div className="dashboard-grid">
       <form className="card card-pad" onSubmit={submit}>
         <div className="section-title mb-3">Nueva entrega</div>
 
         <div className="mb-3">
-          <label className="label" htmlFor="member">Socio</label>
+          <label className="label" htmlFor="member-search">Socio</label>
+          <input
+            id="member-search"
+            className="input mb-1"
+            placeholder="Buscar por nombre, DNI o legajo"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoComplete="off"
+          />
           <select id="member" className="select" value={memberId} onChange={(e) => setMemberId(e.target.value)}>
-            {members.map((m) => (
+            <option value="">Elegir socio…</option>
+            {filtered.map((m) => (
               <option key={m.id} value={m.id}>{m.legajo} · {m.name}</option>
             ))}
           </select>
+          {search && filtered.length === 0 ? <p className="cell-meta mt-1">Ningún socio activo coincide con “{search}”.</p> : null}
           {members.length === 0 ? <p className="cell-meta mt-1">No hay socios activos. Activá uno desde Socios.</p> : null}
         </div>
 
         <div className="mb-3">
           <label className="label" htmlFor="batch">Lote</label>
           <select id="batch" className="select" value={batchId} onChange={(e) => setBatchId(e.target.value)}>
+            <option value="">Elegir lote…</option>
             {batches.map((b) => (
               <option key={b.id} value={b.id}>{b.code} · {b.strain} · {g(b.balanceG)}{b.thcPct != null ? ` · ${b.thcPct}% THC` : ""}</option>
             ))}
@@ -144,6 +198,27 @@ export function DispensaryConsole({
         ) : null}
         {error ? <div className="alert alert-danger mt-3">{error}</div> : null}
         {ok ? <div className="alert alert-ok mt-3">{ok}</div> : null}
+
+        {receipt ? (
+          <div className="card mt-3" style={{ background: "var(--surface-2, #f8faf9)" }}>
+            <div className="card-pad">
+              <div className="flex items-center justify-between">
+                <strong>{receipt.replay ? "Esa entrega ya estaba registrada" : "Entrega registrada"}</strong>
+                <span className="chip chip-ok">{g(receipt.grams)}</span>
+              </div>
+              <dl className="mt-2 grid gap-1" style={{ fontSize: 13 }}>
+                <div className="flex justify-between"><dt className="cell-meta">Comprobante</dt><dd className="tnum">{receipt.id.slice(-8).toUpperCase()}</dd></div>
+                <div className="flex justify-between"><dt className="cell-meta">Socio</dt><dd>{receipt.member}</dd></div>
+                <div className="flex justify-between"><dt className="cell-meta">Lote</dt><dd>{receipt.batch}</dd></div>
+                <div className="flex justify-between"><dt className="cell-meta">Método</dt><dd>registrada por el operador</dd></div>
+                <div className="flex justify-between"><dt className="cell-meta">Fecha</dt><dd>{receipt.at}</dd></div>
+              </dl>
+              <button type="button" className="btn btn-secondary btn-sm mt-3" onClick={nextMember}>
+                Atender otro socio
+              </button>
+            </div>
+          </div>
+        ) : null}
       </form>
 
       <div className="card card-pad">

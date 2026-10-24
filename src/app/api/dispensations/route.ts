@@ -13,6 +13,7 @@ const Body = z.object({
   signatureRef: z.string().optional(),
   notes: z.string().optional(),
   pickupId: z.string().min(1).optional(),
+  idempotencyKey: z.string().min(8).max(120).optional(),
 });
 
 export async function GET() {
@@ -38,10 +39,11 @@ export async function POST(req: Request) {
       {
         dispensation: result.dispensation,
         balanceAfterG: result.availableAfter,
-        limits: result.decision.snapshot,
+        limits: result.replay ? null : result.decision.snapshot,
         pickupFulfilled: result.pickupFulfilled,
+        replay: result.replay,
       },
-      201,
+      result.replay ? 200 : 201,
     );
   } catch (error) {
     return fail(error);

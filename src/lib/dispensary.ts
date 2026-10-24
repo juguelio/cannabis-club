@@ -47,6 +47,8 @@ export type DispenseInput = {
   signatureType?: "REGISTRO_OPERADOR" | "PIN" | "FIRMA_DIGITAL" | "QR";
   /** Reserva que se está atendiendo, si el mostrador abrió el caso desde el portal. */
   pickupId?: string;
+  /** Clave del intento: si se repite (reintento, doble clic, red caída), devuelve la entrega ya hecha. */
+  idempotencyKey?: string;
   signatureRef?: string | null;
   notes?: string | null;
   operatorId: string;
@@ -61,6 +63,15 @@ export async function dispense(input: DispenseInput) {
   const club = await getClub();
   const config = limitsFromClub(club);
 
+  // Reintento de la misma intención: se devuelve lo ya registrado, sin asiento nuevo.
+  if (input.idempotencyKey) {
+    const previa = await prisma.dispensation.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+    if (previa) return { dispensation: previa, replay: true as const, availableAfter: null, pickupFulfilled: null };
+  }
+
+  // Un conflicto de serialización no es un error para el operador: si la intención trae clave,
+  // se reintenta y, si la otra transacción ya la registró, se devuelve esa misma entrega.
+  for (let intento = 0; ; intento += 1) {
   try {
     return await prisma.$transaction(
       async (tx) => {
@@ -101,6 +112,7 @@ export async function dispense(input: DispenseInput) {
             thcPct: batch.thcPct,
             operatorId: input.operatorId,
             signatureType: input.signatureType ?? "REGISTRO_OPERADOR",
+            idempotencyKey: input.idempotencyKey ?? null,
             signatureRef: input.signatureRef ?? null,
             notes: input.notes ?? null,
             limitSnapshot: decision.snapshot as unknown as Prisma.InputJsonValue,
@@ -177,13 +189,25 @@ export async function dispense(input: DispenseInput) {
           decision,
           availableAfter: Math.round((available - input.grams) * 100) / 100,
           pickupFulfilled: pickup?.id ?? null,
+          replay: false as const,
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 },
     );
   } catch (error) {
     if (error instanceof Error && error.name === "AppError") throw error;
+    const code = error instanceof Prisma.PrismaClientKnownRequestError ? error.code : null;
+    // Misma clave: índice único (P2002) o choque de serialización (P2034).
+    if (input.idempotencyKey && (code === "P2002" || code === "P2034")) {
+      const previa = await prisma.dispensation.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+      if (previa) return { dispensation: previa, replay: true as const, availableAfter: null, pickupFulfilled: null };
+      if (code === "P2034" && intento < 2) {
+        await new Promise((r) => setTimeout(r, 60 * (intento + 1)));
+        continue;
+      }
+    }
     throw error;
+  }
   }
 }
 

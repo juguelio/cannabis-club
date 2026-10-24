@@ -253,6 +253,8 @@ model Dispensation {
   /// Snapshot del cálculo de límites al momento de entregar (defensa posterior).
   limitSnapshot  Json
   notes          String?
+  /// Clave del intento de entrega: reintentar la misma intención no duplica el asiento.
+  idempotencyKey String?       @unique
   voidedAt       DateTime?
   voidedById     String?
   voidedBy       User?         @relation("DispensationVoider", fields: [voidedById], references: [id])
