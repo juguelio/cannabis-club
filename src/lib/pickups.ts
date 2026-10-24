@@ -308,7 +308,9 @@ export async function listPickups() {
     grams: Number(p.grams),
     status: p.status,
     aporteEstimado: p.aporteEstimado == null ? null : Number(p.aporteEstimado),
-    pickupLabel: p.appointment ? `${labelOf(p.appointment.scheduledAt)} · ${dayKeyOf(p.appointment.scheduledAt)}` : null,
+    pickupLabel: p.appointment
+      ? `${dayKeyOf(p.appointment.scheduledAt).split("-").reverse().slice(0, 2).join("/")} · ${labelOf(p.appointment.scheduledAt)}`
+      : null,
     createdAt: p.createdAt.toISOString(),
   }));
 }
