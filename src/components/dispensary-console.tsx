@@ -24,9 +24,11 @@ function Meter({ value, max }: { value: number; max: number }) {
   );
 }
 
-export function DispensaryConsole({ members, batches }: { members: Member[]; batches: Batch[] }) {
+export function DispensaryConsole({ members, batches, initialMemberId }: { members: Member[]; batches: Batch[]; initialMemberId?: string }) {
   const router = useRouter();
-  const [memberId, setMemberId] = useState(members[0]?.id ?? "");
+  const [memberId, setMemberId] = useState(
+    initialMemberId && members.some((m) => m.id === initialMemberId) ? initialMemberId : (members[0]?.id ?? ""),
+  );
   const [batchId, setBatchId] = useState(batches[0]?.id ?? "");
   const [grams, setGrams] = useState("5");
   const [remote, setRemote] = useState<{ id: string; data: Status | null }>({ id: "", data: null });

@@ -65,6 +65,14 @@ enum MovementType {
   TRANSFERENCIA
 }
 
+enum AppointmentStatus {
+  PENDIENTE
+  CONFIRMADO
+  ATENDIDO
+  AUSENTE
+  CANCELADO
+}
+
 enum SignatureType {
   PIN
   FIRMA_DIGITAL
@@ -107,6 +115,7 @@ model User {
   createdAt    DateTime  @default(now())
 
   movements     StockMovement[] @relation("MovementActor")
+  appointments  Appointment[]   @relation("AppointmentOperator")
   dispensations Dispensation[]  @relation("DispensationOperator")
   voided        Dispensation[]  @relation("DispensationVoider")
   audits        AuditLog[]
@@ -140,6 +149,7 @@ model Member {
   updatedAt        DateTime        @updatedAt
 
   user          User?
+  appointments  Appointment[]
   dispensations Dispensation[]
   movements     StockMovement[]
   transports    Transport[]     @relation("TransportDriver")
@@ -235,6 +245,7 @@ model Dispensation {
   voidedBy       User?         @relation("DispensationVoider", fields: [voidedById], references: [id])
   voidReason     String?
   movement       StockMovement?
+  appointment    Appointment?
 
   @@index([memberId, occurredAt])
   @@index([batchId])
@@ -270,4 +281,46 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+/// Franjas de atención del dispensario. Hora local del club (weekday 0 = domingo).
+model ScheduleRule {
+  id        String   @id @default(cuid())
+  weekday   Int
+  startMin  Int
+  endMin    Int
+  slotMin   Int      @default(20)
+  capacity  Int      @default(1)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([weekday, startMin])
+  @@index([weekday])
+}
+
+/// Turno reservado por un socio. Reservar no habilita la entrega: el dispensario
+/// vuelve a validar REPROCANN y topes al momento de entregar.
+model Appointment {
+  id             String            @id @default(cuid())
+  memberId       String
+  member         Member            @relation(fields: [memberId], references: [id])
+  scheduledAt    DateTime
+  durationMin    Int               @default(20)
+  status         AppointmentStatus @default(PENDIENTE)
+  channel        String            @default("MOSTRADOR")
+  notes          String?
+  operatorId     String?
+  operator       User?             @relation("AppointmentOperator", fields: [operatorId], references: [id])
+  createdById    String?
+  attendedAt     DateTime?
+  canceledAt     DateTime?
+  cancelReason   String?
+  dispensationId String?           @unique
+  dispensation   Dispensation?     @relation(fields: [dispensationId], references: [id])
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([memberId, scheduledAt])
+  @@index([scheduledAt])
+  @@index([status, scheduledAt])
 }

@@ -6,9 +6,11 @@ import { DispensaryConsole } from "@/components/dispensary-console";
 import { VoidButton } from "@/components/forms";
 import { fmtDateTime, fmtGrams } from "@/lib/labels";
 
-export default async function DispensarioPage() {
+export default async function DispensarioPage({ searchParams }: { searchParams: Promise<{ socio?: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
+
+  const sp = await searchParams;
 
   const [members, batches, dispensations, club] = await Promise.all([
     prisma.member.findMany({ where: { status: "ACTIVO" }, orderBy: [{ lastName: "asc" }] }),
@@ -45,6 +47,7 @@ export default async function DispensarioPage() {
       <DispensaryConsole
         members={members.map((m) => ({ id: m.id, legajo: m.legajo, name: `${m.lastName}, ${m.firstName}` }))}
         batches={available}
+        initialMemberId={sp?.socio}
       />
 
       <div className="mt-4">

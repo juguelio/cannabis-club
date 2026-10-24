@@ -127,6 +127,18 @@ body {
 .btn-danger:hover { background: var(--danger-soft); }
 .btn-sm { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
 
+/* acciones secundarias plegadas: lo destructivo no compite con la acción principal */
+.more { position: relative; }
+.more > summary { list-style: none; cursor: pointer; }
+.more > summary::-webkit-details-marker { display: none; }
+.more-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+  display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .10); min-width: 148px;
+}
+.more-menu .btn { justify-content: flex-start; }
+
 /* ---------- tables ---------- */
 table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.data thead th {

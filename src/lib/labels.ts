@@ -17,6 +17,23 @@ export const REPROCANN_STATUS: Record<string, { label: string; tone: Tone }> = {
   RECHAZADO: { label: "REPROCANN rechazado", tone: "danger" },
 };
 
+export const APPOINTMENT_STATUS: Record<string, { label: string; tone: Tone }> = {
+  PENDIENTE: { label: "Reservado", tone: "brand" },
+  CONFIRMADO: { label: "Confirmado", tone: "ok" },
+  ATENDIDO: { label: "Atendido", tone: "mute" },
+  AUSENTE: { label: "No vino", tone: "warn" },
+  CANCELADO: { label: "Cancelado", tone: "mute" },
+};
+
+export const APPOINTMENT_CHANNEL: Record<string, string> = {
+  MOSTRADOR: "En el club",
+  TELEFONO: "Teléfono",
+  WHATSAPP: "WhatsApp",
+  WEB: "Web",
+};
+
+export const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
 export const CONSUMPTION: Record<string, string> = {
   LUDICO: "Lúdico",
   TERAPEUTICO: "Terapéutico",

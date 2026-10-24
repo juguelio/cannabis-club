@@ -6,6 +6,8 @@ const D = (v: number) => new Prisma.Decimal(v.toFixed(2));
 const date = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
 async function main() {
+  await prisma.appointment.deleteMany();
+  await prisma.scheduleRule.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.stockMovement.deleteMany();
   await prisma.dispensation.deleteMany();
@@ -35,6 +37,13 @@ async function main() {
       maxSocios: 500,
     },
   });
+
+  // Franjas de atención: lunes a sábado de 10:00 a 19:00, turnos de 20 min, 2 socios por turno.
+  for (let weekday = 1; weekday <= 6; weekday += 1) {
+    await prisma.scheduleRule.create({
+      data: { weekday, startMin: 10 * 60, endMin: 19 * 60, slotMin: 20, capacity: 2 },
+    });
+  }
 
   const adminPass = await bcrypt.hash("Admin1234!", 10);
   const opPass = await bcrypt.hash("Operador1234!", 10);
@@ -187,11 +196,37 @@ async function main() {
     },
   });
 
+  // Turnos de demo: hoy en la zona del club (-03:00), en horarios de la franja.
+  const todayKey = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const weekdayOfToday = new Date(`${todayKey}T00:00:00.000Z`).getUTCDay();
+  if (weekdayOfToday >= 1 && weekdayOfToday <= 6) {
+    const turnos = [
+      { member: members[0], minutes: 10 * 60 + 20, status: "CONFIRMADO" as const, channel: "WHATSAPP" },
+      { member: members[1], minutes: 11 * 60, status: "PENDIENTE" as const, channel: "TELEFONO" },
+      { member: members[4], minutes: 16 * 60, status: "PENDIENTE" as const, channel: "MOSTRADOR" },
+    ];
+    for (const t of turnos) {
+      await prisma.appointment.create({
+        data: {
+          memberId: t.member.id,
+          scheduledAt: new Date(`${todayKey}T00:00:00-03:00`).getTime() + t.minutes * 60_000 > 0
+            ? new Date(new Date(`${todayKey}T00:00:00-03:00`).getTime() + t.minutes * 60_000)
+            : new Date(),
+          status: t.status,
+          channel: t.channel,
+          operatorId: operador.id,
+          createdById: admin.id,
+        },
+      });
+    }
+  }
+
   console.log("Seed OK:", {
     club: club.nombre,
     usuarios: ["admin@club.test / Admin1234!", "operador@club.test / Operador1234!"],
     socios: members.length,
     lotes: 3,
+    franjas: "lun-sáb 10:00-19:00 · 20 min · cupo 2",
   });
 }
 
