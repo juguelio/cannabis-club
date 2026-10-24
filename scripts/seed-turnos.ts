@@ -33,7 +33,7 @@ async function main() {
 
   // 2) próximo día hábil (mañana en adelante) para que la demo tenga turnos futuros
   const clubDay = (d: Date) => new Date(d.getTime() - 3 * 60 * 60 * 1000);
-  let target = clubDay(new Date());
+  const target = clubDay(new Date());
   target.setUTCDate(target.getUTCDate() + 1);
   for (let i = 0; i < 7; i += 1) {
     const weekday = target.getUTCDay();
