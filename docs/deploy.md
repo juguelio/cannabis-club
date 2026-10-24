@@ -66,3 +66,5 @@ key, así que el deploy quedó reproducible sin depender del navegador.
 - `vercel project protection disable` no limpia `ssoProtection`; hay que hacer
   `PATCH /v9/projects/{id}` con `{"ssoProtection": null}`.
 - `neonctl connection-string` necesita `--project-id` explícito (el nombre no sirve como posicional).
+
+<!-- deploy automático verificado -->
