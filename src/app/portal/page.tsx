@@ -11,7 +11,15 @@ export default async function PortalPage() {
   const session = await getMemberSession();
   if (!session) redirect("/login");
 
-  const overview = await portalOverview(session.memberId);
+  const [overview, member, deliveries] = await Promise.all([
+    portalOverview(session.memberId),
+    prisma.member.findUniqueOrThrow({ where: { id: session.memberId }, select: { consentSignedAt: true } }),
+    prisma.dispensation.findMany({
+      where: { memberId: session.memberId }, orderBy: { occurredAt: "desc" }, take: 20,
+      select: { id: true, occurredAt: true, grams: true, voidedAt: true,
+        batch: { select: { code: true, strain: { select: { name: true } } } } },
+    }),
+  ]);
   const today = dayKeyOf(new Date());
 
   // primer día abierto desde hoy, para arrancar el selector
@@ -38,7 +46,7 @@ export default async function PortalPage() {
     full: s.full,
   }));
 
-  const todayKey = dayKeyOf(new Date()) === day ? day : day;
-
-  return <MemberPortal initial={overview} initialSlots={slots} initialDay={todayKey} />;
+  return <MemberPortal initial={overview} initialSlots={slots} initialDay={day}
+    consentDate={member.consentSignedAt?.toISOString() ?? null}
+    history={deliveries.map(d => ({ id: d.id, at: d.occurredAt.toISOString(), grams: Number(d.grams), strain: d.batch.strain.name, batch: d.batch.code, voided: Boolean(d.voidedAt) }))} />;
 }
