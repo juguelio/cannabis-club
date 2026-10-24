@@ -42,3 +42,7 @@ next-env.d.ts
 
 # screenshots de QA
 .shots
+
+# secretos temporales de provisión
+*.tmp
+.supabase-db-password.tmp
