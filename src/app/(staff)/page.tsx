@@ -1,165 +1,232 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { CalendarClock, CalendarPlus, CircleCheck, PackageOpen, Scale, ShieldAlert } from "lucide-react";
 import { getSession } from "@/lib/auth";
-import { Chip, Empty, PageHead, Section } from "@/components/ui";
-import { fmtDateTime, fmtGrams, reprocannIssue, STAGE } from "@/lib/labels";
+import { dashboardData } from "@/lib/dashboard";
+import { Avatar, Chip, Empty, Meter, Note, Panel } from "@/components/ui";
+import { APPOINTMENT_STATUS, daysToExpiry, fmtGrams, fmtLongDay, fmtWhen, plural, reprocannIssue, STAGE } from "@/lib/labels";
+
+export const metadata = { title: "Panel" };
+
+function greeting(now: Date) {
+  const h = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(now));
+  return h < 13 ? "Buen día" : h < 20 ? "Buenas tardes" : "Buenas noches";
+}
 
 export default async function Dashboard() {
   const session = await getSession();
   if (!session) redirect("/login");
+  const now = new Date();
+  const d = await dashboardData(now);
 
-  const [activos, total, pendientes, conProblema, stock, lotes, ultimas, hoy, club] = await Promise.all([
-    prisma.member.count({ where: { status: "ACTIVO" } }),
-    prisma.member.count(),
-    prisma.member.count({ where: { status: "PENDIENTE" } }),
-    prisma.member.findMany({
-      where: { status: "ACTIVO", OR: [{ reprocannStatus: { not: "VIGENTE" } }, { reprocannExpiresAt: { lt: new Date() } }] },
-      orderBy: { reprocannExpiresAt: "asc" },
-
-    }),
-    prisma.$queryRaw<{ total: unknown }[]>`
-      SELECT COALESCE(SUM(CASE WHEN type IN ('INGRESO','AJUSTE_POSITIVO','DISPENSACION_REVERSA') THEN grams ELSE -grams END),0) AS total
-      FROM "StockMovement"`,
-    prisma.batch.findMany({ where: { stage: "DISPONIBLE" }, include: { strain: true, movements: { select: { type: true, grams: true } } }, orderBy: { code: "desc" } }),
-    prisma.dispensation.findMany({ take: 6, orderBy: { occurredAt: "desc" }, include: { member: true, batch: { include: { strain: true } } } }),
-    prisma.$queryRaw<{ grams: unknown }[]>`
-      SELECT
-        COALESCE(SUM(CASE WHEN type = 'DISPENSACION' THEN grams ELSE 0 END), 0)
-        - COALESCE(SUM(CASE WHEN type = 'DISPENSACION_REVERSA' THEN grams ELSE 0 END), 0) AS grams
-      FROM "StockMovement"
-      WHERE type IN ('DISPENSACION','DISPENSACION_REVERSA')
-        AND ("occurredAt" AT TIME ZONE 'America/Argentina/Buenos_Aires')::date
-          = (now() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date`,
-    prisma.club.findUnique({ where: { id: "singleton" } }),
-  ]);
-
-  const stockTotal = Math.round(Number(stock[0]?.total ?? 0) * 100) / 100;
-  const entregadoHoy = Math.round(Number(hoy[0]?.grams ?? 0) * 100) / 100;
-  const saldos = lotes.map((b) => ({
-    ...b,
-    saldo: Math.round(
-      b.movements.reduce(
-        (a, m) => a + (["INGRESO", "AJUSTE_POSITIVO", "DISPENSACION_REVERSA"].includes(m.type) ? 1 : -1) * Number(m.grams),
-        0,
-      ) * 100,
-    ) / 100,
-  }));
-
-  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-  const kpis = [
-    { href: "/socios?estado=ACTIVO", label: "Socios activos", value: activos, hint: `${total} en el padrón · ${plural(pendientes, "pendiente", "pendientes")} de alta`, tone: "ok" },
-    { href: "/socios?filtro=reprocann", label: "REPROCANN a regularizar", value: conProblema.length, hint: conProblema.length ? (conProblema.length === 1 ? "no puede retirar hasta resolverlo" : "no pueden retirar hasta resolverlo") : "todos habilitados", tone: conProblema.length ? "danger" : "ok" },
-    { href: "/stock", label: "Stock disponible", value: fmtGrams(stockTotal), hint: `${lotes.length} lotes en dispensario`, tone: "ok" },
-    { href: "/dispensario", label: "Entregado hoy", value: fmtGrams(entregadoHoy), hint: `tope ${fmtGrams(club?.limiteDiarioG ?? 25)} por socio`, tone: "ok" },
-  ];
+  const attention = d.blocked.length + d.expiring.length;
+  const maxBar = Math.max(1, ...d.series.map((p) => p.grams));
+  const nextIndex = d.agenda.findIndex((a) => ["PENDIENTE", "CONFIRMADO"].includes(a.status) && new Date(a.at).getTime() >= now.getTime() - 20 * 60_000);
+  const weekDelta = d.prevWeek > 0 ? Math.round(((d.week - d.prevWeek) / d.prevWeek) * 100) : null;
+  const firstName = session.name.split(" ")[0];
+  const configured = Boolean(d.club.cuit && d.club.directorMedico && d.club.responsableTecnico);
 
   return (
     <>
-      <PageHead
-        title="El día de tu club"
-        subtitle="Socios, entregas y cultivo. Todo lo que necesitás para empezar la jornada."
-        actions={<Link className="btn" href="/dispensario">Entregar a un socio</Link>}
-      />
-
-      <div className="quick-actions">
-        <Link href="/turnos"><span className="quick-icon">◷</span><span><strong>Preparar la jornada</strong><small>Revisá la agenda de turnos</small></span><span>↗</span></Link>
-        <Link href="/socios/nuevo"><span className="quick-icon">＋</span><span><strong>Sumar un socio</strong><small>Creá su legajo y documentación</small></span><span>↗</span></Link>
-        <Link href="/reportes"><span className="quick-icon">▧</span><span><strong>Consultar los libros</strong><small>Registros listos para exportar</small></span><span>↗</span></Link>
-      </div>
-      <div className="kpi-grid mb-4">
-        {kpis.map((k) => (
-          <Link key={k.label} href={k.href} className="kpi" data-tone={k.tone === "danger" ? "danger" : undefined}>
-            <div className="kpi-label">{k.label}</div>
-            <div className="kpi-value tnum">{k.value}</div>
-            <div className="kpi-hint">{k.hint}</div>
-          </Link>
-        ))}
-      </div>
-
-      <div className="dashboard-grid">
-        <Section
-          title="Stock por lote"
-          subtitle="El saldo es la suma del libro; se descuenta al entregar."
-          action={<Link className="btn btn-secondary btn-sm" href="/stock">Ver lotes</Link>}
-        >
-          <div className="overflow-x-auto">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>Lote</th>
-                  <th>Cepa</th>
-                  <th>Etapa</th>
-                  <th className="num">Saldo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {saldos.map((b) => (
-                  <tr key={b.id}>
-                    <td>
-                      <div className="cell-main">{b.code}</div>
-                      <div className="cell-meta">{b.room ?? "sin sala"}</div>
-                    </td>
-                    <td>
-                      <div>{b.strain.name}</div>
-                      <div className="cell-meta">{b.thcPct ? `${Number(b.thcPct)}% THC` : "sin THC cargado"}</div>
-                    </td>
-                    <td><Chip tone={STAGE[b.stage]?.tone}>{STAGE[b.stage]?.label ?? b.stage}</Chip></td>
-                    <td className="num cell-main">{fmtGrams(b.saldo)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {saldos.length === 0 ? <Empty>No hay lotes disponibles. Cargá la cosecha seca desde Stock.</Empty> : null}
-          </div>
-        </Section>
-
-        <div className="flex flex-col gap-4">
-          <Section title="Antes de entregar" subtitle="Socios activos con algo pendiente">
-            <div className="px-4 pb-3 flex flex-col gap-2">
-              {conProblema.slice(0, 4).map((m) => {
-                const issue = reprocannIssue(m);
-                return (
-                  <Link key={m.id} href={`/socios/${m.id}`} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-[#f7f6f1]">
-                    <div>
-                      <div className="text-[13px]">{m.lastName}, {m.firstName}</div>
-                      <div className="cell-meta">Legajo {m.legajo}</div>
-                    </div>
-                    <Chip tone={issue.tone}>{issue.label}</Chip>
-                  </Link>
-                );
-              })}
-              {conProblema.length === 0 ? <Empty>Nadie pendiente. Todos los socios activos están habilitados.</Empty> : null}
-              <Link className="btn btn-secondary btn-sm mt-1 self-start" href="/socios?filtro=reprocann">
-                Ver el padrón filtrado
-              </Link>
-            </div>
-          </Section>
-
-          <Section title="Últimas entregas" action={<Link className="btn btn-secondary btn-sm" href="/dispensario">Ver todo</Link>}>
-            <div className="px-4 pb-3 flex flex-col gap-2">
-              {ultimas.map((d) => (
-                <div key={d.id} className="flex items-center justify-between gap-2 text-[13px]">
-                  <div>
-                    <div>{d.member.lastName}, {d.member.firstName}</div>
-                    <div className="cell-meta">{fmtDateTime(d.occurredAt)} · {d.batch.strain.name}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="tnum">{fmtGrams(d.grams)}</div>
-                    {d.voidedAt ? <Chip tone="mute">anulada</Chip> : <Chip tone="ok">vigente</Chip>}
-                  </div>
-                </div>
-              ))}
-              {ultimas.length === 0 ? <Empty>Todavía no hay entregas registradas.</Empty> : null}
-            </div>
-          </Section>
+      <div className="today-head">
+        <h1 className="today-date">
+          <small>{greeting(now)}, {firstName}.</small>
+          <span>{fmtLongDay(d.today).replace(/^./, (c) => c.toUpperCase())}</span>
+        </h1>
+        <div className="flex flex-wrap gap-2">
+          <Link className="btn btn-quiet" href="/turnos"><CalendarPlus aria-hidden />Agendar turno</Link>
         </div>
       </div>
 
-      {!(club?.cuit && club?.directorMedico && club?.responsableTecnico) && <div className="alert alert-warn mt-4">
-        <strong>Datos del club pendientes.</strong> Falta cargar CUIT, director médico y responsable técnico. Los topes
-        son configuración del club y no reemplazan la indicación médica ni el encuadre legal. {session.role === "ADMIN" && <Link href="/configuracion" className="underline font-semibold">Completar configuración →</Link>}
-      </div>}
+      <div className="facts" style={{ marginBottom: 16 }}>
+        <Link className="fact" href="/dispensario">
+          <div className="fact-label">Entregado hoy</div>
+          <div className="fact-value">{fmtGrams(d.todayPoint.grams).replace(" g", "")}<small>g</small></div>
+          <div className="fact-hint">{d.todayPoint.count ? plural(d.todayPoint.count, "entrega", "entregas") : "Todavía ninguna entrega"}</div>
+        </Link>
+        <Link className="fact" href="/stock">
+          <div className="fact-label">Stock para entregar</div>
+          <div className="fact-value">{fmtGrams(d.stockG).replace(" g", "")}<small>g</small></div>
+          <div className="fact-hint">{plural(d.available.length, "lote disponible", "lotes disponibles")}</div>
+        </Link>
+        <Link className="fact" href="/socios?estado=ACTIVO">
+          <div className="fact-label">Socios activos</div>
+          <div className="fact-value">{d.members.active}</div>
+          <div className="fact-hint">{d.members.pending ? `${plural(d.members.pending, "pendiente", "pendientes")} de alta` : `${d.members.total} en el padrón`}</div>
+        </Link>
+        <Link className="fact" href="/socios?filtro=reprocann" data-tone={d.blocked.length ? "danger" : d.expiring.length ? "warn" : undefined}>
+          <div className="fact-label">REPROCANN a revisar</div>
+          <div className="fact-value">{attention}</div>
+          <div className="fact-hint">
+            {d.blocked.length ? `${plural(d.blocked.length, "no puede", "no pueden")} retirar` : d.expiring.length ? `${plural(d.expiring.length, "vence", "vencen")} en 30 días` : "Todos al día"}
+          </div>
+        </Link>
+      </div>
+
+      {!configured ? (
+        <div style={{ marginBottom: 16 }}>
+          <Note tone="warn" icon={ShieldAlert}>
+            <b>Faltan datos legales del club.</b> CUIT, director médico y responsable técnico deben figurar en los libros.{" "}
+            {session.role === "ADMIN" ? <Link href="/configuracion">Completar ahora</Link> : "Avisale a un administrador."}
+          </Note>
+        </div>
+      ) : null}
+
+      <div className="grid-2">
+        <div className="stack">
+          <Panel
+            title="Agenda de hoy"
+            subtitle={d.agenda.length ? `${plural(d.agenda.filter((a) => ["PENDIENTE", "CONFIRMADO"].includes(a.status)).length, "socio por llegar", "socios por llegar")} · ${d.pickups ? plural(d.pickups, "reserva del portal abierta", "reservas del portal abiertas") : "sin reservas abiertas"}` : undefined}
+            action={<Link className="btn btn-sm btn-quiet" href="/turnos">Ver turnos</Link>}
+          >
+            {d.agenda.length === 0 ? (
+              <Empty icon={CalendarClock} title="Sin turnos para hoy">Los socios pueden reservar desde el portal o se agendan desde Turnos.</Empty>
+            ) : (
+              <div className="agenda">
+                {d.agenda.map((a, i) => {
+                  const done = ["ATENDIDO", "AUSENTE"].includes(a.status);
+                  return (
+                    <Link
+                      key={a.id}
+                      className="agenda-item"
+                      data-state={done ? "done" : i === nextIndex ? "next" : undefined}
+                      href={done ? `/socios/${a.memberId}` : `/dispensario?socio=${a.memberId}`}
+                    >
+                      <span className="agenda-time">{a.time}</span>
+                      <span className="truncate" style={{ fontWeight: 600, fontSize: 14 }}>{a.name}</span>
+                      <span className="cell-meta">
+                        {a.pickupG ? `Reservó ${fmtGrams(a.pickupG)}` : `Legajo ${a.legajo}`}
+                        {i === nextIndex ? " · sigue" : ""}
+                      </span>
+                      {done || a.status === "CONFIRMADO" ? (
+                        <span style={{ marginTop: 4 }}><Chip tone={APPOINTMENT_STATUS[a.status]?.tone}>{APPOINTMENT_STATUS[a.status]?.label}</Chip></span>
+                      ) : null}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
+
+          <Panel
+            title="Entregas de las últimas dos semanas"
+            subtitle={
+              <>
+                {fmtGrams(d.week)} en los últimos 7 días
+                {weekDelta != null ? `, ${weekDelta >= 0 ? `${weekDelta}% más` : `${Math.abs(weekDelta)}% menos`} que la semana anterior` : ""}. Neto de anulaciones.
+              </>
+            }
+          >
+            <div className="bars" role="img" aria-label={`Gramos entregados por día. Hoy: ${fmtGrams(d.todayPoint.grams)}.`}>
+              {d.series.map((p, i) => (
+                <div key={p.day} className="bar" data-today={i === d.series.length - 1} title={`${p.day.split("-").reverse().slice(0, 2).join("/")}: ${fmtGrams(p.grams)} en ${plural(p.count, "entrega", "entregas")}`}>
+                  <i style={{ height: `${Math.max(2, (p.grams / maxBar) * 100)}%` }} />
+                </div>
+              ))}
+            </div>
+            <div className="bar-axis" aria-hidden>
+              {d.series.map((p, i) => {
+                const [, , dd] = p.day.split("-");
+                const wd = new Date(`${p.day}T12:00:00Z`).getUTCDay();
+                return <span key={p.day}>{i === d.series.length - 1 ? "hoy" : wd === 1 || i === 0 ? Number(dd) : ""}</span>;
+              })}
+            </div>
+          </Panel>
+
+          <Panel title="Stock para entregar" subtitle="Saldo del libro de cada lote disponible, sobre su peso seco." action={<Link className="btn btn-sm btn-quiet" href="/stock">Ver lotes</Link>}>
+            {d.available.length === 0 ? (
+              <Empty icon={PackageOpen} title="No hay lotes disponibles">Registrá el peso seco de un lote en Stock para habilitarlo.</Empty>
+            ) : (
+              <ul className="rows">
+                {d.available.map((b) => {
+                  const low = d.lowStock.some((l) => l.id === b.id);
+                  return (
+                    <li key={b.id}>
+                      <Link className="rowlink" href={`/stock/${b.id}`}>
+                        <div className="grow">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span><span className="cell-main">{b.code}</span> <span className="cell-meta">{b.strain}{b.thcPct != null ? `, ${b.thcPct}% THC` : ""}</span></span>
+                            <span className="tnum" style={{ fontWeight: 650 }}>{fmtGrams(b.balanceG)}</span>
+                          </div>
+                          <div style={{ marginTop: 7 }}><Meter value={b.balanceG} max={b.dryG || b.balanceG} tone={low ? "warn" : "ok"} /></div>
+                          {low ? <div className="cell-meta" style={{ marginTop: 4, color: "var(--warn)" }}>Queda poco: planificá el próximo lote.</div> : null}
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Panel>
+        </div>
+
+        <div className="stack">
+          <Panel title="Antes de entregar" subtitle="Socios activos con el REPROCANN vencido o por vencer.">
+            {attention === 0 ? (
+              <Empty icon={CircleCheck} title="Todos habilitados">Ningún socio activo tiene el REPROCANN vencido ni por vencer en 30 días.</Empty>
+            ) : (
+              <ul className="rows">
+                {[...d.blocked, ...d.expiring].slice(0, 7).map((m) => {
+                  const issue = reprocannIssue(m);
+                  const days = daysToExpiry(m.reprocannExpiresAt);
+                  return (
+                    <li key={m.id}>
+                      <Link className="rowlink" href={`/socios/${m.id}`}>
+                        <Avatar first={m.firstName} last={m.lastName} tone={issue.tone === "danger" ? "danger" : "warn"} />
+                        <div className="grow">
+                          <div className="cell-main truncate">{m.lastName}, {m.firstName}</div>
+                          <div className="cell-meta">Legajo {m.legajo}{days != null && days >= 0 ? ` · vence en ${plural(days, "día", "días")}` : ""}</div>
+                        </div>
+                        <Chip tone={issue.tone}>{issue.tone === "danger" ? issue.label.replace("REPROCANN ", "") : "Por vencer"}</Chip>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Panel>
+
+          <Panel title="Últimas entregas" action={<Link className="btn btn-sm btn-quiet" href="/dispensario#libro">Libro</Link>}>
+            {d.latest.length === 0 ? (
+              <Empty icon={Scale} title="Sin entregas todavía">La primera entrega aparece acá con su lote y operador.</Empty>
+            ) : (
+              <ul className="rows">
+                {d.latest.map((x) => (
+                  <li key={x.id} className={x.voidedAt ? "voided" : undefined}>
+                    <Link className="rowlink" href={`/socios/${x.member.id}`}>
+                      <div className="grow">
+                        <div className="cell-main truncate" style={x.voidedAt ? { textDecoration: "line-through", color: "var(--muted)" } : undefined}>
+                          {x.member.lastName}, {x.member.firstName}
+                        </div>
+                        <div className="cell-meta truncate">{fmtWhen(x.occurredAt, now)} · {x.batch.strain.name} · {x.operator.name}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="tnum" style={{ fontWeight: 650 }}>{fmtGrams(x.grams)}</div>
+                        {x.voidedAt ? <div className="cell-meta">anulada</div> : null}
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          {d.growing.length ? (
+            <Panel title="En cultivo" subtitle="Lotes que todavía no acreditan stock.">
+              <ul className="rows">
+                {d.growing.map((b) => (
+                  <li key={b.id}>
+                    <Link className="rowlink" href={`/stock/${b.id}`}>
+                      <div className="grow"><span className="cell-main">{b.code}</span> <span className="cell-meta">{b.strain}</span></div>
+                      <Chip tone={STAGE[b.stage]?.tone}>{STAGE[b.stage]?.label}</Chip>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          ) : null}
+        </div>
+      </div>
     </>
   );
 }

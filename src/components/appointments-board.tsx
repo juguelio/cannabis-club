@@ -2,11 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Chip, Empty, Section } from "@/components/ui";
+import { CalendarX2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Chip, Empty, Panel } from "@/components/ui";
 import { APPOINTMENT_CHANNEL, APPOINTMENT_STATUS, WEEKDAYS } from "@/lib/labels";
 import type { DayBoard } from "@/lib/appointments-db";
+import { api, errMsg } from "@/lib/client";
+import { MemberPicker } from "./member-picker";
+import { ReasonDialog } from "./dialog";
+import { useToast } from "./toast";
 
-type MemberOption = { id: string; legajo: number; name: string };
+type MemberOption = { id: string; legajo: number; name: string; docNumber?: string };
 
 const fmtDay = (key: string) => {
   const [y, m, d] = key.split("-").map(Number);
@@ -21,34 +26,24 @@ const shift = (key: string, delta: number) => {
   return date.toISOString().slice(0, 10);
 };
 
-export function AppointmentsBoard({
-  initial,
-  today,
-  members,
-}: {
-  initial: DayBoard;
-  today: string;
-  members: MemberOption[];
-}) {
+export function AppointmentsBoard({ initial, today, members }: { initial: DayBoard; today: string; members: MemberOption[] }) {
+  const toast = useToast();
   const [board, setBoard] = useState<DayBoard>(initial);
   const [slot, setSlot] = useState<number | null>(null);
   const [memberId, setMemberId] = useState("");
   const [channel, setChannel] = useState("MOSTRADOR");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
+  const [canceling, setCanceling] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   async function load(day: string) {
     setBusy(true);
-    setMsg(null);
     try {
-      const res = await fetch(`/api/appointments?date=${day}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "No pude cargar los turnos");
-      setBoard(data);
+      setBoard(await api<DayBoard>(`/api/appointments?date=${day}`));
       setSlot(null);
     } catch (error) {
-      setMsg({ tone: "bad", text: error instanceof Error ? error.message : "Error al cargar" });
+      toast({ tone: "bad", title: "No se pudieron cargar los turnos", text: errMsg(error) });
     } finally {
       setBusy(false);
     }
@@ -56,26 +51,20 @@ export function AppointmentsBoard({
 
   async function reserve(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (slot == null) {
-      setMsg({ tone: "bad", text: "Elegí un horario de la grilla." });
-      return;
-    }
+    if (slot == null || !memberId) return;
     setBusy(true);
-    setMsg(null);
     try {
-      const res = await fetch("/api/appointments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId, date: board.day, startMin: slot, channel, notes: notes || undefined }),
+      const data = await api<{ board: DayBoard; appointment: { member: { lastName: string } } }>("/api/appointments", {
+        body: { memberId, date: board.day, startMin: slot, channel, notes: notes || undefined },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "No se pudo reservar");
+      const label = data.board.slots.find((s) => s.startMin === slot)?.label ?? "";
       setBoard(data.board);
-      setMsg({ tone: "ok", text: `Turno reservado: ${data.appointment.member.lastName} a las ${data.board.slots.find((s: { startMin: number }) => s.startMin === slot)?.label ?? ""}.` });
+      toast({ tone: "ok", title: `Turno agendado a las ${label}`, text: `${data.appointment.member.lastName}, ${fmtDay(board.day).long}.` });
       setNotes("");
       setSlot(null);
+      setMemberId("");
     } catch (error) {
-      setMsg({ tone: "bad", text: error instanceof Error ? error.message : "Error al reservar" });
+      toast({ tone: "bad", title: "No se pudo agendar", text: errMsg(error) });
     } finally {
       setBusy(false);
     }
@@ -83,186 +72,107 @@ export function AppointmentsBoard({
 
   async function setStatus(id: string, status: string, reason?: string) {
     setBusy(true);
-    setMsg(null);
     try {
-      const res = await fetch(`/api/appointments/${id}/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, reason }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "No se pudo actualizar el turno");
+      const data = await api<{ board: DayBoard }>(`/api/appointments/${id}/status`, { body: { status, reason } });
       setBoard(data.board);
+      return true;
     } catch (error) {
-      setMsg({ tone: "bad", text: error instanceof Error ? error.message : "Error al actualizar" });
+      if (status === "CANCELADO") setCancelError(errMsg(error));
+      else toast({ tone: "bad", title: "No se pudo actualizar el turno", text: errMsg(error) });
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
-  function cancel(id: string) {
-    const reason = window.prompt("Motivo de la cancelación (queda en el registro):");
-    if (reason == null) return;
-    if (!reason.trim()) {
-      setMsg({ tone: "bad", text: "La cancelación necesita un motivo." });
-      return;
-    }
-    void setStatus(id, "CANCELADO", reason.trim());
-  }
-
   const day = fmtDay(board.day);
-  const libres = board.slots.reduce((a, s) => a + s.free, 0);
+  const libres = board.slots.filter((s) => !s.past).reduce((a, s) => a + s.free, 0);
   const chosen = board.slots.find((s) => s.startMin === slot);
 
   return (
     <>
-      <div className="card px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <button className="btn" onClick={() => load(shift(board.day, -1))} disabled={busy} aria-label="Día anterior">
-            ‹
-          </button>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{day.long}</div>
-            <div className="cell-meta tnum">
-              {board.day === today ? "hoy" : "otro día"} · {board.summary.total} turno{board.summary.total === 1 ? "" : "s"} ·{" "}
-              {libres} cupo{libres === 1 ? "" : "s"} libre{libres === 1 ? "" : "s"}
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="flex flex-wrap items-center justify-between gap-3" style={{ padding: "12px 14px" }}>
+          <div className="flex items-center gap-2">
+            <button className="icon-btn" onClick={() => load(shift(board.day, -1))} disabled={busy} aria-label="Día anterior"><ChevronLeft /></button>
+            <div style={{ minWidth: 150 }}>
+              <div className="display" style={{ fontWeight: 650, fontSize: 19, textTransform: "capitalize" }}>{board.day === today ? `Hoy, ${day.long}` : day.long}</div>
+              <div className="cell-meta tnum">
+                {board.summary.total} {board.summary.total === 1 ? "turno" : "turnos"}, {libres} {libres === 1 ? "lugar libre" : "lugares libres"}
+              </div>
             </div>
+            <button className="icon-btn" onClick={() => load(shift(board.day, 1))} disabled={busy} aria-label="Día siguiente"><ChevronRight /></button>
+            {board.day !== today ? <button className="btn btn-sm btn-quiet" onClick={() => load(today)} disabled={busy}>Volver a hoy</button> : null}
           </div>
-          <button className="btn" onClick={() => load(shift(board.day, 1))} disabled={busy} aria-label="Día siguiente">
-            ›
-          </button>
-          <button className="btn" onClick={() => load(today)} disabled={busy || board.day === today}>
-            Hoy
-          </button>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Chip tone="brand">Por llegar {board.summary.porLlegar}</Chip>
-          <Chip tone="ok">Atendidos {board.summary.atendidos}</Chip>
-          <Chip tone={board.summary.ausentes ? "warn" : "mute"}>No vinieron {board.summary.ausentes}</Chip>
-          {board.summary.cancelados ? <Chip tone="mute">Cancelados {board.summary.cancelados}</Chip> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip tone="brand">Por llegar {board.summary.porLlegar}</Chip>
+            <Chip tone="ok">Atendidos {board.summary.atendidos}</Chip>
+            {board.summary.ausentes ? <Chip tone="warn">No vinieron {board.summary.ausentes}</Chip> : null}
+            {board.summary.cancelados ? <Chip>Cancelados {board.summary.cancelados}</Chip> : null}
+          </div>
         </div>
       </div>
 
-      {msg ? (
-        <div className={`alert ${msg.tone === "ok" ? "alert-ok" : "alert-warn"} mt-3`}>{msg.text}</div>
-      ) : null}
-
-      <div className="dashboard-grid">
-        <Section
-          title="Franjas del día"
-          subtitle={
-            board.slots.length
-              ? "Elegí un horario libre y después el socio. El cupo es por turno, no por día."
-              : "No hay franjas configuradas para este día."
-          }
+      <div className="grid-2">
+        <Panel
+          title="Horarios"
+          subtitle={board.slots.length ? "Elegí un horario libre. El cupo es por turno, no por día." : undefined}
         >
           {board.slots.length === 0 ? (
-            <Empty>
-              Este día no abre el dispensario.{" "}
-              {board.openingHours.length ? `Atiende: ${board.openingHours.map((h) => h.label).join(" · ")}.` : "Falta configurar franjas."}
+            <Empty icon={CalendarX2} title="El dispensario no abre este día">
+              {board.openingHours.length ? `Atiende ${board.openingHours.map((h) => h.label).join(", ")}.` : "Falta configurar las franjas de atención."}
             </Empty>
           ) : (
-            <div className="grid gap-2 px-4 pb-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(104px, 1fr))" }}>
-              {board.slots.map((s) => {
-                const selected = s.startMin === slot;
-                const disabled = s.full || s.past;
-                return (
-                  <button
-                    key={s.at}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => setSlot(s.startMin)}
-                    className="card px-3 py-2 text-left"
-                    data-selected={selected}
-                    style={{
-                      opacity: disabled ? 0.55 : 1,
-                      borderColor: selected ? "var(--brand)" : undefined,
-                      boxShadow: selected ? "0 0 0 1px var(--brand) inset" : undefined,
-                      cursor: disabled ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    <div
-                      className="tnum"
-                      style={{ fontWeight: 700, fontSize: 15, textDecoration: disabled ? "line-through" : "none" }}
-                    >
-                      {selected ? "✓ " : ""}
-                      {s.label}
-                    </div>
-                    <div className="cell-meta tnum">
-                      {s.taken}/{s.capacity} {s.past ? "· ya pasó" : s.full ? "· completo" : `· ${s.free} libre${s.free === 1 ? "" : "s"}`}
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="panel-body slot-grid" role="radiogroup" aria-label="Horarios del día">
+              {board.slots.map((s) => (
+                <button
+                  key={s.at}
+                  type="button"
+                  className="slot"
+                  disabled={s.full || s.past}
+                  aria-pressed={s.startMin === slot}
+                  onClick={() => setSlot(s.startMin)}
+                  title={s.past ? "Ya pasó" : s.full ? "Completo" : `${s.free} de ${s.capacity} libres`}
+                >
+                  {s.label}
+                  <span style={{ display: "block", fontSize: 11.5, fontWeight: 500, opacity: 0.75 }}>{s.past ? "pasó" : s.full ? "completo" : `${s.free}/${s.capacity}`}</span>
+                </button>
+              ))}
             </div>
           )}
-        </Section>
+        </Panel>
 
-        <Section title="Reservar turno" subtitle={chosen ? `Horario elegido: ${chosen.label}` : "Primero elegí un horario de la grilla"}>
-          <form className="px-4 pb-4 grid gap-3" onSubmit={reserve}>
-            <div>
-              <label className="label">Horario</label>
-              <select
-                className="select"
-                value={slot ?? ""}
-                onChange={(e) => setSlot(e.target.value === "" ? null : Number(e.target.value))}
-                required
-              >
-                <option value="">Elegir horario…</option>
-                {board.slots.map((s) => (
-                  <option key={s.at} value={s.startMin} disabled={s.full || s.past}>
-                    {s.label} · {s.full ? "completo" : s.past ? "ya pasó" : `${s.free} libre${s.free === 1 ? "" : "s"}`}
-                  </option>
-                ))}
-              </select>
+        <Panel title="Agendar turno" subtitle={chosen ? `${day.long} a las ${chosen.label}.` : "Primero elegí un horario."}>
+          <form className="panel-body stack" style={{ gap: 12 }} onSubmit={reserve}>
+            <MemberPicker members={members} value={memberId} onChange={setMemberId} />
+            <div className="field-row">
+              <div>
+                <label className="label" htmlFor="ap-ch">Pedido por</label>
+                <select className="select" id="ap-ch" value={channel} onChange={(e) => setChannel(e.target.value)}>
+                  {Object.entries(APPOINTMENT_CHANNEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label" htmlFor="ap-n">Nota</label>
+                <input className="input" id="ap-n" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opcional" />
+              </div>
             </div>
-            <div>
-              <label className="label">Socio</label>
-              <select className="select" value={memberId} onChange={(e) => setMemberId(e.target.value)} required>
-                <option value="">Elegir socio…</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.legajo} · {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Canal del pedido</label>
-              <select className="select" value={channel} onChange={(e) => setChannel(e.target.value)}>
-                {Object.entries(APPOINTMENT_CHANNEL).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Nota (opcional)</label>
-              <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ej.: viene con su hijo, prefiere la mañana" />
-            </div>
-            <button className="btn btn-primary" disabled={busy || !memberId || slot == null}>
-              {busy ? "Guardando…" : "Reservar turno"}
+            <button className="btn" disabled={busy || !memberId || slot == null}>
+              {busy ? "Guardando…" : chosen ? `Agendar a las ${chosen.label}` : "Agendar turno"}
             </button>
           </form>
-        </Section>
+        </Panel>
       </div>
 
-      <div className="mt-4">
-        <Section title="Turnos del día" subtitle="Un turno no habilita la entrega: el dispensario vuelve a validar REPROCANN y topes">
+      <div style={{ marginTop: 16 }}>
+        <Panel title="Turnos del día" subtitle="Un turno no habilita la entrega: el dispensario vuelve a validar REPROCANN y topes.">
           {board.appointments.length === 0 ? (
-            <Empty>No hay turnos para {day.short}.</Empty>
+            <Empty>No hay turnos para el {day.short}.</Empty>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="table-wrap">
               <table className="data">
                 <thead>
-                  <tr>
-                    <th>Hora</th>
-                    <th>Socio</th>
-                    <th>Canal</th>
-                    <th>Estado</th>
-                    <th style={{ width: 300 }}>Acciones</th>
-                  </tr>
+                  <tr><th>Hora</th><th>Socio</th><th className="hide-sm">Pedido por</th><th>Estado</th><th /></tr>
                 </thead>
                 <tbody>
                   {board.appointments.map((a) => {
@@ -270,42 +180,22 @@ export function AppointmentsBoard({
                     const open = ["PENDIENTE", "CONFIRMADO"].includes(a.status);
                     return (
                       <tr key={a.id}>
-                        <td className="tnum" style={{ fontWeight: 700 }}>{a.label}</td>
+                        <td className="tnum display" style={{ fontWeight: 650, fontSize: 16 }}>{a.label}</td>
                         <td>
-                          <div className="cell-main">{a.memberName}</div>
-                          <div className="cell-meta">Legajo {a.legajo}</div>
+                          <Link className="row-link" href={`/socios/${a.memberId}`}><div className="cell-main">{a.memberName}</div></Link>
+                          <div className="cell-meta">Legajo {a.legajo}{a.notes ? ` · ${a.notes}` : ""}</div>
                         </td>
-                        <td className="cell-meta">{APPOINTMENT_CHANNEL[a.channel] ?? a.channel}</td>
-                        <td>
-                          <Chip tone={st.tone}>{st.label}</Chip>
-                          {a.dispatchId ? <div className="cell-meta">entrega registrada</div> : null}
-                        </td>
-                        <td>
+                        <td className="cell-meta hide-sm">{APPOINTMENT_CHANNEL[a.channel] ?? a.channel}</td>
+                        <td><Chip tone={st.tone}>{st.label}</Chip>{a.dispatchId ? <div className="cell-meta">con entrega</div> : null}</td>
+                        <td className="num">
                           {open ? (
-                            <div className="flex items-center gap-1.5">
-                              {a.status === "PENDIENTE" ? (
-                                <button className="btn btn-sm" disabled={busy} onClick={() => setStatus(a.id, "CONFIRMADO")}>
-                                  Confirmar
-                                </button>
-                              ) : null}
-                              <Link className="btn btn-sm btn-secondary" href={`/dispensario?socio=${a.memberId}`}>
-                                Entregar
-                              </Link>
-                              <details className="more">
-                                <summary className="btn btn-sm btn-secondary">Más</summary>
-                                <div className="more-menu">
-                                  <button className="btn btn-sm btn-secondary" disabled={busy} onClick={() => setStatus(a.id, "AUSENTE")}>
-                                    No vino
-                                  </button>
-                                  <button className="btn btn-sm btn-danger" disabled={busy} onClick={() => cancel(a.id)}>
-                                    Cancelar turno
-                                  </button>
-                                </div>
-                              </details>
+                            <div className="flex flex-wrap items-center justify-end gap-1">
+                              {a.status === "PENDIENTE" ? <button className="btn btn-sm btn-quiet" disabled={busy} onClick={() => setStatus(a.id, "CONFIRMADO")}>Confirmar</button> : null}
+                              <Link className="btn btn-sm" href={`/dispensario?socio=${a.memberId}`}>Entregar</Link>
+                              <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => setStatus(a.id, "AUSENTE")}>No vino</button>
+                              <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => { setCancelError(null); setCanceling(a.id); }}>Cancelar</button>
                             </div>
-                          ) : (
-                            <span className="cell-meta">—</span>
-                          )}
+                          ) : null}
                         </td>
                       </tr>
                     );
@@ -314,8 +204,27 @@ export function AppointmentsBoard({
               </table>
             </div>
           )}
-        </Section>
+        </Panel>
       </div>
+
+      <ReasonDialog
+        open={canceling != null}
+        onClose={() => setCanceling(null)}
+        title="Cancelar el turno"
+        description="El horario se libera para otro socio."
+        confirmLabel="Cancelar turno"
+        reasonLabel="Motivo"
+        danger
+        busy={busy}
+        error={cancelError}
+        onConfirm={async (reason) => {
+          if (!canceling) return;
+          if (await setStatus(canceling, "CANCELADO", reason)) {
+            toast({ tone: "ok", title: "Turno cancelado" });
+            setCanceling(null);
+          }
+        }}
+      />
     </>
   );
 }
