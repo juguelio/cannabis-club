@@ -16,7 +16,10 @@ Verificación real contra producción: `/login` 200 · `/` y `/socios` 307 sin s
 200 con cookie · `/` y `/socios` 200 con sesión · `GET /api/members` devuelve el padrón. Claves del seed
 rotadas (la vieja devuelve 401).
 
-## Repetir el deploy
+## Deploy automático
+
+El proyecto está conectado al repo `github.com/juguelio/cannabis-club` (rama de producción `main`):
+cada push a `main` dispara el deploy. Manual, si hace falta forzarlo:
 
 ```bash
 cd ~/Dev/cannabis-club
