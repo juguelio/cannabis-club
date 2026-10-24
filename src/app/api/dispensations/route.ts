@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         limits: result.replay ? null : result.decision.snapshot,
         pickupFulfilled: result.pickupFulfilled,
         replay: result.replay,
-        batchExhausted: result.batchExhausted ?? false,
+        batchExhausted: "batchExhausted" in result ? result.batchExhausted : false,
       },
       result.replay ? 200 : 201,
     );

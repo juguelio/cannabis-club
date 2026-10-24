@@ -148,6 +148,7 @@ export const AUDIT_ACTION: Record<string, string> = {
   PICKUP_CREATE: "Reserva desde el portal",
   PICKUP_CONFIRM: "Confirmó una reserva",
   PICKUP_CANCEL: "Canceló una reserva",
+  PICKUP_PARTIAL: "Entregó distinto de lo reservado",
   USER_CREATE: "Creó una cuenta del equipo",
   USER_UPDATE: "Editó una cuenta del equipo",
 };
@@ -156,4 +157,12 @@ export const FIELD_LABEL: Record<string, string> = {
   status: "estado", firstName: "nombre", lastName: "apellido", birthDate: "nacimiento", phone: "teléfono", email: "email",
   address: "domicilio", reprocannNumber: "N° REPROCANN", reprocannStatus: "estado REPROCANN", reprocannExpiresAt: "vencimiento REPROCANN",
   consentSignedAt: "consentimiento", consumptionType: "consumo", monthlyForecastG: "previsión", notes: "notas",
+};
+
+/** Cómo quedó firmada la entrega. REGISTRO_OPERADOR no prueba recepción del socio (R06). */
+export const SIGNATURE: Record<string, string> = {
+  REGISTRO_OPERADOR: "registrada por el operador",
+  PIN: "PIN del socio",
+  FIRMA_DIGITAL: "firma digital",
+  QR: "QR del carnet",
 };

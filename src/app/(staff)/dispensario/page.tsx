@@ -16,7 +16,7 @@ import { fmtGrams, fmtWhen } from "@/lib/labels";
 export const metadata = { title: "Dispensario" };
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 
-export default async function DispensarioPage({ searchParams }: { searchParams: Promise<{ socio?: string; libro?: string }> }) {
+export default async function DispensarioPage({ searchParams }: { searchParams: Promise<{ socio?: string; pickup?: string; libro?: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
   const sp = await searchParams;
@@ -83,6 +83,7 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
         batches={available}
         queue={queue}
         initialMemberId={sp?.socio}
+        initialPickupId={sp?.pickup}
       />
 
       <div className="stack" style={{ marginTop: 16 }}>

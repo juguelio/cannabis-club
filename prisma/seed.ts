@@ -277,7 +277,7 @@ async function main() {
       const at = new Date(dayStart.getTime() + (10 * 60 + Math.floor(rnd() * 500)) * 60_000);
       const d = await prisma.dispensation.create({
         data: {
-          memberId: m.id, batchId: batch.id, grams: D(grams), thcPct: batch.thcPct, operatorId: operador.id, signatureType: "PIN", occurredAt: at,
+          memberId: m.id, batchId: batch.id, grams: D(grams), thcPct: batch.thcPct, operatorId: operador.id, signatureType: "REGISTRO_OPERADOR", occurredAt: at,
           limitSnapshot: { seeded: true, grams, checkedAt: at.toISOString() },
         },
       });

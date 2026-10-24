@@ -37,7 +37,7 @@ export function PickupActions({ id, status, memberId }: { id: string; status: st
           Confirmar
         </button>
       ) : null}
-      <Link className="btn btn-sm" href={`/dispensario?socio=${memberId}`} scroll>Entregar</Link>
+      <Link className="btn btn-sm" href={`/dispensario?socio=${memberId}&pickup=${id}`}>Atender</Link>
       <button className="btn btn-sm btn-ghost" onClick={() => { setError(null); setCancel(true); }} disabled={busy}>Cancelar</button>
       <ReasonDialog
         open={cancel}

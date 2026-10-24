@@ -10,7 +10,7 @@ import { Avatar, Chip, Empty, Meter, Note, Panel } from "@/components/ui";
 import { VoidButton } from "@/components/forms";
 import { MemberEditor, MemberStatusActions, PortalAccess } from "@/components/member-editor";
 import {
-  age, AUDIT_ACTION, CONSUMPTION, daysToExpiry, FIELD_LABEL, fmtDate, fmtGrams, fmtWhen, MEMBER_STATUS, plural, reprocannIssue,
+  age, AUDIT_ACTION, CONSUMPTION, daysToExpiry, FIELD_LABEL, fmtDate, fmtGrams, fmtWhen, MEMBER_STATUS, plural, reprocannIssue, SIGNATURE,
 } from "@/lib/labels";
 
 export const metadata = { title: "Legajo" };
@@ -142,7 +142,7 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
                         <td className="cell-meta" style={{ whiteSpace: "nowrap" }}>{fmtWhen(d.occurredAt)}</td>
                         <td><div className="cell-main">{d.batch.strain.name}</div><div className="cell-meta">{d.batch.code}{d.thcPct ? `, ${Number(d.thcPct)}% THC` : ""}</div></td>
                         <td className="num"><span className="cell-main tnum">{fmtGrams(d.grams)}</span>{d.voidedAt ? <div className="cell-meta" title={d.voidReason ?? ""}>anulada</div> : null}</td>
-                        <td className="cell-meta hide-sm">{d.operator.name}</td>
+                        <td className="cell-meta hide-sm">{d.operator.name}<div>{SIGNATURE[d.signatureType] ?? d.signatureType}</div></td>
                         <td className="num">{session.role === "ADMIN" && !d.voidedAt ? <VoidButton id={d.id} label={`${fmtGrams(d.grams)} de ${d.batch.code}`} /> : null}</td>
                       </tr>
                     ))}

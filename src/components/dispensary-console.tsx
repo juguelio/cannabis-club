@@ -16,7 +16,7 @@ type Status = {
   limits: { dailyG: number; monthlyG: number; thcMaxPct: number | null; isMinor: boolean; requiresReprocann: boolean };
   blockers: string[];
 };
-type Receipt = { member: string; memberId: string; grams: number; batch: string; balanceAfter: number; exhausted: boolean; pickup: boolean };
+type Receipt = { id: string; replay: boolean; member: string; memberId: string; grams: number; batch: string; balanceAfter: number; exhausted: boolean; pickup: boolean };
 
 const g = (v: number) => `${Number.isInteger(v) ? v : v.toFixed(1).replace(".", ",")} g`;
 const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -26,16 +26,19 @@ export function DispensaryConsole({
   batches,
   queue,
   initialMemberId,
+  initialPickupId,
 }: {
   members: PickerMember[];
   batches: Batch[];
   queue: QueueItem[];
   initialMemberId?: string;
+  initialPickupId?: string;
 }) {
   const router = useRouter();
   const toast = useToast();
   const initial = initialMemberId && members.some((m) => m.id === initialMemberId) ? initialMemberId : "";
-  const initialRes = initial ? queue.find((q) => q.memberId === initial && q.pickupId) : undefined;
+  // Una reserva sólo se cierra si el mostrador la atiende explícitamente (R01): por enlace o tocándola en la cola.
+  const initialRes = initial ? queue.find((q) => q.memberId === initial && q.pickupId && (!initialPickupId || q.pickupId === initialPickupId)) : undefined;
   const [memberId, setMemberId] = useState(initial);
   const [batchId, setBatchId] = useState(batches.length === 1 ? batches[0].id : "");
   const [grams, setGrams] = useState(initialRes?.pickupG ? String(initialRes.pickupG) : "");
@@ -45,6 +48,9 @@ export function DispensaryConsole({
   const [failure, setFailure] = useState<{ code: string; message: string } | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const readout = useRef<HTMLInputElement>(null);
+  // Clave del intento (R07): reintentar la misma entrega devuelve la ya registrada, no un asiento nuevo.
+  const newKey = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const [intentKey, setIntentKey] = useState(newKey);
 
   useEffect(() => {
     if (!memberId) return;
@@ -83,19 +89,21 @@ export function DispensaryConsole({
     setBusy(true);
     setFailure(null);
     try {
-      const res = await api<{ balanceAfterG: number; pickupFulfilled: string | null; batchExhausted: boolean }>("/api/dispensations", {
-        body: { memberId, batchId, grams: amount, signatureType: "PIN", pickupId: pickupId ?? undefined, confirmDuplicate },
+      const res = await api<{ dispensation: { id: string }; balanceAfterG: number | null; pickupFulfilled: string | null; batchExhausted: boolean; replay: boolean }>("/api/dispensations", {
+        body: { memberId, batchId, grams: amount, pickupId: pickupId ?? undefined, idempotencyKey: intentKey, confirmDuplicate },
       });
       setReceipt({
+        id: res.dispensation.id,
+        replay: res.replay,
         member: status.member.name,
         memberId,
         grams: amount,
         batch: `${batch.code} · ${batch.strain}`,
-        balanceAfter: res.balanceAfterG,
+        balanceAfter: res.balanceAfterG ?? batch.balanceG - amount,
         exhausted: res.batchExhausted,
         pickup: Boolean(res.pickupFulfilled),
       });
-      toast({ tone: "ok", title: `Entregados ${g(amount)}`, text: `${status.member.name}, lote ${batch.code}.` });
+      toast({ tone: "ok", title: res.replay ? "Esa entrega ya estaba registrada" : `Entregados ${g(amount)}`, text: `${status.member.name}, lote ${batch.code}.` });
       router.refresh();
     } catch (err) {
       const e = err instanceof ApiError ? err : new ApiError("ERROR", errMsg(err), 0);
@@ -106,6 +114,7 @@ export function DispensaryConsole({
   }
 
   function reset() {
+    setIntentKey(newKey());
     setReceipt(null);
     setMemberId("");
     setGrams("");
@@ -190,7 +199,10 @@ export function DispensaryConsole({
       <section className="scale" aria-label="Balanza de la entrega" aria-live="polite">
         {receipt ? (
           <div className="stack" style={{ gap: 16 }}>
-            <div className="flex items-center gap-2" style={{ color: "#a6e8bf" }}><CircleCheck aria-hidden /> Entrega registrada</div>
+            <div className="flex items-center gap-2" style={{ color: "#a6e8bf" }}>
+              <CircleCheck aria-hidden /> {receipt.replay ? "Esa entrega ya estaba registrada: no se duplicó" : "Entrega registrada"}
+              <span style={{ marginLeft: "auto", fontSize: 13, color: "#9fb8aa" }}>Comprobante {receipt.id.slice(-8).toUpperCase()}</span>
+            </div>
             <div className="readout" style={{ margin: 0, borderBottom: 0 }}>
               <span className="readout-value" style={{ width: "auto" }}>{String(receipt.grams).replace(".", ",")}</span>
               <span className="readout-unit">g</span>
@@ -199,6 +211,7 @@ export function DispensaryConsole({
               <div className="scale-name">{receipt.member}</div>
               <div className="scale-meta">Lote {receipt.batch}. Quedan {g(receipt.balanceAfter)} en el lote{receipt.exhausted ? ", que pasó a agotado" : ""}.</div>
               {receipt.pickup ? <div className="scale-meta" style={{ marginTop: 4 }}>La reserva del portal quedó cerrada como retirada.</div> : null}
+              <div className="scale-meta" style={{ marginTop: 4 }}>Firma: registrada por el operador (no prueba recepción del socio).</div>
             </div>
             <div className="flex flex-wrap gap-2">
               <button className="btn btn-lg" onClick={reset} autoFocus><RotateCcw aria-hidden />Nueva entrega</button>
@@ -282,6 +295,13 @@ export function DispensaryConsole({
                   <span>{c.text}</span>
                 </div>
               ))}
+              {pickupId && reserved != null ? (
+                <div className="verdict">
+                  <Info aria-hidden />
+                  <span style={{ flex: 1 }}>Atendés su reserva del portal de {g(reserved)}: esta entrega la cierra{amount && Math.abs(amount - reserved) > 0.001 ? " (queda registrado que fue distinto de lo reservado)" : ""}.</span>
+                  <button type="button" className="btn btn-sm" style={{ background: "transparent", color: "#d5e5db", borderColor: "#355a4b" }} onClick={() => setPickupId(null)}>No es la reserva</button>
+                </div>
+              ) : null}
               {status && !batch ? <div className="verdict"><Info aria-hidden />Elegí el lote a entregar.</div> : null}
               {ready && !failure ? (
                 <div className="verdict" data-tone="ok"><CircleCheck aria-hidden />Habilitado: {g(amount)} de {batch!.strain}. El servidor lo vuelve a validar al confirmar.</div>

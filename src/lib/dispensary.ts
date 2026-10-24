@@ -53,9 +53,7 @@ export type DispenseInput = {
   notes?: string | null;
   operatorId: string;
   ip?: string | null;
-  /** Reserva del portal que esta entrega cierra (si no se indica, la más antigua abierta). */
-  pickupId?: string | null;
-  /** El operador confirmó que no es un doble clic: misma entrega hace segundos. */
+  /** El operador confirmó que es otra entrega: misma cantidad, socio y lote hace menos de un minuto, con otra clave. */
   confirmDuplicate?: boolean;
 };
 

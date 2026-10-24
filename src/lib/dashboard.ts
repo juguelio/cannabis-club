@@ -32,12 +32,10 @@ export async function dashboardData(now = new Date()) {
       WITH days AS (
         SELECT generate_series((now() AT TIME ZONE ${tz})::date - 13, (now() AT TIME ZONE ${tz})::date, interval '1 day')::date AS day
       )
-      SELECT d.day,
-        COALESCE(SUM(CASE WHEN m.type = 'DISPENSACION' THEN m.grams WHEN m.type = 'DISPENSACION_REVERSA' THEN -m.grams END), 0) AS grams,
-        COUNT(m.id) FILTER (WHERE m.type = 'DISPENSACION') AS count
+      SELECT d.day, COALESCE(SUM(x.grams), 0) AS grams, COUNT(x.id) AS count
       FROM days d
-      LEFT JOIN "StockMovement" m
-        ON (m."occurredAt" AT TIME ZONE ${tz})::date = d.day AND m.type IN ('DISPENSACION', 'DISPENSACION_REVERSA')
+      LEFT JOIN "Dispensation" x
+        ON (x."occurredAt" AT TIME ZONE ${tz})::date = d.day AND x."voidedAt" IS NULL
       GROUP BY d.day ORDER BY d.day`,
     prisma.appointment.findMany({
       where: { scheduledAt: { gte: slotInstant(today, 0), lt: slotInstant(addDaysKey(today, 1), 0) }, status: { not: "CANCELADO" } },
