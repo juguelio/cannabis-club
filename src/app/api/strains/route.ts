@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { fail, json } from "@/lib/http";
 
 const Body = z.object({
-  name: z.string().min(2),
+  name: z.string().trim().min(2).max(80),
   genetics: z.string().optional(),
   thcPct: z.number().min(0).max(100).optional(),
   cbdPct: z.number().min(0).max(100).optional(),
@@ -22,9 +22,13 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    await requireUser(["ADMIN", "OPERADOR"]);
+    const user = await requireUser(["ADMIN", "OPERADOR"]);
     const body = Body.parse(await req.json());
-    const strain = await prisma.strain.create({ data: body });
+    const strain = await prisma.$transaction(async (tx) => {
+      const strain = await tx.strain.create({ data: { ...body, name: body.name.trim() } });
+      await tx.auditLog.create({ data: { actorId: user.id, action: "STRAIN_CREATE", entity: "Strain", entityId: strain.id, payload: { name: strain.name } } });
+      return strain;
+    });
     return json({ strain }, 201);
   } catch (error) {
     return fail(error);

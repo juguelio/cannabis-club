@@ -1,18 +1,14 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { fail, json } from "@/lib/http";
-import { listPickups, markPickup } from "@/lib/pickups";
+import { body, route } from "@/lib/api";
+import { confirmPickup, listPickups } from "@/lib/pickups";
 
-const Body = z.object({ status: z.enum(["CONFIRMADA", "VENCIDA"]) });
+const Body = z.object({ status: z.literal("CONFIRMADA") });
 
-export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  try {
-    const user = await requireUser(["ADMIN", "OPERADOR"]);
-    const { id } = await ctx.params;
-    const body = Body.parse(await req.json());
-    await markPickup({ id, status: body.status, actorId: user.id });
-    return json({ pickups: await listPickups() });
-  } catch (error) {
-    return fail(error);
-  }
-}
+/** El mostrador confirma la reserva. El retiro se registra como entrega en el dispensario. */
+export const POST = route<{ id: string }>(async (req, { id }) => {
+  const user = await requireUser(["ADMIN", "OPERADOR"]);
+  await body(req, Body);
+  await confirmPickup({ id, actorId: user.id });
+  return { pickups: await listPickups() };
+});

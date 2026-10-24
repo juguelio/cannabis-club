@@ -7,7 +7,7 @@ import { jwtVerify } from "jose";
  * La verificación es de rol, sale del JWT; las reglas finas siguen en cada página y ruta.
  */
 const COOKIE = "cc_session";
-const PUBLIC = ["/login", "/api/auth/login", "/api/auth/logout"];
+const PUBLIC = ["/login", "/api/auth/login", "/api/auth/logout", "/api/health"];
 
 const secretKey = () => new TextEncoder().encode(process.env.AUTH_SECRET ?? "");
 
