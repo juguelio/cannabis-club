@@ -131,7 +131,7 @@ async function stock(): Promise<Report> {
         b.plantsCount ?? "",
         b.room ?? "",
         fnum(sum(["INGRESO", "AJUSTE_POSITIVO"])),
-        fnum(sum(["DISPENSACION"])),
+        fnum(sum(["DISPENSACION"]) - sum(["DISPENSACION_REVERSA"])),
         fnum(sum(["DESTRUCCION"])),
         fnum(balance),
         fnum(b.thcPct),
