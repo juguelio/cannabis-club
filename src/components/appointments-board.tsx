@@ -201,17 +201,6 @@ export function AppointmentsBoard({
         <Section title="Reservar turno" subtitle={chosen ? `Horario elegido: ${chosen.label}` : "Primero elegí un horario de la grilla"}>
           <form className="px-4 pb-4 grid gap-3" onSubmit={reserve}>
             <div>
-              <label className="label">Socio</label>
-              <select className="select" value={memberId} onChange={(e) => setMemberId(e.target.value)} required>
-                <option value="">Elegir socio…</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.legajo} · {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
               <label className="label">Horario</label>
               <select
                 className="select"
@@ -222,7 +211,18 @@ export function AppointmentsBoard({
                 <option value="">Elegir horario…</option>
                 {board.slots.map((s) => (
                   <option key={s.at} value={s.startMin} disabled={s.full || s.past}>
-                    {s.label} · {s.full ? "lleno" : s.past ? "pasó" : `${s.free} libre${s.free === 1 ? "" : "s"}`}
+                    {s.label} · {s.full ? "completo" : s.past ? "ya pasó" : `${s.free} libre${s.free === 1 ? "" : "s"}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Socio</label>
+              <select className="select" value={memberId} onChange={(e) => setMemberId(e.target.value)} required>
+                <option value="">Elegir socio…</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.legajo} · {m.name}
                   </option>
                 ))}
               </select>
