@@ -1,20 +1,39 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function PickupActions({ id, status }: { id: string; status: string }) {
+/**
+ * El único camino a RETIRADA es registrar la entrega.
+ * Acá sólo se confirma la reserva y se abre el mostrador con ese contexto
+ * (socio + reserva + gramos), para que la entrega cierre exactamente esa reserva.
+ */
+export function PickupActions({
+  id,
+  status,
+  memberId,
+}: {
+  id: string;
+  status: string;
+  memberId: string;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
-  async function move(next: "CONFIRMADA" | "RETIRADA") {
+  async function confirm() {
     setBusy(true);
     try {
-      await fetch(`/api/pickups/${id}/status`, {
+      const res = await fetch(`/api/pickups/${id}/status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: next }),
+        body: JSON.stringify({ status: "CONFIRMADA" }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        window.alert(data.message ?? "No se pudo confirmar la reserva");
+        return;
+      }
       router.refresh();
     } finally {
       setBusy(false);
@@ -24,13 +43,13 @@ export function PickupActions({ id, status }: { id: string; status: string }) {
   return (
     <div className="flex items-center gap-1.5">
       {status === "SOLICITADA" ? (
-        <button className="btn btn-sm btn-secondary" disabled={busy} onClick={() => move("CONFIRMADA")}>
+        <button className="btn btn-sm btn-secondary" disabled={busy} onClick={confirm}>
           Confirmar
         </button>
       ) : null}
-      <button className="btn btn-sm" disabled={busy} onClick={() => move("RETIRADA")}>
-        Marcar retirada
-      </button>
+      <Link className="btn btn-sm" href={`/dispensario?socio=${memberId}&pickup=${id}`}>
+        Atender reserva
+      </Link>
     </div>
   );
 }

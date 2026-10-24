@@ -24,13 +24,25 @@ function Meter({ value, max }: { value: number; max: number }) {
   );
 }
 
-export function DispensaryConsole({ members, batches, initialMemberId }: { members: Member[]; batches: Batch[]; initialMemberId?: string }) {
+export function DispensaryConsole({
+  members,
+  batches,
+  initialMemberId,
+  initialPickup,
+}: {
+  members: Member[];
+  batches: Batch[];
+  initialMemberId?: string;
+  initialPickup?: { id: string; grams: number; memberId: string } | null;
+}) {
   const router = useRouter();
   const [memberId, setMemberId] = useState(
     initialMemberId && members.some((m) => m.id === initialMemberId) ? initialMemberId : (members[0]?.id ?? ""),
   );
   const [batchId, setBatchId] = useState(batches[0]?.id ?? "");
-  const [grams, setGrams] = useState("5");
+  const [grams, setGrams] = useState(initialPickup ? String(initialPickup.grams) : "5");
+  // Contexto de la reserva que se está atendiendo: sólo se cierra esta, no "la más vieja".
+  const pickupId = initialPickup?.id ?? null;
   const [remote, setRemote] = useState<{ id: string; data: Status | null }>({ id: "", data: null });
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -66,7 +78,7 @@ export function DispensaryConsole({ members, batches, initialMemberId }: { membe
       const res = await fetch("/api/dispensations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId, batchId, grams: amount, signatureType: "PIN" }),
+        body: JSON.stringify({ memberId, batchId, grams: amount, signatureType: "PIN", pickupId: pickupId ?? undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(`${data.error ?? "ERROR"}: ${data.message ?? "no se pudo entregar"}`);

@@ -8,17 +8,17 @@ type Tx = Prisma.TransactionClient | PrismaClient;
 
 /** Uso del socio en el día y el mes locales del club, neto de reversas. */
 export async function memberUsage(tx: Tx, memberId: string, timezone: string): Promise<Usage> {
+  // El uso del período se mide por la fecha de la ENTREGA, no por la del asiento.
+  // Restar la reversa por su propia fecha hacía que anular ayer una entrega de ayer
+  // dejara el uso de hoy en negativo y regalara cupo (R02 del REA de operación).
+  // Una entrega anulada deja de contar en su período; el stock sigue por movimientos.
   const rows = await tx.$queryRaw<{ day: unknown; month: unknown }[]>`
     SELECT
-      COALESCE(SUM(CASE WHEN type = 'DISPENSACION' AND (("occurredAt" AT TIME ZONE ${timezone})::date
-        = (now() AT TIME ZONE ${timezone})::date) THEN grams ELSE 0 END), 0)
-      - COALESCE(SUM(CASE WHEN type = 'DISPENSACION_REVERSA' AND (("occurredAt" AT TIME ZONE ${timezone})::date
-        = (now() AT TIME ZONE ${timezone})::date) THEN grams ELSE 0 END), 0) AS day,
-      COALESCE(SUM(CASE WHEN type = 'DISPENSACION' AND date_trunc('month', ("occurredAt" AT TIME ZONE ${timezone}))
-        = date_trunc('month', (now() AT TIME ZONE ${timezone})) THEN grams ELSE 0 END), 0)
-      - COALESCE(SUM(CASE WHEN type = 'DISPENSACION_REVERSA' AND date_trunc('month', ("occurredAt" AT TIME ZONE ${timezone}))
-        = date_trunc('month', (now() AT TIME ZONE ${timezone})) THEN grams ELSE 0 END), 0) AS month
-    FROM "StockMovement"
+      COALESCE(SUM(CASE WHEN (("occurredAt" AT TIME ZONE ${timezone})::date
+        = (now() AT TIME ZONE ${timezone})::date) AND "voidedAt" IS NULL THEN grams ELSE 0 END), 0) AS day,
+      COALESCE(SUM(CASE WHEN date_trunc('month', ("occurredAt" AT TIME ZONE ${timezone}))
+        = date_trunc('month', (now() AT TIME ZONE ${timezone})) AND "voidedAt" IS NULL THEN grams ELSE 0 END), 0) AS month
+    FROM "Dispensation"
     WHERE "memberId" = ${memberId}
   `;
   const r = rows[0];
@@ -40,6 +40,8 @@ export type DispenseInput = {
   batchId: string;
   grams: number;
   signatureType?: "PIN" | "FIRMA_DIGITAL" | "QR";
+  /** Reserva que se está atendiendo, si el mostrador abrió el caso desde el portal. */
+  pickupId?: string;
   signatureRef?: string | null;
   notes?: string | null;
   operatorId: string;
@@ -128,16 +130,35 @@ export async function dispense(input: DispenseInput) {
           },
         });
 
-        // Si el socio había reservado un retiro, esta entrega lo cierra: la reserva no es la entrega.
-        const pickup = await tx.pickupRequest.findFirst({
-          where: { memberId: member.id, status: { in: ["SOLICITADA", "CONFIRMADA"] } },
-          orderBy: { createdAt: "asc" },
-        });
+        // La reserva se cierra SÓLO si el mostrador vino con ese contexto (pickupId).
+        // Antes se tomaba la más antigua del socio: una entrega de 5 g podía cerrar una reserva
+        // de 20 g o una de otro día (R01 del REA de operación).
+        const pickup = input.pickupId
+          ? await tx.pickupRequest.findUnique({ where: { id: input.pickupId } })
+          : null;
+        if (input.pickupId && !pickup) throw notFound("Reserva inexistente");
+        if (pickup) {
+          if (pickup.memberId !== member.id) throw conflict("PICKUP_MISMATCH", "La reserva es de otro socio.");
+          if (!["SOLICITADA", "CONFIRMADA"].includes(pickup.status))
+            throw conflict("PICKUP_NOT_OPEN", "Esa reserva ya está cerrada.");
+        }
         if (pickup) {
           await tx.pickupRequest.update({
             where: { id: pickup.id },
             data: { status: "RETIRADA", fulfilledAt: new Date(), dispensationId: dispensation.id },
           });
+          const reservado = Number(pickup.grams);
+          if (Math.abs(reservado - input.grams) > 0.001) {
+            await tx.auditLog.create({
+              data: {
+                actorId: input.operatorId,
+                action: "PICKUP_PARTIAL",
+                entity: "PickupRequest",
+                entityId: pickup.id,
+                payload: { reservadoG: reservado, entregadoG: input.grams, differenceG: Math.round((input.grams - reservado) * 100) / 100 },
+              },
+            });
+          }
           if (pickup.appointmentId) {
             await tx.appointment.update({
               where: { id: pickup.appointmentId },

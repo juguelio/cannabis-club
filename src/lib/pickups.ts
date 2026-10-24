@@ -315,7 +315,7 @@ export async function listPickups() {
   }));
 }
 
-export async function markPickup(input: { id: string; status: "CONFIRMADA" | "RETIRADA" | "VENCIDA"; actorId: string }) {
+export async function markPickup(input: { id: string; status: "CONFIRMADA" | "VENCIDA"; actorId: string }) {
   const pickup = await prisma.pickupRequest.findUnique({ where: { id: input.id } });
   if (!pickup) throw notFound("Reserva inexistente");
   if (!OPEN_STATUSES.includes(pickup.status as (typeof OPEN_STATUSES)[number])) {
@@ -326,7 +326,6 @@ export async function markPickup(input: { id: string; status: "CONFIRMADA" | "RE
     data: {
       status: input.status,
       confirmedAt: input.status === "CONFIRMADA" ? new Date() : pickup.confirmedAt,
-      fulfilledAt: input.status === "RETIRADA" ? new Date() : pickup.fulfilledAt,
     },
   });
 }

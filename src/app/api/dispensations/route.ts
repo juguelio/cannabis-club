@@ -12,6 +12,7 @@ const Body = z.object({
   signatureType: z.enum(["PIN", "FIRMA_DIGITAL", "QR"]).optional(),
   signatureRef: z.string().optional(),
   notes: z.string().optional(),
+  pickupId: z.string().min(1).optional(),
 });
 
 export async function GET() {

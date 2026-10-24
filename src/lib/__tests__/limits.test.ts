@@ -32,6 +32,29 @@ describe("ageYears", () => {
 });
 
 describe("evaluateDispensation", () => {
+  // R03 del REA de operación: ausencia de dato no es aprobación.
+  it("bloquea a un menor si el lote no declara THC", () => {
+    const minor = { ...adult, birthDate: new Date("2007-05-05T00:00:00.000Z") };
+    const d = evaluateDispensation({ member: minor, usage: usage(), config, grams: 5, thcPct: null, at });
+    expect(d).toMatchObject({ ok: false, code: "THC_UNKNOWN" });
+  });
+
+  it("al adulto no le exige THC del lote", () => {
+    const d = evaluateDispensation({ member: adult, usage: usage(), config, grams: 5, thcPct: null, at });
+    expect(d.ok).toBe(true);
+  });
+
+  it("REPROCANN vigente sin fecha de vencimiento queda incompleto, no habilitado", () => {
+    const sinFecha = { ...adult, reprocannExpiresAt: null };
+    const d = evaluateDispensation({ member: sinFecha, usage: usage(), config, grams: 5, thcPct: 15, at });
+    expect(d).toMatchObject({ ok: false, code: "REPROCANN_INCOMPLETE" });
+  });
+
+  it("rechaza uso negativo: una anulación de otro día no regala cupo", () => {
+    const d = evaluateDispensation({ member: adult, usage: usage(-5, 45), config, grams: 30, thcPct: 15, at });
+    expect(d).toMatchObject({ ok: false, code: "MONTHLY_LIMIT" });
+  });
+
   it("habilita una entrega normal y deja snapshot", () => {
     const d = evaluateDispensation({ member: adult, usage: usage(5, 10), config, grams: 5, thcPct: 18.5, at });
     expect(d.ok).toBe(true);

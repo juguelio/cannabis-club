@@ -8,7 +8,7 @@ import { fmtDateTime, fmtGrams } from "@/lib/labels";
 import { listPickups } from "@/lib/pickups";
 import { PickupActions } from "@/components/pickup-actions";
 
-export default async function DispensarioPage({ searchParams }: { searchParams: Promise<{ socio?: string }> }) {
+export default async function DispensarioPage({ searchParams }: { searchParams: Promise<{ socio?: string; pickup?: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
 
@@ -51,6 +51,9 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
         members={members.map((m) => ({ id: m.id, legajo: m.legajo, name: `${m.lastName}, ${m.firstName}` }))}
         batches={available}
         initialMemberId={sp?.socio}
+        initialPickup={
+          sp?.pickup ? pickups.find((p) => p.id === sp.pickup) ?? null : null
+        }
       />
 
       <div className="mt-4">
@@ -89,7 +92,7 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
                       </td>
                       <td className="tnum">{p.aporteEstimado != null ? `$${p.aporteEstimado.toLocaleString("es-AR")}` : "—"}</td>
                       <td>
-                        <PickupActions id={p.id} status={p.status} />
+                        <PickupActions id={p.id} status={p.status} memberId={p.memberId} />
                       </td>
                     </tr>
                   ))}

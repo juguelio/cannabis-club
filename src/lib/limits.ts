@@ -32,8 +32,10 @@ export type Decision = {
     | "UNDERAGE"
     | "REPROCANN_MISSING"
     | "REPROCANN_EXPIRED"
+    | "REPROCANN_INCOMPLETE"
     | "INVALID_AMOUNT"
     | "THC_LIMIT"
+    | "THC_UNKNOWN"
     | "DAILY_LIMIT"
     | "MONTHLY_LIMIT";
   message: string;
@@ -114,10 +116,22 @@ export function evaluateDispensation(input: {
     const expires = member.reprocannExpiresAt ? toDate(member.reprocannExpiresAt) : null;
     if (member.reprocannStatus !== "VIGENTE")
       return deny("REPROCANN_MISSING", `REPROCANN en estado ${member.reprocannStatus}: no habilita entrega.`);
-    if (expires && expires.getTime() < at.getTime())
+    if (!expires)
+      return deny(
+        "REPROCANN_INCOMPLETE",
+        "El REPROCANN figura vigente pero no tiene fecha de vencimiento cargada: falta completar el legajo.",
+      );
+    if (expires.getTime() < at.getTime())
       return deny("REPROCANN_EXPIRED", `REPROCANN vencido el ${expires.toISOString().slice(0, 10)}.`);
   }
 
+  // Ausencia de dato no es aprobación: si hay un máximo aplicable y el lote no declara THC,
+  // el control queda pendiente y no se entrega (R03 del REA de operación).
+  if (thcMax != null && thcPct == null)
+    return deny(
+      "THC_UNKNOWN",
+      `El lote no tiene THC cargado y para menores de ${config.edadLimiteMenor} el máximo es ${thcMax}%. Cargá el análisis del lote.`,
+    );
   if (thcMax != null && thcPct != null && thcPct > thcMax)
     return deny("THC_LIMIT", `El lote tiene ${thcPct}% THC; para menores de ${config.edadLimiteMenor} el máximo es ${thcMax}%.`);
   if (usageAfter.dayGrams > dailyLimit + 1e-9)

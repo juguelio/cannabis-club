@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { fail, json } from "@/lib/http";
 import { listPickups, markPickup } from "@/lib/pickups";
 
-const Body = z.object({ status: z.enum(["CONFIRMADA", "RETIRADA", "VENCIDA"]) });
+const Body = z.object({ status: z.enum(["CONFIRMADA", "VENCIDA"]) });
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
