@@ -5,6 +5,8 @@ import { Chip, PageHead, Section } from "@/components/ui";
 import { DispensaryConsole } from "@/components/dispensary-console";
 import { VoidButton } from "@/components/forms";
 import { fmtDateTime, fmtGrams } from "@/lib/labels";
+import { listPickups } from "@/lib/pickups";
+import { PickupActions } from "@/components/pickup-actions";
 
 export default async function DispensarioPage({ searchParams }: { searchParams: Promise<{ socio?: string }> }) {
   const session = await getSession();
@@ -12,7 +14,8 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
 
   const sp = await searchParams;
 
-  const [members, batches, dispensations, club] = await Promise.all([
+  const [pickups, members, batches, dispensations, club] = await Promise.all([
+    listPickups(),
     prisma.member.findMany({ where: { status: "ACTIVO" }, orderBy: [{ lastName: "asc" }] }),
     prisma.batch.findMany({ where: { stage: "DISPONIBLE" }, include: { strain: true, movements: { select: { type: true, grams: true } } } }),
     prisma.dispensation.findMany({ orderBy: { occurredAt: "desc" }, take: 25, include: { member: true, batch: { include: { strain: true } }, operator: true } }),
@@ -49,6 +52,53 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
         batches={available}
         initialMemberId={sp?.socio}
       />
+
+      <div className="mt-4">
+        <Section
+          title="Reservas de retiro del portal"
+          subtitle="El socio reservó desde su celular. Confirmar avisa al mostrador; el retiro real se registra como entrega."
+        >
+          {pickups.length === 0 ? (
+            <div className="empty">No hay reservas pendientes.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>Socio</th>
+                    <th className="num">Gramos</th>
+                    <th>Retiro</th>
+                    <th>Estado</th>
+                    <th>Aporte estimado</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {pickups.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                        <div className="cell-main">{p.memberName}</div>
+                        <div className="cell-meta">Legajo {p.legajo}</div>
+                      </td>
+                      <td className="num tnum">{fmtGrams(p.grams)}</td>
+                      <td className="cell-meta">{p.pickupLabel ?? "sin horario"}</td>
+                      <td>
+                        <Chip tone={p.status === "CONFIRMADA" ? "ok" : "brand"}>
+                          {p.status === "CONFIRMADA" ? "Confirmada" : "Solicitada"}
+                        </Chip>
+                      </td>
+                      <td className="tnum">{p.aporteEstimado != null ? `$${p.aporteEstimado.toLocaleString("es-AR")}` : "—"}</td>
+                      <td>
+                        <PickupActions id={p.id} status={p.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+      </div>
 
       <div className="mt-4">
         <Section title="Últimas entregas" subtitle="Libro del día: quién, qué lote, cuántos gramos y quién lo registró">

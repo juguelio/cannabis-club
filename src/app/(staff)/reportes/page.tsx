@@ -44,7 +44,7 @@ export default async function ReportesPage() {
         title="Reportes y libros"
         subtitle="CSV con separador “;” y BOM UTF-8: abre en Excel y se presenta tal cual."
       />
-      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))" }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,300px),1fr))" }}>
         {REPORTS.map((r) => (
           <div key={r.slug} className="card card-pad flex flex-col gap-3">
             <div>

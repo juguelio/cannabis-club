@@ -106,7 +106,7 @@ export default async function StockPage() {
         </div>
       </Section>
 
-      <div className="grid gap-4 mt-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))" }}>
+      <div className="grid gap-4 mt-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,320px),1fr))" }}>
         <div className="card">
           <div className="px-4 pt-4 pb-2">
             <div className="section-title">Cosecha (dos pasos)</div>

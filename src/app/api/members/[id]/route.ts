@@ -1,3 +1,4 @@
+import { optionalDate } from "@/lib/validation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
@@ -10,12 +11,12 @@ const PatchBody = z.object({
   statusReason: z.string().optional(),
   reprocannNumber: z.string().optional(),
   reprocannStatus: z.enum(["NO_APORTA", "EN_TRAMITE", "VIGENTE", "VENCIDO", "RECHAZADO"]).optional(),
-  reprocannExpiresAt: z.string().optional().nullable(),
+  reprocannExpiresAt: optionalDate.optional().nullable(),
   consumptionType: z.enum(["LUDICO", "TERAPEUTICO"]).optional(),
   monthlyForecastG: z.number().nonnegative().optional().nullable(),
-  consentSignedAt: z.string().optional().nullable(),
+  consentSignedAt: optionalDate.optional().nullable(),
   phone: z.string().optional(),
-  email: z.string().optional(),
+  email: z.string().email().or(z.literal("")).optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -30,7 +31,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         dispensations: {
           orderBy: { occurredAt: "desc" },
           take: 50,
-          include: { batch: { include: { strain: true } }, operator: true },
+          include: { batch: { include: { strain: true } }, operator: { select: { id: true, name: true } } },
         },
       },
     });

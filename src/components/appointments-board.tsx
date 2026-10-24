@@ -147,7 +147,7 @@ export function AppointmentsBoard({
         <div className={`alert ${msg.tone === "ok" ? "alert-ok" : "alert-warn"} mt-3`}>{msg.text}</div>
       ) : null}
 
-      <div className="mt-4 grid gap-4" style={{ gridTemplateColumns: "minmax(0,1.35fr) minmax(0,1fr)", alignItems: "start" }}>
+      <div className="dashboard-grid">
         <Section
           title="Franjas del día"
           subtitle={

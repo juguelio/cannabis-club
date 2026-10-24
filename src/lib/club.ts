@@ -6,10 +6,10 @@ export const CLUB_ID = "singleton";
 const num = (v: unknown, fallback: number) => (v == null ? fallback : Number(v));
 
 export async function getClub() {
-  const club = await prisma.club.findUnique({ where: { id: CLUB_ID } });
-  if (club) return club;
-  return prisma.club.create({
-    data: { id: CLUB_ID, nombre: "Club de cultivo (sin configurar)" },
+  return prisma.club.upsert({
+    where: { id: CLUB_ID },
+    update: {},
+    create: { id: CLUB_ID, nombre: "Club de cultivo (sin configurar)" },
   });
 }
 

@@ -25,7 +25,7 @@ export default async function SociosPage({
 
   const members = await prisma.member.findMany({
     where: {
-      ...(estado ? { status: estado as never } : {}),
+      ...(["ACTIVO", "PENDIENTE", "SUSPENDIDO", "BAJA"].includes(estado ?? "") ? { status: estado as never } : {}),
       ...(filtro === "reprocann"
         ? { status: "ACTIVO", OR: [{ reprocannStatus: { not: "VIGENTE" } }, { reprocannExpiresAt: { lt: new Date() } }] }
         : {}),
@@ -68,10 +68,10 @@ export default async function SociosPage({
             </Link>
           );
         })}
-        <form action="/socios" className="ml-auto flex items-center gap-2">
+        <form action="/socios" className="member-search ml-auto flex items-center gap-2">
           {estado ? <input type="hidden" name="estado" value={estado} /> : null}
           {filtro ? <input type="hidden" name="filtro" value={filtro} /> : null}
-          <input className="input" name="q" defaultValue={q ?? ""} placeholder="Nombre, documento o REPROCANN" style={{ width: 280 }} />
+          <input className="input" name="q" defaultValue={q ?? ""} aria-label="Buscar socios" placeholder="Nombre, documento o REPROCANN" />
           <button className="btn btn-secondary">Buscar</button>
         </form>
       </div>

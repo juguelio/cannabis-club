@@ -65,6 +65,14 @@ enum MovementType {
   TRANSFERENCIA
 }
 
+enum PickupStatus {
+  SOLICITADA
+  CONFIRMADA
+  RETIRADA
+  VENCIDA
+  CANCELADA
+}
+
 enum AppointmentStatus {
   PENDIENTE
   CONFIRMADO
@@ -98,6 +106,8 @@ model Club {
   maxSocios         Int      @default(500)
   requiereReprocann Boolean  @default(true)
   timezone          String   @default("America/Argentina/Buenos_Aires")
+  /// Aporte de cultivo por gramo (prorrateo de costos, NO precio de venta).
+  aportePorGramo    Decimal? @db.Decimal(10, 2)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
@@ -150,6 +160,7 @@ model Member {
 
   user          User?
   appointments  Appointment[]
+  pickups       PickupRequest[]
   dispensations Dispensation[]
   movements     StockMovement[]
   transports    Transport[]     @relation("TransportDriver")
@@ -246,6 +257,7 @@ model Dispensation {
   voidReason     String?
   movement       StockMovement?
   appointment    Appointment?
+  pickup         PickupRequest?
 
   @@index([memberId, occurredAt])
   @@index([batchId])
@@ -317,10 +329,41 @@ model Appointment {
   cancelReason   String?
   dispensationId String?           @unique
   dispensation   Dispensation?     @relation(fields: [dispensationId], references: [id])
+  pickup         PickupRequest?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
   @@unique([memberId, scheduledAt])
   @@index([scheduledAt])
   @@index([status, scheduledAt])
+}
+
+/// Reserva de retiro hecha por el socio desde el portal.
+/// No es una venta: el club prorratea su costo de cultivo y el retiro se hace en el club,
+/// con el mismo chequeo de REPROCANN y topes que una entrega de mostrador.
+model PickupRequest {
+  id             String       @id @default(cuid())
+  memberId       String
+  member         Member       @relation(fields: [memberId], references: [id])
+  grams          Decimal      @db.Decimal(10, 2)
+  status         PickupStatus @default(SOLICITADA)
+  appointmentId  String?      @unique
+  appointment    Appointment? @relation(fields: [appointmentId], references: [id])
+  /// Aporte estimado congelado al reservar (costo por gramo x gramos).
+  aportePorGramo Decimal?     @db.Decimal(10, 2)
+  aporteEstimado Decimal?     @db.Decimal(12, 2)
+  /// Foto del cálculo de topes al reservar, para poder explicar después.
+  limitSnapshot  Json?
+  notes          String?
+  confirmedAt    DateTime?
+  fulfilledAt    DateTime?
+  canceledAt     DateTime?
+  cancelReason   String?
+  dispensationId String?      @unique
+  dispensation   Dispensation? @relation(fields: [dispensationId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([memberId, createdAt])
+  @@index([status, createdAt])
 }

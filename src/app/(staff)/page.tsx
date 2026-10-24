@@ -16,7 +16,7 @@ export default async function Dashboard() {
     prisma.member.findMany({
       where: { status: "ACTIVO", OR: [{ reprocannStatus: { not: "VIGENTE" } }, { reprocannExpiresAt: { lt: new Date() } }] },
       orderBy: { reprocannExpiresAt: "asc" },
-      take: 4,
+
     }),
     prisma.$queryRaw<{ total: unknown }[]>`
       SELECT COALESCE(SUM(CASE WHEN type IN ('INGRESO','AJUSTE_POSITIVO','DISPENSACION_REVERSA') THEN grams ELSE -grams END),0) AS total
@@ -57,11 +57,16 @@ export default async function Dashboard() {
   return (
     <>
       <PageHead
-        title="Panel"
-        subtitle="Todo lo que ves acá sale del libro de movimientos, no de un campo editable."
+        title="El día de tu club"
+        subtitle="Socios, entregas y cultivo. Todo lo que necesitás para empezar la jornada."
         actions={<Link className="btn" href="/dispensario">Entregar a un socio</Link>}
       />
 
+      <div className="quick-actions">
+        <Link href="/turnos"><span className="quick-icon">◷</span><span><strong>Preparar la jornada</strong><small>Revisá la agenda de turnos</small></span><span>↗</span></Link>
+        <Link href="/socios/nuevo"><span className="quick-icon">＋</span><span><strong>Sumar un socio</strong><small>Creá su legajo y documentación</small></span><span>↗</span></Link>
+        <Link href="/reportes"><span className="quick-icon">▧</span><span><strong>Consultar los libros</strong><small>Registros listos para exportar</small></span><span>↗</span></Link>
+      </div>
       <div className="kpi-grid mb-4">
         {kpis.map((k) => (
           <Link key={k.label} href={k.href} className="kpi" data-tone={k.tone === "danger" ? "danger" : undefined}>
@@ -72,7 +77,7 @@ export default async function Dashboard() {
         ))}
       </div>
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1fr)", alignItems: "start" }}>
+      <div className="dashboard-grid">
         <Section
           title="Stock por lote"
           subtitle="El saldo es la suma del libro; se descuenta al entregar."
@@ -112,7 +117,7 @@ export default async function Dashboard() {
         <div className="flex flex-col gap-4">
           <Section title="Antes de entregar" subtitle="Socios activos con algo pendiente">
             <div className="px-4 pb-3 flex flex-col gap-2">
-              {conProblema.map((m) => {
+              {conProblema.slice(0, 4).map((m) => {
                 const issue = reprocannIssue(m);
                 return (
                   <Link key={m.id} href={`/socios/${m.id}`} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-[#f7f6f1]">
@@ -151,10 +156,10 @@ export default async function Dashboard() {
         </div>
       </div>
 
-      <div className="alert alert-warn mt-4">
+      {!(club?.cuit && club?.directorMedico && club?.responsableTecnico) && <div className="alert alert-warn mt-4">
         <strong>Datos del club pendientes.</strong> Falta cargar CUIT, director médico y responsable técnico. Los topes
-        son configuración del club y no reemplazan la indicación médica ni el encuadre legal.
-      </div>
+        son configuración del club y no reemplazan la indicación médica ni el encuadre legal. {session.role === "ADMIN" && <Link href="/configuracion" className="underline font-semibold">Completar configuración →</Link>}
+      </div>}
     </>
   );
 }

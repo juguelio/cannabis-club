@@ -1,26 +1,11 @@
-import { z } from "zod";
+
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getClub, CLUB_ID } from "@/lib/club";
-import { audit } from "@/lib/audit";
+import { clubSettings, clubSettingsFields } from "@/lib/club-settings";
 import { clientIp, fail, json } from "@/lib/http";
 
-const Body = z.object({
-  nombre: z.string().min(2).optional(),
-  cuit: z.string().optional(),
-  reprocannNumber: z.string().optional(),
-  reprocannCode: z.string().optional(),
-  directorMedico: z.string().optional(),
-  responsableTecnico: z.string().optional(),
-  limiteDiarioG: z.number().positive().optional(),
-  limiteMensualG: z.number().positive().optional(),
-  limiteMenorG: z.number().positive().optional(),
-  edadMinima: z.number().int().min(18).optional(),
-  edadLimiteMenor: z.number().int().min(18).optional(),
-  thcMaxMenor: z.number().min(0).max(100).nullable().optional(),
-  maxSocios: z.number().int().positive().optional(),
-  requiereReprocann: z.boolean().optional(),
-});
+const Body = clubSettingsFields.partial();
 
 export async function GET() {
   try {
@@ -37,8 +22,17 @@ export async function PATCH(req: Request) {
     const user = await requireUser(["ADMIN"]);
     const body = Body.parse(await req.json());
     await getClub();
-    const club = await prisma.club.update({ where: { id: CLUB_ID }, data: body });
-    await audit({ actorId: user.id, action: "CLUB_UPDATE", entity: "Club", entityId: CLUB_ID, ip: clientIp(req), payload: body });
+    const club = await prisma.$transaction(async tx => {
+      const current = await tx.club.findUniqueOrThrow({ where: { id: CLUB_ID } });
+      clubSettings.parse({ ...current,
+        limiteDiarioG: Number(current.limiteDiarioG), limiteMensualG: Number(current.limiteMensualG),
+        limiteMenorG: Number(current.limiteMenorG), thcMaxMenor: current.thcMaxMenor == null ? null : Number(current.thcMaxMenor),
+        cuit: current.cuit ?? "", directorMedico: current.directorMedico ?? "", responsableTecnico: current.responsableTecnico ?? "",
+        reprocannNumber: current.reprocannNumber ?? "", reprocannCode: current.reprocannCode ?? "", ...body });
+      const updated = await tx.club.update({ where: { id: CLUB_ID }, data: body });
+      await tx.auditLog.create({ data: { actorId: user.id, action: "CLUB_UPDATE", entity: "Club", entityId: CLUB_ID, ip: clientIp(req), payload: body } });
+      return updated;
+    }, { isolationLevel: "Serializable" });
     return json({ club });
   } catch (error) {
     return fail(error);

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { getSession } from "@/lib/auth";
+import { getAnySession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Shell } from "@/components/shell";
+import { MemberShell, Shell } from "@/components/shell";
 
 export const metadata: Metadata = {
   title: "Club de cultivo — gestión",
@@ -10,13 +10,29 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const session = await getSession();
+  const session = await getAnySession();
   const club = session ? await prisma.club.findUnique({ where: { id: "singleton" } }) : null;
+
+  if (!session) {
+    return (
+      <html lang="es">
+        <body>
+          <main>{children}</main>
+        </body>
+      </html>
+    );
+  }
+
+  const isMember = session.role === "SOCIO";
 
   return (
     <html lang="es">
       <body>
-        {session ? (
+        {isMember ? (
+          <MemberShell clubName={club?.nombre ?? "Club de cultivo"} userName={session.name}>
+            {children}
+          </MemberShell>
+        ) : (
           <Shell
             clubName={club?.nombre ?? "Club de cultivo"}
             userName={session.name}
@@ -25,8 +41,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           >
             {children}
           </Shell>
-        ) : (
-          <main>{children}</main>
         )}
       </body>
     </html>

@@ -20,7 +20,7 @@ async function patch(url: string, body: unknown) {
 function Msg({ error, ok }: { error: string | null; ok: string | null }) {
   if (!error && !ok) return null;
   return (
-    <p className="text-sm mt-2" style={{ color: error ? "#fca5a5" : "#5eead4" }}>
+    <p role={error ? "alert" : "status"} className={`alert mt-2 ${error ? "alert-danger" : "alert-ok"}`}>
       {error ?? ok}
     </p>
   );
@@ -55,8 +55,8 @@ export function LoginForm() {
         setBusy(true);
         setError(null);
         try {
-          await post("/api/auth/login", { email: f.get("email"), password: f.get("password") });
-          router.push("/");
+          const data = await post("/api/auth/login", { email: f.get("email"), password: f.get("password") });
+          router.push(data.user?.role === "SOCIO" ? "/portal" : "/");
           router.refresh();
         } catch (err) {
           setError((err as Error).message);
@@ -71,11 +71,11 @@ export function LoginForm() {
       </div>
       <div>
         <label className="label" htmlFor="email">Email</label>
-        <input className="input" id="email" name="email" type="email" defaultValue="admin@club.test" required />
+        <input className="input" id="email" name="email" type="email" autoComplete="username" required />
       </div>
       <div>
         <label className="label" htmlFor="password">Contraseña</label>
-        <input className="input" id="password" name="password" type="password" required />
+        <input className="input" id="password" name="password" autoComplete="current-password" type="password" required />
       </div>
       <button className="btn w-full justify-center" disabled={busy}>{busy ? "Ingresando…" : "Ingresar"}</button>
       <Msg error={error} ok={null} />

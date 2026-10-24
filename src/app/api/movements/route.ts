@@ -1,7 +1,7 @@
+import { gramsAmount } from "@/lib/validation";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
 import { clientIp, fail, json } from "@/lib/http";
 import { conflict, notFound } from "@/lib/errors";
@@ -10,7 +10,7 @@ import { batchBalance } from "@/lib/dispensary";
 const Body = z.object({
   batchId: z.string().min(1),
   type: z.enum(["INGRESO", "AJUSTE_POSITIVO", "AJUSTE_NEGATIVO", "DESTRUCCION", "TRANSFERENCIA"]),
-  grams: z.number().positive(),
+  grams: gramsAmount,
   reason: z.string().min(3),
 });
 
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         if (available + 1e-9 < body.grams)
           throw conflict("STOCK_INSUFFICIENT", `El lote ${batch.code} tiene ${available} g disponibles.`);
       }
-      return tx.stockMovement.create({
+      const created = await tx.stockMovement.create({
         data: {
           batchId: batch.id,
           type: body.type,
@@ -37,16 +37,9 @@ export async function POST(req: Request) {
           actorId: user.id,
         },
       });
-    });
-
-    await audit({
-      actorId: user.id,
-      action: "MOVEMENT_CREATE",
-      entity: "StockMovement",
-      entityId: movement.id,
-      ip: clientIp(req),
-      payload: { batchId: batch.id, type: body.type, grams: body.grams },
-    });
+      await tx.auditLog.create({ data: { actorId: user.id, action: "MOVEMENT_CREATE", entity: "StockMovement", entityId: created.id, ip: clientIp(req), payload: { batchId: batch.id, type: body.type, grams: body.grams } } });
+      return created;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return json({ movement }, 201);
   } catch (error) {
     return fail(error);

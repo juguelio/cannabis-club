@@ -6,6 +6,7 @@ const D = (v: number) => new Prisma.Decimal(v.toFixed(2));
 const date = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
 async function main() {
+  await prisma.pickupRequest.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.scheduleRule.deleteMany();
   await prisma.auditLog.deleteMany();
@@ -35,6 +36,8 @@ async function main() {
       edadLimiteMenor: 21,
       thcMaxMenor: D(10),
       maxSocios: 500,
+      // aporte de cultivo por gramo: prorrateo de costos, NO precio de venta
+      aportePorGramo: D(1200),
     },
   });
 
@@ -51,6 +54,7 @@ async function main() {
   const admin = await prisma.user.create({
     data: { email: "admin@club.test", name: "Admin Demo", passwordHash: adminPass, role: "ADMIN" },
   });
+  const socioPass = await bcrypt.hash("Socio1234!", 10);
   const operador = await prisma.user.create({
     data: { email: "operador@club.test", name: "Operador Demo", passwordHash: opPass, role: "OPERADOR" },
   });
@@ -221,8 +225,19 @@ async function main() {
     }
   }
 
+  const socioUser = await prisma.user.create({
+    data: {
+      email: "maria@club.test",
+      name: "María Gómez",
+      passwordHash: socioPass,
+      role: "SOCIO",
+      memberId: members[0].id,
+    },
+  });
+
   console.log("Seed OK:", {
     club: club.nombre,
+    portalSocio: `${socioUser.email} / Socio1234!`,
     usuarios: ["admin@club.test / Admin1234!", "operador@club.test / Operador1234!"],
     socios: members.length,
     lotes: 3,

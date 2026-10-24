@@ -1,3 +1,4 @@
+import { MemberEditor } from "@/components/member-editor";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -76,10 +77,11 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
             <div className="cell-meta">hoy · tope {fmtGrams(limits.limiteDiarioG)}</div>
           </div>
           <div className="my-2"><Meter value={usage.dayGrams} max={limits.limiteDiarioG} /></div>
-          <div className="cell-meta">Histórico entregado: <span className="tnum">{fmtGrams(entregado)}</span></div>
+          <div className="cell-meta">Entregado en las últimas 40 operaciones: <span className="tnum">{fmtGrams(entregado)}</span></div>
         </div>
       </div>
 
+      <MemberEditor id={member.id} initial={{ phone: member.phone ?? "", email: member.email ?? "", address: member.address ?? "", reprocannNumber: member.reprocannNumber ?? "", reprocannStatus: member.reprocannStatus, reprocannExpiresAt: member.reprocannExpiresAt?.toISOString().slice(0, 10) ?? "", consentSignedAt: member.consentSignedAt?.toISOString().slice(0, 10) ?? "" }} />
       <Section title="Entregas" subtitle="Cada fila es un asiento del libro; las anuladas conservan su contra-asiento">
         <div className="overflow-x-auto">
           <table className="data">

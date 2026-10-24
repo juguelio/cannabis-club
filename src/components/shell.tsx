@@ -5,15 +5,50 @@ import { usePathname } from "next/navigation";
 
 const NAV = [
   { href: "/", label: "Panel", icon: "▤" },
-  { href: "/socios", label: "Socios", icon: "👤" },
+  { href: "/socios", label: "Socios", icon: "♙" },
   { href: "/turnos", label: "Turnos", icon: "◷" },
-  { href: "/stock", label: "Stock", icon: "🌿" },
+  { href: "/stock", label: "Stock", icon: "♧" },
   { href: "/dispensario", label: "Dispensario", icon: "⚖" },
   { href: "/reportes", label: "Reportes", icon: "🗂" },
 ];
 
 function isActive(path: string, href: string) {
   return href === "/" ? path === "/" : path.startsWith(href);
+}
+
+export function MemberShell({
+  clubName,
+  userName,
+  children,
+}: {
+  clubName: string;
+  userName: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-screen">
+      <header
+        className="flex items-center justify-between gap-3 px-4 py-3"
+        style={{ background: "var(--brand)", color: "#ecfdf5" }}
+      >
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 18 }}>🌿</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>{clubName}</div>
+            <div style={{ fontSize: 11, color: "#a7d7bb" }}>Portal del socio · {userName}</div>
+          </div>
+        </div>
+        <form action="/api/auth/logout" method="post">
+          <button className="btn btn-sm" style={{ background: "rgba(255,255,255,.14)", borderColor: "rgba(255,255,255,.2)" }}>
+            Salir
+          </button>
+        </form>
+      </header>
+      <main className="mx-auto px-4 py-4" style={{ maxWidth: 760 }}>
+        {children}
+      </main>
+    </div>
+  );
 }
 
 export function Shell({
@@ -30,20 +65,23 @@ export function Shell({
   children: React.ReactNode;
 }) {
   const path = usePathname();
+  const navigation = userRole === "ADMIN" ? [...NAV, { href: "/configuracion", label: "Configuración", icon: "⚙" }] : NAV;
   return (
     <div className="shell">
+      <a className="skip-link" href="#contenido">Ir al contenido</a>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">🌿</div>
+          <div className="brand-mark" aria-hidden="true">♧</div>
           <div>
             <div className="brand-name">{clubName}</div>
             <div className="brand-sub">Asociación de cultivo</div>
           </div>
         </div>
 
-        <nav className="flex flex-col gap-1">
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="nav-link" data-active={isActive(path, item.href)}>
+        <div className="nav-caption">ESPACIO DE GESTIÓN</div>
+        <nav aria-label="Navegación principal" className="flex flex-col gap-1">
+          {navigation.map((item) => (
+            <Link key={item.href} href={item.href} className="nav-link" data-active={isActive(path, item.href)} aria-current={isActive(path, item.href) ? "page" : undefined}>
               <span className="nav-icon">{item.icon}</span>
               {item.label}
             </Link>
@@ -71,10 +109,11 @@ export function Shell({
       </aside>
 
       <div>
-        <div className="page">{children}</div>
-        <nav className="mobile-nav">
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href} data-active={isActive(path, item.href)}>
+        <header className="workspace-bar"><span>Tu club, en orden.</span><Link href="/socios/nuevo" className="workspace-action">＋ Nuevo socio</Link></header>
+        <main id="contenido" className="page">{children}</main>
+        <nav aria-label="Navegación móvil" className="mobile-nav" style={{ gridTemplateColumns: `repeat(${navigation.length}, minmax(0, 1fr))` }}>
+          {navigation.map((item) => (
+            <Link key={item.href} href={item.href} data-active={isActive(path, item.href)} aria-current={isActive(path, item.href) ? "page" : undefined}>
               <div style={{ fontSize: 16 }}>{item.icon}</div>
               {item.label}
             </Link>

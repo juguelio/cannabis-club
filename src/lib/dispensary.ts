@@ -128,7 +128,30 @@ export async function dispense(input: DispenseInput) {
           },
         });
 
-        return { dispensation, decision, availableAfter: Math.round((available - input.grams) * 100) / 100 };
+        // Si el socio había reservado un retiro, esta entrega lo cierra: la reserva no es la entrega.
+        const pickup = await tx.pickupRequest.findFirst({
+          where: { memberId: member.id, status: { in: ["SOLICITADA", "CONFIRMADA"] } },
+          orderBy: { createdAt: "asc" },
+        });
+        if (pickup) {
+          await tx.pickupRequest.update({
+            where: { id: pickup.id },
+            data: { status: "RETIRADA", fulfilledAt: new Date(), dispensationId: dispensation.id },
+          });
+          if (pickup.appointmentId) {
+            await tx.appointment.update({
+              where: { id: pickup.appointmentId },
+              data: { status: "ATENDIDO", attendedAt: new Date(), dispensationId: dispensation.id },
+            });
+          }
+        }
+
+        return {
+          dispensation,
+          decision,
+          availableAfter: Math.round((available - input.grams) * 100) / 100,
+          pickupFulfilled: pickup?.id ?? null,
+        };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 },
     );
@@ -181,5 +204,5 @@ export async function voidDispensation(input: {
     });
 
     return updated;
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }

@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import { getAnySession } from "@/lib/auth";
 import { LoginForm } from "@/components/forms";
 
 export default async function LoginPage() {
-  if (await getSession()) redirect("/");
+  const session = await getAnySession();
+  if (session) redirect(session.role === "SOCIO" ? "/portal" : "/");
   return (
-    <div className="min-h-screen grid" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)" }}>
+    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
       <div className="hidden md:flex flex-col justify-between p-10" style={{ background: "var(--brand)", color: "#ecfdf5" }}>
         <div className="flex items-center gap-2 text-[15px] font-semibold">
           <span style={{ fontSize: 20 }}>🌿</span> Club de cultivo

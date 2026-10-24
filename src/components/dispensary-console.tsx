@@ -85,7 +85,7 @@ export function DispensaryConsole({ members, batches, initialMemberId }: { membe
   }
 
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: "minmax(0,1.15fr) minmax(0,1fr)" }}>
+    <div className="dashboard-grid">
       <form className="card card-pad" onSubmit={submit}>
         <div className="section-title mb-3">Nueva entrega</div>
 

@@ -9,7 +9,7 @@ export const SESSION_COOKIE = "cc_session";
 const SESSION_HOURS = 8;
 
 export type Role = "ADMIN" | "OPERADOR" | "SOCIO";
-export type SessionUser = { id: string; email: string; name: string; role: Role };
+export type SessionUser = { id: string; email: string; name: string; role: Role; memberId?: string | null };
 
 const secretKey = () => {
   const secret = process.env.AUTH_SECRET;
@@ -61,11 +61,42 @@ export async function endSession() {
   jar.delete(SESSION_COOKIE);
 }
 
-export async function getSession(): Promise<SessionUser | null> {
+/** Cualquier usuario activo, incluido el socio (portal). */
+export async function getAnySession(): Promise<SessionUser | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  return readSessionToken(token);
+  const claims = await readSessionToken(token);
+  if (!claims) return null;
+  const user = await prisma.user.findUnique({ where: { id: claims.id } });
+  if (!user?.active) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role as Role,
+    memberId: user.memberId ?? null,
+  };
+}
+
+/** Consola del club: sólo ADMIN y OPERADOR. Un socio no entra al backoffice. */
+export async function getSession(): Promise<SessionUser | null> {
+  const user = await getAnySession();
+  if (!user || !["ADMIN", "OPERADOR"].includes(user.role)) return null;
+  return user;
+}
+
+/** Portal del socio: sesión con rol SOCIO ligada a una ficha del padrón. */
+export async function getMemberSession(): Promise<(SessionUser & { memberId: string }) | null> {
+  const user = await getAnySession();
+  if (!user || user.role !== "SOCIO" || !user.memberId) return null;
+  return { ...user, memberId: user.memberId };
+}
+
+export async function requireMember(): Promise<SessionUser & { memberId: string }> {
+  const user = await getMemberSession();
+  if (!user) throw unauthorized("Ingresá con tu cuenta de socio");
+  return user;
 }
 
 export async function requireUser(roles?: Role[]): Promise<SessionUser> {
@@ -78,8 +109,9 @@ export async function requireUser(roles?: Role[]): Promise<SessionUser> {
 export async function authenticate(email: string, password: string): Promise<SessionUser> {
   const user = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
   if (!user || !user.active) throw unauthorized("Credenciales inválidas");
+  if (user.role === "SOCIO" && !user.memberId) throw unauthorized("Credenciales inválidas");
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) throw unauthorized("Credenciales inválidas");
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-  return { id: user.id, email: user.email, name: user.name, role: user.role as Role };
+  return { id: user.id, email: user.email, name: user.name, role: user.role as Role, memberId: user.memberId ?? null };
 }
