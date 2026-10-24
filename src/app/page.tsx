@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 const fmt = (d: Date) => new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" }).format(d);
-const day = (d: Date | null) => (d ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeZone: "UTC" }).format(d) : "—");
 
 export default async function Dashboard() {
   const session = await getSession();
