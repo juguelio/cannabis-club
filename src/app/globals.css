@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0b0f0d;
+  --panel: #121a16;
+  --line: #24332b;
+  --text: #e8f1ea;
+  --muted: #93a89b;
+  --accent: #5eead4;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.muted { color: var(--muted); }
+.input, .select, .textarea {
+  width: 100%; background: #0e1512; border: 1px solid var(--line); color: var(--text);
+  border-radius: 8px; padding: 0.5rem 0.65rem; font-size: 0.875rem;
+}
+.input:focus, .select:focus, .textarea:focus { outline: 2px solid #1f6f5c; }
+.label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.25rem; }
+.btn {
+  display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 8px;
+  padding: 0.5rem 0.85rem; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  background: var(--accent); color: #06231c; border: 1px solid transparent;
+}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+.btn-danger { background: #f87171; color: #2a0a0a; }
+table.data { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+table.data th { text-align: left; color: var(--muted); font-weight: 500; padding: 0.5rem; border-bottom: 1px solid var(--line); }
+table.data td { padding: 0.5rem; border-bottom: 1px solid #1a261f; }
+.badge { font-size: 0.7rem; padding: 0.1rem 0.45rem; border-radius: 999px; border: 1px solid var(--line); }

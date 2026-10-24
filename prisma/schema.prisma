@@ -1,0 +1,273 @@
+
+// Esquema derivado del REA (docs/REA-clubes-europeos.md).
+// Regla base: el stock NO es un campo, es la suma de StockMovement. El registro es append-only.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERADOR
+  SOCIO
+}
+
+enum MemberStatus {
+  PENDIENTE
+  ACTIVO
+  SUSPENDIDO
+  BAJA
+}
+
+enum ReprocannStatus {
+  NO_APORTA
+  EN_TRAMITE
+  VIGENTE
+  VENCIDO
+  RECHAZADO
+}
+
+enum ConsumptionType {
+  LUDICO
+  TERAPEUTICO
+}
+
+enum OriginType {
+  SEMILLA
+  ESQUEJE
+  COSECHA_PROPIA
+  PROVEEDOR_EXTERNO
+}
+
+enum BatchStage {
+  PROPAGACION
+  VEGETATIVO
+  FLORACION
+  COSECHA
+  CURADO
+  DISPONIBLE
+  AGOTADO
+  DESTRUIDO
+}
+
+enum MovementType {
+  INGRESO
+  AJUSTE_POSITIVO
+  AJUSTE_NEGATIVO
+  DISPENSACION
+  DISPENSACION_REVERSA
+  DESTRUCCION
+  TRANSFERENCIA
+}
+
+enum SignatureType {
+  PIN
+  FIRMA_DIGITAL
+  QR
+}
+
+/// Configuración del club. Los topes son configuración, no constantes:
+/// el default europeo es 25 g/día, 50 g/mes, 30 g y <=10% THC para menores de 21.
+model Club {
+  id                String   @id @default("singleton")
+  nombre            String
+  cuit              String?
+  reprocannNumber   String?
+  reprocannCode     String?
+  directorMedico    String?
+  responsableTecnico String?
+  limiteDiarioG     Decimal  @default(25) @db.Decimal(6, 2)
+  limiteMensualG    Decimal  @default(50) @db.Decimal(6, 2)
+  limiteMenorG      Decimal  @default(30) @db.Decimal(6, 2)
+  edadMinima        Int      @default(18)
+  edadLimiteMenor   Int      @default(21)
+  thcMaxMenor       Decimal? @db.Decimal(5, 2)
+  maxSocios         Int      @default(500)
+  requiereReprocann Boolean  @default(true)
+  timezone          String   @default("America/Argentina/Buenos_Aires")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role      @default(OPERADOR)
+  active       Boolean   @default(true)
+  memberId     String?   @unique
+  member       Member?   @relation(fields: [memberId], references: [id])
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  movements     StockMovement[] @relation("MovementActor")
+  dispensations Dispensation[]  @relation("DispensationOperator")
+  voided        Dispensation[]  @relation("DispensationVoider")
+  audits        AuditLog[]
+  transports    Transport[]
+}
+
+model Member {
+  id               String          @id @default(cuid())
+  legajo           Int             @unique
+  firstName        String
+  lastName         String
+  docType          String          @default("DNI")
+  docNumber        String          @unique
+  birthDate        DateTime        @db.Date
+  address          String?
+  phone            String?
+  email            String?
+  status           MemberStatus    @default(PENDIENTE)
+  statusReason     String?
+  admittedAt       DateTime?       @db.Date
+  leftAt           DateTime?       @db.Date
+  reprocannNumber  String?
+  reprocannStatus  ReprocannStatus @default(NO_APORTA)
+  reprocannExpiresAt DateTime?     @db.Date
+  consumptionType  ConsumptionType @default(LUDICO)
+  monthlyForecastG Decimal?        @db.Decimal(6, 2)
+  consentSignedAt  DateTime?
+  consentVersion   String?
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  user          User?
+  dispensations Dispensation[]
+  movements     StockMovement[]
+  transports    Transport[]     @relation("TransportDriver")
+
+  @@index([status])
+  @@index([lastName, firstName])
+}
+
+model Strain {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  genetics String?
+  thcPct   Decimal? @db.Decimal(5, 2)
+  cbdPct   Decimal? @db.Decimal(5, 2)
+  active   Boolean @default(true)
+  batches  Batch[]
+}
+
+model Batch {
+  id                    String     @id @default(cuid())
+  code                  String     @unique
+  strainId              String
+  strain                Strain     @relation(fields: [strainId], references: [id])
+  originType            OriginType @default(SEMILLA)
+  originProviderName    String?
+  originProviderAddress String?
+  originReference       String?
+  plantsCount           Int?
+  room                  String?
+  stage                 BatchStage @default(PROPAGACION)
+  plantedAt             DateTime?  @db.Date
+  harvestedAt           DateTime?  @db.Date
+  wetWeightG            Decimal?   @db.Decimal(10, 2)
+  dryWeightG            Decimal?   @db.Decimal(10, 2)
+  thcPct                Decimal?   @db.Decimal(5, 2)
+  cbdPct                Decimal?   @db.Decimal(5, 2)
+  notes                 String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  movements     StockMovement[]
+  dispensations Dispensation[]
+
+  @@index([stage])
+  @@index([strainId])
+}
+
+/// Libro de movimientos: append-only. Corregir = contra-asiento (reversalOfId), nunca UPDATE.
+model StockMovement {
+  id             String       @id @default(cuid())
+  batchId        String
+  batch          Batch        @relation(fields: [batchId], references: [id])
+  type           MovementType
+  grams          Decimal      @db.Decimal(10, 2)
+  reason         String?
+  occurredAt     DateTime     @default(now())
+  actorId        String
+  actor          User         @relation("MovementActor", fields: [actorId], references: [id])
+  memberId       String?
+  member         Member?      @relation(fields: [memberId], references: [id])
+  dispensationId String?      @unique
+  dispensation   Dispensation? @relation(fields: [dispensationId], references: [id])
+  transportId    String?
+  transport      Transport?   @relation(fields: [transportId], references: [id])
+  reversalOfId   String?      @unique
+  reversalOf     StockMovement? @relation("Reversal", fields: [reversalOfId], references: [id])
+  reversedBy     StockMovement? @relation("Reversal")
+  createdAt      DateTime     @default(now())
+
+  @@index([batchId, occurredAt])
+  @@index([memberId, occurredAt])
+  @@index([type])
+}
+
+model Dispensation {
+  id             String        @id @default(cuid())
+  memberId       String
+  member         Member        @relation(fields: [memberId], references: [id])
+  batchId        String
+  batch          Batch         @relation(fields: [batchId], references: [id])
+  grams          Decimal       @db.Decimal(10, 2)
+  thcPct         Decimal?      @db.Decimal(5, 2)
+  occurredAt     DateTime      @default(now())
+  operatorId     String
+  operator       User          @relation("DispensationOperator", fields: [operatorId], references: [id])
+  signatureType  SignatureType @default(PIN)
+  signatureRef   String?
+  /// Snapshot del cálculo de límites al momento de entregar (defensa posterior).
+  limitSnapshot  Json
+  notes          String?
+  voidedAt       DateTime?
+  voidedById     String?
+  voidedBy       User?         @relation("DispensationVoider", fields: [voidedById], references: [id])
+  voidReason     String?
+  movement       StockMovement?
+
+  @@index([memberId, occurredAt])
+  @@index([batchId])
+}
+
+model Transport {
+  id           String   @id @default(cuid())
+  occurredAt   DateTime @default(now())
+  fromAddress  String
+  toAddress    String
+  grams        Decimal  @db.Decimal(10, 2)
+  strainIds    Json?
+  driverId     String
+  driver       Member   @relation("TransportDriver", fields: [driverId], references: [id])
+  createdById  String
+  createdBy    User     @relation(fields: [createdById], references: [id])
+  notes        String?
+  movements    StockMovement[]
+
+  @@index([occurredAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  payload   Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
