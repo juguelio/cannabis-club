@@ -51,7 +51,27 @@ const PICKUP_LABEL: Record<string, { label: string; tone: string }> = {
   CANCELADA: { label: "Cancelado", tone: "mute" },
 };
 
-export function MemberPortal({ initial, initialSlots, initialDay, qr }: { initial: Overview; initialSlots: Slot[]; initialDay: string; qr: string }) {
+export type MemberHistory = { id: string; at: string; grams: number; strain: string; batch: string; voided: boolean }[];
+const fmtDay = (iso: string) =>
+  new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
+const fmtDate = (iso: string | null) =>
+  iso ? new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(iso)) : "—";
+
+export function MemberPortal({
+  initial,
+  initialSlots,
+  initialDay,
+  qr,
+  history,
+  consentDate,
+}: {
+  initial: Overview;
+  initialSlots: Slot[];
+  initialDay: string;
+  qr: string;
+  history: MemberHistory;
+  consentDate: string | null;
+}) {
   const toast = useToast();
   const [data, setData] = useState<Overview>(initial);
   const [day, setDay] = useState(initialDay);
@@ -265,6 +285,43 @@ export function MemberPortal({ initial, initialSlots, initialDay, qr }: { initia
             })}
           </ul>
         )}
+      </section>
+
+      <section className="panel">
+        <div className="panel-head"><div>
+          <h2 className="panel-title">Lo que retiraste</h2>
+          <p className="panel-sub">Tus últimas entregas en el club. Si una figura anulada, el club la corrigió y no cuenta para tu tope.</p>
+        </div></div>
+        {history.length === 0 ? (
+          <div className="empty">Todavía no retiraste nada.</div>
+        ) : (
+          <ul className="rows">
+            {history.map((h) => (
+              <li key={h.id} className={h.voided ? "voided" : undefined}>
+                <div className="grow">
+                  <div className="cell-main" style={h.voided ? { textDecoration: "line-through", color: "var(--muted)" } : undefined}>{h.strain}</div>
+                  <div className="cell-meta">{fmtDay(h.at)} · lote {h.batch}{h.voided ? " · anulada" : ""}</div>
+                </div>
+                <b className="tnum">{g(h.grams)}</b>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="panel" id="documentacion">
+        <div className="panel-head"><div>
+          <h2 className="panel-title">Tu documentación</h2>
+          <p className="panel-sub">Si algo no coincide con tus papeles, avisá en la secretaría: el club lo corrige en tu legajo.</p>
+        </div></div>
+        <div className="panel-body">
+          <dl className="dl">
+            <dt>Legajo</dt><dd className="tnum">{data.member.legajo}</dd>
+            <dt>REPROCANN</dt><dd>{data.member.reprocannNumber ?? "Sin número cargado"}</dd>
+            <dt>Vence</dt><dd>{fmtDate(data.member.reprocannExpiresAt)}</dd>
+            <dt>Consentimiento</dt><dd>{consentDate ? `Firmado el ${fmtDate(consentDate)}` : "Falta firmar en el club"}</dd>
+          </dl>
+        </div>
       </section>
 
       <ReasonDialog

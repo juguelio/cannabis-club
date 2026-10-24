@@ -14,7 +14,16 @@ export default async function PortalPage() {
   const session = await getMemberSession();
   if (!session) redirect("/login");
 
-  const overview = await portalOverview(session.memberId);
+  const [overview, member, deliveries] = await Promise.all([
+    portalOverview(session.memberId),
+    prisma.member.findUniqueOrThrow({ where: { id: session.memberId }, select: { consentSignedAt: true } }),
+    prisma.dispensation.findMany({
+      where: { memberId: session.memberId },
+      orderBy: { occurredAt: "desc" },
+      take: 12,
+      select: { id: true, occurredAt: true, grams: true, voidedAt: true, batch: { select: { code: true, strain: { select: { name: true } } } } },
+    }),
+  ]);
   const today = dayKeyOf(new Date());
 
   // Primer día con algún horario reservable (si hoy ya cerró, arranca en el próximo).
@@ -40,5 +49,14 @@ export default async function PortalPage() {
   const base = process.env.APP_BASE_URL?.replace(/\/$/, "") ?? "";
   const qr = await QRCode.toString(`${base}/dispensario?socio=${session.memberId}`, { type: "svg", margin: 0, color: { dark: "#10231b", light: "#ffffff" } });
 
-  return <MemberPortal initial={overview} initialSlots={slots} initialDay={day} qr={qr} />;
+  return (
+    <MemberPortal
+      initial={overview}
+      initialSlots={slots}
+      initialDay={day}
+      qr={qr}
+      consentDate={member.consentSignedAt?.toISOString() ?? null}
+      history={deliveries.map((d) => ({ id: d.id, at: d.occurredAt.toISOString(), grams: Number(d.grams), strain: d.batch.strain.name, batch: d.batch.code, voided: Boolean(d.voidedAt) }))}
+    />
+  );
 }
