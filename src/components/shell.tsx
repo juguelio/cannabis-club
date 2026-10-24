@@ -26,13 +26,13 @@ export function MemberShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
+    <div className="member-shell">
       <header
-        className="flex items-center justify-between gap-3 px-4 py-3"
+        className="member-header"
         style={{ background: "var(--brand)", color: "#ecfdf5" }}
       >
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 18 }}>🌿</span>
+          <span className="member-brand-mark" aria-hidden="true">♧</span>
           <div>
             <div style={{ fontWeight: 700, fontSize: 14 }}>{clubName}</div>
             <div style={{ fontSize: 11, color: "#a7d7bb" }}>Portal del socio · {userName}</div>
@@ -44,7 +44,7 @@ export function MemberShell({
           </button>
         </form>
       </header>
-      <main className="mx-auto px-4 py-4" style={{ maxWidth: 760 }}>
+      <main className="member-main">
         {children}
       </main>
     </div>
