@@ -1,14 +1,11 @@
-import { endSession, getSession } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { endSession, getAnySession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
-import { fail, json } from "@/lib/http";
 
-export async function POST() {
-  try {
-    const session = await getSession();
-    await endSession();
-    if (session) await audit({ actorId: session.id, action: "LOGOUT", entity: "User", entityId: session.id });
-    return json({ ok: true });
-  } catch (error) {
-    return fail(error);
-  }
+/** Cierra la sesión y vuelve al ingreso (sirve tanto para un <form> como para fetch). */
+export async function POST(req: Request) {
+  const session = await getAnySession().catch(() => null);
+  await endSession();
+  if (session) await audit({ actorId: session.id, action: "LOGOUT", entity: "User", entityId: session.id });
+  return NextResponse.redirect(new URL("/login", req.url), 303);
 }

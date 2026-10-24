@@ -104,7 +104,7 @@ async function dispensaciones(opts: ReportOptions): Promise<Report> {
       "Motivo anulación",
     ],
     rows: rows.map((d) => [
-      new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(d.occurredAt),
+      new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(d.occurredAt),
       d.member.lastName,
       d.member.firstName,
       d.member.birthDate.getUTCFullYear(),
@@ -167,7 +167,7 @@ async function destrucciones(opts: ReportOptions): Promise<Report> {
     filename: "destrucciones.csv",
     headers: ["Fecha", "Lote", "Cepa", "Gramos", "Motivo", "Responsable"],
     rows: rows.map((m) => [
-      new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(m.occurredAt),
+      new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(m.occurredAt),
       m.batch.code,
       m.batch.strain.name,
       fnum(m.grams),

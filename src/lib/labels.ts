@@ -4,7 +4,7 @@ export type Tone = "ok" | "warn" | "danger" | "mute" | "brand";
 
 export const MEMBER_STATUS: Record<string, { label: string; tone: Tone }> = {
   ACTIVO: { label: "Activo", tone: "ok" },
-  PENDIENTE: { label: "Pendiente de alta", tone: "warn" },
+  PENDIENTE: { label: "Pendiente de alta", tone: "brand" },
   SUSPENDIDO: { label: "Suspendido", tone: "warn" },
   BAJA: { label: "Baja", tone: "mute" },
 };
@@ -75,8 +75,29 @@ export const fmtGrams = (v: unknown) => {
 export const fmtDate = (d: Date | string | null | undefined) =>
   d ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeZone: "UTC" }).format(new Date(d)) : "—";
 
+const TZ = "America/Argentina/Buenos_Aires";
+
 export const fmtDateTime = (d: Date | string) =>
-  new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" }).format(new Date(d));
+  new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", hourCycle: "h23", timeZone: TZ }).format(new Date(d));
+
+/** "hoy 14:20", "ayer 18:05" o "12/10 09:40", en hora del club. */
+export function fmtWhen(d: Date | string, now = new Date()) {
+  const date = new Date(d);
+  const key = (x: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(x);
+  const time = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: TZ }).format(date);
+  if (key(date) === key(now)) return `hoy ${time}`;
+  if (key(date) === key(new Date(now.getTime() - 86_400_000))) return `ayer ${time}`;
+  const day = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "numeric", timeZone: TZ }).format(date);
+  return `${day} ${time}`;
+}
+
+/** "sábado 24 de octubre" para una clave AAAA-MM-DD. */
+export function fmtLongDay(dayKey: string) {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  return new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
+}
+
+export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export const age = (birth: Date | string) => {
   const b = new Date(birth);
@@ -101,3 +122,38 @@ export function reprocannIssue(m: { reprocannStatus: string; reprocannExpiresAt:
   if (d !== null && d <= 30) return { label: `REPROCANN vence en ${d} días`, tone: "warn" as Tone };
   return { label: "REPROCANN vigente", tone: "ok" as Tone };
 }
+
+/** Acciones de la auditoría en lenguaje de club. */
+export const AUDIT_ACTION: Record<string, string> = {
+  LOGIN: "Ingresó",
+  LOGIN_FAILED: "Intento de ingreso fallido",
+  LOGOUT: "Salió",
+  MEMBER_CREATE: "Alta de socio",
+  MEMBER_UPDATE: "Editó el legajo",
+  MEMBER_STATUS: "Cambió el estado del socio",
+  MEMBER_IMPORT: "Importó el padrón",
+  PORTAL_GRANT: "Dio acceso al portal",
+  PORTAL_RESET: "Generó una clave nueva del portal",
+  PORTAL_REVOKE: "Quitó el acceso al portal",
+  BATCH_CREATE: "Creó un lote",
+  BATCH_HARVEST: "Registró cosecha",
+  BATCH_STAGE: "Cambió la etapa de un lote",
+  BATCH_UPDATE: "Editó un lote",
+  STRAIN_CREATE: "Creó una cepa",
+  MOVEMENT_CREATE: "Registró un movimiento de stock",
+  DISPENSATION_CREATE: "Registró una entrega",
+  DISPENSATION_VOID: "Anuló una entrega",
+  CLUB_UPDATE: "Cambió la configuración del club",
+  APPOINTMENT_CREATE: "Agendó un turno",
+  PICKUP_CREATE: "Reserva desde el portal",
+  PICKUP_CONFIRM: "Confirmó una reserva",
+  PICKUP_CANCEL: "Canceló una reserva",
+  USER_CREATE: "Creó una cuenta del equipo",
+  USER_UPDATE: "Editó una cuenta del equipo",
+};
+
+export const FIELD_LABEL: Record<string, string> = {
+  status: "estado", firstName: "nombre", lastName: "apellido", birthDate: "nacimiento", phone: "teléfono", email: "email",
+  address: "domicilio", reprocannNumber: "N° REPROCANN", reprocannStatus: "estado REPROCANN", reprocannExpiresAt: "vencimiento REPROCANN",
+  consentSignedAt: "consentimiento", consumptionType: "consumo", monthlyForecastG: "previsión", notes: "notas",
+};

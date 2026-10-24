@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { route, searchParams } from "@/lib/api";
+import { memberIdsByName } from "@/lib/member-search";
 
 /** Búsqueda global del mostrador: legajo, apellido, nombre, DNI, REPROCANN o código de lote. */
 export const GET = route(async (req) => {
@@ -9,7 +10,7 @@ export const GET = route(async (req) => {
   if (q.length < 1) return { members: [], batches: [] };
   const digits = q.replace(/[.\s-]/g, "");
   const legajo = /^\d{1,6}$/.test(digits) ? Number(digits) : null;
-  const words = q.split(/\s+/).filter(Boolean).slice(0, 3);
+  const nameIds = await memberIdsByName(q, 50);
 
   const [members, batches] = await Promise.all([
     prisma.member.findMany({
@@ -18,14 +19,7 @@ export const GET = route(async (req) => {
           ...(legajo != null ? [{ legajo }] : []),
           { docNumber: { contains: digits } },
           { reprocannNumber: { contains: q, mode: "insensitive" as const } },
-          {
-            AND: words.map((w) => ({
-              OR: [
-                { firstName: { contains: w, mode: "insensitive" as const } },
-                { lastName: { contains: w, mode: "insensitive" as const } },
-              ],
-            })),
-          },
+          { id: { in: nameIds } },
         ],
       },
       orderBy: [{ status: "asc" }, { lastName: "asc" }],
