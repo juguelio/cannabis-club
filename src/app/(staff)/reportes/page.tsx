@@ -30,14 +30,19 @@ const REPORTS = [
   {
     slug: "informe-anual",
     title: "Informe anual por variedad",
-    purpose: "Cerrar el año: cultivado, entregado, destruido y stock final por variedad, con THC y CBD.",
-    items: ["Cosechado seco", "Entregado y destruido", "Stock final del libro", "THC y CBD promedio"],
+    purpose: "Cerrar un año concreto: cosechado, entregado, destruido y stock al cierre por variedad.",
+    items: ["Cosechado seco del año", "Entregado y destruido del año", "Stock al cierre del año", "THC y CBD de referencia de la variedad"],
+    yearly: true,
   },
-];
+] as const;
 
-export default async function ReportesPage() {
+export default async function ReportesPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
+  const sp = await searchParams;
+  const thisYear = new Date().getUTCFullYear();
+  const year = sp?.year && /^\d{4}$/.test(sp.year) ? Number(sp.year) : thisYear;
+  const years = [thisYear, thisYear - 1, thisYear - 2];
   return (
     <>
       <PageHead
@@ -56,9 +61,22 @@ export default async function ReportesPage() {
                 <li key={i}>· {i}</li>
               ))}
             </ul>
-            <a className="btn btn-secondary btn-sm self-start mt-auto" href={`/api/reports/${r.slug}`}>
-              Descargar CSV
-            </a>
+            {"yearly" in r && r.yearly ? (
+              <form className="flex items-center gap-2 mt-auto" method="get">
+                <label className="cell-meta" htmlFor="year">Año</label>
+                <select id="year" name="year" defaultValue={String(year)} className="select" style={{ maxWidth: 120 }}>
+                  {years.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <button className="btn btn-secondary btn-sm">Elegir</button>
+                <a className="btn btn-sm" href={`/api/reports/${r.slug}?year=${year}`}>Descargar CSV</a>
+              </form>
+            ) : (
+              <a className="btn btn-secondary btn-sm self-start mt-auto" href={`/api/reports/${r.slug}`}>
+                Descargar CSV
+              </a>
+            )}
           </div>
         ))}
       </div>

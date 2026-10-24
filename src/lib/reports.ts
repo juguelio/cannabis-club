@@ -7,7 +7,7 @@ const fdate = (d: Date | null | undefined) =>
   d ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeZone: "UTC" }).format(d) : "";
 const fnum = (v: unknown) => (v == null ? "" : Math.round(Number(v) * 100) / 100);
 
-export async function buildReport(name: string): Promise<Report> {
+export async function buildReport(name: string, opts: { year?: number; timezone?: string } = {}): Promise<Report> {
   switch (name) {
     case "padron":
       return padron();
@@ -18,7 +18,7 @@ export async function buildReport(name: string): Promise<Report> {
     case "destrucciones":
       return destrucciones();
     case "informe-anual":
-      return informeAnual();
+      return informeAnual(opts.year, opts.timezone ?? "America/Argentina/Buenos_Aires");
     default:
       throw new Error(`Reporte desconocido: ${name}`);
   }
@@ -162,18 +162,21 @@ async function destrucciones(): Promise<Report> {
   };
 }
 
-async function informeAnual(): Promise<Report> {
+async function informeAnual(year = new Date().getUTCFullYear(), timezone = "America/Argentina/Buenos_Aires"): Promise<Report> {
   const strains = await prisma.strain.findMany({ include: { batches: true }, orderBy: { name: "asc" } });
+  // El informe es del año: antes sumaba todo el historial y lo llamaba "anual" (R05 del REA).
   const entregas = await prisma.$queryRaw<{ strainId: string; total: unknown }[]>`
     SELECT b."strainId" AS "strainId", COALESCE(SUM(d.grams), 0) AS total
     FROM "Dispensation" d JOIN "Batch" b ON b.id = d."batchId"
     WHERE d."voidedAt" IS NULL
+      AND EXTRACT(YEAR FROM (d."occurredAt" AT TIME ZONE ${timezone})) = ${year}
     GROUP BY b."strainId"
   `;
   const destruido = await prisma.$queryRaw<{ strainId: string; total: unknown }[]>`
     SELECT b."strainId" AS "strainId", COALESCE(SUM(m.grams), 0) AS total
     FROM "StockMovement" m JOIN "Batch" b ON b.id = m."batchId"
     WHERE m.type = 'DESTRUCCION'
+      AND EXTRACT(YEAR FROM (m."occurredAt" AT TIME ZONE ${timezone})) = ${year}
     GROUP BY b."strainId"
   `;
   const eMap = new Map(entregas.map((r) => [r.strainId, Number(r.total)]));
@@ -182,18 +185,31 @@ async function informeAnual(): Promise<Report> {
     SELECT b."strainId" AS "strainId",
       COALESCE(SUM(CASE WHEN m.type IN ('INGRESO','AJUSTE_POSITIVO','DISPENSACION_REVERSA') THEN m.grams ELSE -m.grams END), 0) AS total
     FROM "StockMovement" m JOIN "Batch" b ON b.id = m."batchId"
+    WHERE EXTRACT(YEAR FROM (m."occurredAt" AT TIME ZONE ${timezone})) <= ${year}
     GROUP BY b."strainId"
   `;
   const sMap = new Map(saldo.map((r) => [r.strainId, Number(r.total)]));
   return {
-    name: "Informe anual por variedad",
-    filename: "informe-anual.csv",
-    headers: ["Variedad", "Cosechado seco g", "Entregado g", "Destruido g", "Stock final g", "THC % prom", "CBD % prom"],
+    name: `Informe anual ${year} por variedad`,
+    filename: `informe-anual-${year}.csv`,
+    headers: [
+      "Variedad",
+      "Lotes cosechados en el año",
+      "Cosechado seco g",
+      "Entregado g",
+      "Destruido g",
+      "Stock al cierre g",
+      "THC % (referencia de la variedad)",
+      "CBD % (referencia de la variedad)",
+    ],
     // Solo el peso seco acredita stock: el húmedo no cuenta como cosecha disponible.
+    // THC/CBD son el valor declarado de la variedad, no un promedio de las entregas.
     rows: strains.map((s) => {
-      const cosechado = s.batches.reduce((a, b) => a + Number(b.dryWeightG ?? 0), 0);
+      const delAnio = s.batches.filter((b) => b.harvestedAt && b.harvestedAt.getUTCFullYear() === year);
+      const cosechado = delAnio.reduce((a, b) => a + Number(b.dryWeightG ?? 0), 0);
       return [
         s.name,
+        delAnio.length,
         fnum(cosechado),
         fnum(eMap.get(s.id) ?? 0),
         fnum(dMap.get(s.id) ?? 0),
