@@ -33,7 +33,9 @@ export default async function StockPage() {
   }));
 
   const pipeline = STAGE_ORDER.map((s) => ({ stage: s, count: rows.filter((r) => r.stage === s).length }));
-  const sinSeco = rows.filter((r) => !r.dryWeightG).map((r) => ({ id: r.id, code: r.code }));
+  const sinSeco = rows
+    .filter((r) => !r.dryWeightG)
+    .map((r) => ({ id: r.id, code: r.code, wetWeightG: r.wetWeightG == null ? null : Number(r.wetWeightG) }));
   const allOptions = rows.map((r) => ({ id: r.id, code: `${r.code} · ${r.strain.name}` }));
 
   return (
@@ -46,12 +48,12 @@ export default async function StockPage() {
       <div className="flex flex-wrap gap-2 mb-4">
         {pipeline.map((p) => (
           <span key={p.stage} className="chip">
-            {STAGE[p.stage]?.label ?? p.stage}: <strong className="tnum ml-1">{p.count}</strong>
+            {STAGE[p.stage]?.label ?? p.stage}: <strong className="tnum ml-1">{p.count}</strong> {p.count === 1 ? "lote" : "lotes"}
           </span>
         ))}
       </div>
 
-      <Section title="Lotes" subtitle="Origen, etapa y saldo real por lote">
+      <Section title="Lotes" subtitle="Saldo = ingresos − entregas − destrucciones − ajustes. El peso seco es lo cosechado.">
         <div className="overflow-x-auto">
           <table className="data">
             <thead>
@@ -88,9 +90,12 @@ export default async function StockPage() {
                   <td className="num">
                     <div className="cell-main tnum">{fmtGrams(b.saldo)}</div>
                     {b.dryWeightG ? (
-                      <div style={{ width: 76, marginLeft: "auto" }}>
-                        <Meter value={Math.max(0, b.saldo)} max={Number(b.dryWeightG)} />
-                      </div>
+                      <>
+                        <div className="cell-meta tnum">de {fmtGrams(b.dryWeightG)} secos</div>
+                        <div style={{ width: 76, marginLeft: "auto" }}>
+                          <Meter value={Math.max(0, b.saldo)} max={Number(b.dryWeightG)} />
+                        </div>
+                      </>
                     ) : null}
                   </td>
                 </tr>

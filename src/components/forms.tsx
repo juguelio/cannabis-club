@@ -198,6 +198,7 @@ export function BatchForm({ strains }: { strains: { id: string; name: string }[]
             room: f.get("room") || undefined,
             stage: f.get("stage"),
             thcPct: f.get("thcPct") ? Number(f.get("thcPct")) : undefined,
+            cbdPct: f.get("cbdPct") ? Number(f.get("cbdPct")) : undefined,
             dryWeightG: f.get("dryWeightG") ? Number(f.get("dryWeightG")) : undefined,
           });
           setOk("Lote creado.");
@@ -220,7 +221,8 @@ export function BatchForm({ strains }: { strains: { id: string; name: string }[]
       <div><label className="label">Plantas</label><input className="input" name="plantsCount" type="number" min="0" /></div>
       <div><label className="label">Sala</label><input className="input" name="room" /></div>
       <div><label className="label">THC %</label><input className="input" name="thcPct" type="number" step="0.01" /></div>
-      <div><label className="label">Peso seco (g)</label><input className="input" name="dryWeightG" type="number" step="0.01" /></div>
+      <div><label className="label">CBD %</label><input className="input" name="cbdPct" type="number" step="0.01" /></div>
+      <div><label className="label">Peso seco (g) — solo si ya está cosechado</label><input className="input" name="dryWeightG" type="number" step="0.01" /></div>
       <div>
         <label className="label">Etapa</label>
         <select className="select" name="stage" defaultValue="PROPAGACION">
@@ -232,7 +234,7 @@ export function BatchForm({ strains }: { strains: { id: string; name: string }[]
   );
 }
 
-export function HarvestForm({ batches }: { batches: { id: string; code: string }[] }) {
+export function HarvestForm({ batches }: { batches: { id: string; code: string; wetWeightG?: number | null }[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -255,7 +257,13 @@ export function HarvestForm({ batches }: { batches: { id: string; code: string }
     >
       <div>
         <label className="label">Lote</label>
-        <select className="select" name="batchId" required>{batches.map((b) => <option key={b.id} value={b.id}>{b.code}</option>)}</select>
+        <select className="select" name="batchId" required>
+          {batches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.code}{b.wetWeightG ? ` · húmedo ${b.wetWeightG} g cargado` : ""}
+            </option>
+          ))}
+        </select>
       </div>
       <div><label className="label">Peso húmedo (g)</label><input className="input" name="wetWeightG" type="number" step="0.01" /></div>
       <div><label className="label">Peso seco (g) → acredita stock</label><input className="input" name="dryWeightG" type="number" step="0.01" /></div>
@@ -294,7 +302,12 @@ export function MovementForm({ batches }: { batches: { id: string; code: string 
       </div>
       <div>
         <label className="label">Tipo</label>
-        <select className="select" name="type"><option>AJUSTE_POSITIVO</option><option>AJUSTE_NEGATIVO</option><option>DESTRUCCION</option><option>TRANSFERENCIA</option></select>
+        <select className="select" name="type">
+          <option value="AJUSTE_POSITIVO">Ajuste positivo (aparece mercadería)</option>
+          <option value="AJUSTE_NEGATIVO">Ajuste negativo (faltante)</option>
+          <option value="DESTRUCCION">Destrucción (descarte documentado)</option>
+          <option value="TRANSFERENCIA">Transferencia (sale del club)</option>
+        </select>
       </div>
       <div><label className="label">Gramos</label><input className="input" name="grams" type="number" step="0.01" required /></div>
       <div><label className="label">Motivo</label><input className="input" name="reason" required /></div>
