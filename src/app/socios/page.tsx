@@ -2,73 +2,123 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { Chip, Empty, PageHead, Section } from "@/components/ui";
+import { age, CONSUMPTION, fmtDate, fmtGrams, MEMBER_STATUS, reprocannIssue } from "@/lib/labels";
 
-const fdate = (d: Date | null) => (d ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeZone: "UTC" }).format(d) : "—");
+const FILTERS = [
+  { key: "", label: "Todos" },
+  { key: "ACTIVO", label: "Activos" },
+  { key: "PENDIENTE", label: "Pendientes de alta" },
+  { key: "SUSPENDIDO", label: "Suspendidos" },
+  { key: "BAJA", label: "Bajas" },
+  { key: "reprocann", label: "REPROCANN a regularizar" },
+];
 
-export default async function SociosPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
+export default async function SociosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; estado?: string; filtro?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const { q, status } = await searchParams;
+  const { q, estado, filtro } = await searchParams;
 
   const members = await prisma.member.findMany({
     where: {
-      ...(status ? { status: status as never } : {}),
+      ...(estado ? { status: estado as never } : {}),
+      ...(filtro === "reprocann"
+        ? { status: "ACTIVO", OR: [{ reprocannStatus: { not: "VIGENTE" } }, { reprocannExpiresAt: { lt: new Date() } }] }
+        : {}),
       ...(q
         ? {
-            OR: [
-              { firstName: { contains: q, mode: "insensitive" } },
-              { lastName: { contains: q, mode: "insensitive" } },
-              { docNumber: { contains: q } },
+            AND: [
+              {
+                OR: [
+                  { firstName: { contains: q, mode: "insensitive" } },
+                  { lastName: { contains: q, mode: "insensitive" } },
+                  { docNumber: { contains: q } },
+                  { reprocannNumber: { contains: q, mode: "insensitive" } },
+                ],
+              },
             ],
           }
         : {}),
     },
-    orderBy: [{ lastName: "asc" }],
-    take: 200,
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    take: 300,
   });
 
+  const activeKey = filtro === "reprocann" ? "reprocann" : estado ?? "";
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Socios</h1>
-        <Link className="btn" href="/socios/nuevo">Nuevo socio</Link>
+    <>
+      <PageHead
+        title="Socios"
+        subtitle={`${members.length} registros en esta vista · el legajo es la llave que usa el mostrador`}
+        actions={<Link className="btn" href="/socios/nuevo">Nuevo socio</Link>}
+      />
+
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        {FILTERS.map((f) => {
+          const href = f.key === "" ? "/socios" : f.key === "reprocann" ? "/socios?filtro=reprocann" : `/socios?estado=${f.key}`;
+          const active = activeKey === f.key;
+          return (
+            <Link key={f.key || "todos"} href={href} className="chip" style={active ? { background: "var(--brand)", color: "#f0fdf4", borderColor: "var(--brand)" } : undefined}>
+              {f.label}
+            </Link>
+          );
+        })}
+        <form action="/socios" className="ml-auto flex items-center gap-2">
+          {estado ? <input type="hidden" name="estado" value={estado} /> : null}
+          {filtro ? <input type="hidden" name="filtro" value={filtro} /> : null}
+          <input className="input" name="q" defaultValue={q ?? ""} placeholder="Nombre, documento o REPROCANN" style={{ width: 280 }} />
+          <button className="btn btn-secondary">Buscar</button>
+        </form>
       </div>
 
-      <form className="flex gap-2" action="/socios">
-        <input className="input" name="q" defaultValue={q ?? ""} placeholder="Buscar por nombre, apellido o documento" />
-        <select className="select" name="status" defaultValue={status ?? ""} style={{ maxWidth: 180 }}>
-          <option value="">Todos los estados</option>
-          {["PENDIENTE", "ACTIVO", "SUSPENDIDO", "BAJA"].map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <button className="btn btn-ghost">Buscar</button>
-      </form>
-
-      <div className="card p-2 overflow-x-auto">
-        <table className="data">
-          <thead>
-            <tr>
-              <th>Legajo</th><th>Socio</th><th>Documento</th><th>Nacimiento</th><th>Estado</th>
-              <th>REPROCANN</th><th>Vence</th><th>Consumo</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((m) => (
-              <tr key={m.id}>
-                <td>{m.legajo}</td>
-                <td>{m.lastName}, {m.firstName}</td>
-                <td>{m.docNumber}</td>
-                <td>{fdate(m.birthDate)}</td>
-                <td><span className="badge">{m.status}</span></td>
-                <td>{m.reprocannStatus}{m.reprocannNumber ? ` · ${m.reprocannNumber}` : ""}</td>
-                <td>{fdate(m.reprocannExpiresAt)}</td>
-                <td>{m.consumptionType}</td>
-                <td><Link className="underline text-xs" href={`/socios/${m.id}`}>Ver</Link></td>
+      <Section title="Padrón" subtitle="Estado del socio, habilitación para retirar y previsión declarada">
+        <div className="overflow-x-auto">
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Socio</th>
+                <th>Documento</th>
+                <th>Edad</th>
+                <th>Estado</th>
+                <th>Habilitación</th>
+                <th>Consumo</th>
+                <th>Alta</th>
+                <th />
               </tr>
-            ))}
-            {members.length === 0 ? <tr><td colSpan={9} className="muted">Sin resultados.</td></tr> : null}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            </thead>
+            <tbody>
+              {members.map((m) => {
+                const st = MEMBER_STATUS[m.status] ?? { label: m.status, tone: "mute" as const };
+                const issue = reprocannIssue(m);
+                return (
+                  <tr key={m.id}>
+                    <td>
+                      <div className="cell-main">{m.lastName}, {m.firstName}</div>
+                      <div className="cell-meta">Legajo {m.legajo}{m.reprocannNumber ? ` · ${m.reprocannNumber}` : ""}</div>
+                    </td>
+                    <td className="tnum">{m.docType} {m.docNumber}</td>
+                    <td className="tnum">{age(m.birthDate)}</td>
+                    <td><Chip tone={st.tone}>{st.label}</Chip></td>
+                    <td><Chip tone={issue.tone}>{issue.label}</Chip></td>
+                    <td>
+                      <div>{CONSUMPTION[m.consumptionType] ?? m.consumptionType}</div>
+                      <div className="cell-meta">{m.monthlyForecastG ? `${fmtGrams(m.monthlyForecastG)}/mes` : "sin previsión"}</div>
+                    </td>
+                    <td className="cell-meta">{fmtDate(m.admittedAt)}</td>
+                    <td className="num"><Link className="underline text-[12px]" href={`/socios/${m.id}`}>Ver</Link></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {members.length === 0 ? <Empty>No hay socios con este filtro. Probá “Todos” o cargá uno nuevo.</Empty> : null}
+        </div>
+      </Section>
+    </>
   );
 }

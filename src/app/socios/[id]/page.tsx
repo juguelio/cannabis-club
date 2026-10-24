@@ -2,85 +2,118 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { Chip, Field, Meter, PageHead, Section } from "@/components/ui";
 import { MemberActions } from "@/components/forms";
-
-const fdate = (d: Date | null) => (d ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeZone: "UTC" }).format(d) : "—");
-const fdt = (d: Date) => new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" }).format(d);
+import { age, CONSUMPTION, fmtDate, fmtDateTime, fmtGrams, MEMBER_STATUS, reprocannIssue } from "@/lib/labels";
+import { getClub, limitsFromClub } from "@/lib/club";
+import { memberUsage } from "@/lib/dispensary";
 
 export default async function SocioDetalle({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
   const { id } = await params;
-  const member = await prisma.member.findUnique({
-    where: { id },
-    include: {
-      dispensations: { orderBy: { occurredAt: "desc" }, take: 50, include: { batch: { include: { strain: true } }, operator: true } },
-    },
-  });
+  const [member, club] = await Promise.all([
+    prisma.member.findUnique({
+      where: { id },
+      include: {
+        dispensations: { orderBy: { occurredAt: "desc" }, take: 40, include: { batch: { include: { strain: true } }, operator: true } },
+      },
+    }),
+    getClub(),
+  ]);
   if (!member) notFound();
 
-  const total = member.dispensations.filter((d) => !d.voidedAt).reduce((a, d) => a + Number(d.grams), 0);
-  const last = member.dispensations[0];
+  const usage = await memberUsage(prisma, member.id, club.timezone);
+  const limits = limitsFromClub(club);
+  const st = MEMBER_STATUS[member.status] ?? { label: member.status, tone: "mute" as const };
+  const issue = reprocannIssue(member);
+  const entregado = member.dispensations.filter((d) => !d.voidedAt).reduce((a, d) => a + Number(d.grams), 0);
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{member.lastName}, {member.firstName}</h1>
-          <p className="muted text-sm">Legajo {member.legajo} · {member.docType} {member.docNumber} · {member.status}</p>
+    <>
+      <PageHead
+        title={`${member.lastName}, ${member.firstName}`}
+        subtitle={`Legajo ${member.legajo} · ${member.docType} ${member.docNumber} · ${age(member.birthDate)} años`}
+        actions={
+          <>
+            <MemberActions id={member.id} status={member.status} />
+            <Link className="btn btn-secondary" href="/socios">Volver</Link>
+          </>
+        }
+      />
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Chip tone={st.tone}>{st.label}</Chip>
+        <Chip tone={issue.tone}>{issue.label}</Chip>
+        <Chip>{CONSUMPTION[member.consumptionType] ?? member.consumptionType}</Chip>
+        {member.consentSignedAt ? <Chip tone="ok">Consentimiento firmado</Chip> : <Chip tone="warn">Sin consentimiento</Chip>}
+      </div>
+
+      <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}>
+        <div className="card card-pad">
+          <div className="section-title mb-2">Datos personales</div>
+          <Field label="Nacimiento" value={fmtDate(member.birthDate)} />
+          <Field label="Domicilio" value={member.address ?? "—"} />
+          <Field label="Teléfono" value={member.phone ?? "—"} />
+          <Field label="Email" value={member.email ?? "—"} />
         </div>
-        <div className="flex items-center gap-2">
-          <MemberActions id={member.id} status={member.status} />
-          <Link className="btn btn-ghost" href="/socios">Volver</Link>
+        <div className="card card-pad">
+          <div className="section-title mb-2">REPROCANN</div>
+          <Field label="Número" value={member.reprocannNumber ?? "—"} />
+          <Field label="Estado" value={<Chip tone={issue.tone}>{issue.label}</Chip>} />
+          <Field label="Vence" value={fmtDate(member.reprocannExpiresAt)} />
+          <Field label="Previsión" value={member.monthlyForecastG ? `${fmtGrams(member.monthlyForecastG)}/mes` : "—"} />
+        </div>
+        <div className="card card-pad">
+          <div className="section-title mb-2">Consumo del mes</div>
+          <div className="flex items-baseline justify-between">
+            <div className="text-[22px] tnum" style={{ fontWeight: 650 }}>{fmtGrams(usage.monthGrams)}</div>
+            <div className="cell-meta">tope {fmtGrams(limits.limiteMensualG)}</div>
+          </div>
+          <div className="my-2"><Meter value={usage.monthGrams} max={limits.limiteMensualG} /></div>
+          <div className="flex items-baseline justify-between mt-3">
+            <div className="text-[15px] tnum" style={{ fontWeight: 600 }}>{fmtGrams(usage.dayGrams)}</div>
+            <div className="cell-meta">hoy · tope {fmtGrams(limits.limiteDiarioG)}</div>
+          </div>
+          <div className="my-2"><Meter value={usage.dayGrams} max={limits.limiteDiarioG} /></div>
+          <div className="cell-meta">Histórico entregado: <span className="tnum">{fmtGrams(entregado)}</span></div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="card p-4 text-sm space-y-1">
-          <div className="muted text-xs">Datos</div>
-          <div>Nacimiento: {fdate(member.birthDate)}</div>
-          <div>Domicilio: {member.address ?? "—"}</div>
-          <div>Teléfono: {member.phone ?? "—"}</div>
-          <div>Email: {member.email ?? "—"}</div>
-        </div>
-        <div className="card p-4 text-sm space-y-1">
-          <div className="muted text-xs">REPROCANN</div>
-          <div>Número: {member.reprocannNumber ?? "—"}</div>
-          <div>Estado: {member.reprocannStatus}</div>
-          <div>Vence: {fdate(member.reprocannExpiresAt)}</div>
-          <div>Consumo: {member.consumptionType} · previsión {member.monthlyForecastG ? `${Number(member.monthlyForecastG)} g/mes` : "—"}</div>
-        </div>
-        <div className="card p-4 text-sm space-y-1">
-          <div className="muted text-xs">Registro</div>
-          <div>Alta: {fdate(member.admittedAt)}</div>
-          <div>Consentimiento: {fdate(member.consentSignedAt)}</div>
-          <div>Entregado histórico: {Math.round(total * 100) / 100} g</div>
-          <div>Última entrega: {last ? fdt(last.occurredAt) : "—"}</div>
-        </div>
-      </div>
-
-      <section className="card p-4">
-        <h2 className="font-semibold mb-3">Entregas</h2>
-        <table className="data">
-          <thead>
-            <tr><th>Fecha</th><th>Cepa / lote</th><th>Gramos</th><th>THC</th><th>Operador</th><th>Firma</th><th>Estado</th></tr>
-          </thead>
-          <tbody>
-            {member.dispensations.map((d) => (
-              <tr key={d.id}>
-                <td>{fdt(d.occurredAt)}</td>
-                <td>{d.batch.strain.name} · {d.batch.code}</td>
-                <td>{Number(d.grams)} g</td>
-                <td>{d.thcPct ? `${Number(d.thcPct)}%` : "—"}</td>
-                <td>{d.operator.name}</td>
-                <td>{d.signatureType}</td>
-                <td>{d.voidedAt ? <span className="badge">anulada</span> : <span className="badge">vigente</span>}</td>
+      <Section title="Entregas" subtitle="Cada fila es un asiento del libro; las anuladas conservan su contra-asiento">
+        <div className="overflow-x-auto">
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Cepa / lote</th>
+                <th className="num">Gramos</th>
+                <th className="num">THC</th>
+                <th>Operador</th>
+                <th>Firma</th>
+                <th>Estado</th>
               </tr>
-            ))}
-            {member.dispensations.length === 0 ? <tr><td colSpan={7} className="muted">Sin entregas registradas.</td></tr> : null}
-          </tbody>
-        </table>
-      </section>
-    </div>
+            </thead>
+            <tbody>
+              {member.dispensations.map((d) => (
+                <tr key={d.id}>
+                  <td className="cell-meta">{fmtDateTime(d.occurredAt)}</td>
+                  <td>
+                    <div>{d.batch.strain.name}</div>
+                    <div className="cell-meta">{d.batch.code}</div>
+                  </td>
+                  <td className="num tnum">{fmtGrams(d.grams)}</td>
+                  <td className="num tnum">{d.thcPct ? `${Number(d.thcPct)}%` : "—"}</td>
+                  <td className="cell-meta">{d.operator.name}</td>
+                  <td className="cell-meta">{d.signatureType}</td>
+                  <td>{d.voidedAt ? <Chip tone="danger">anulada</Chip> : <Chip tone="ok">vigente</Chip>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {member.dispensations.length === 0 ? <div className="empty">Todavía no retiró nada.</div> : null}
+        </div>
+      </Section>
+    </>
   );
 }

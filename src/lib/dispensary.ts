@@ -1,10 +1,10 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "./db";
 import { getClub, limitsFromClub } from "./club";
 import { conflict, notFound, unprocessable } from "./errors";
 import { evaluateDispensation, type Usage } from "./limits";
 
-type Tx = Prisma.TransactionClient;
+type Tx = Prisma.TransactionClient | PrismaClient;
 
 /** Uso del socio en el día y el mes locales del club, neto de reversas. */
 export async function memberUsage(tx: Tx, memberId: string, timezone: string): Promise<Usage> {

@@ -48,7 +48,7 @@ export function LoginForm() {
   const [busy, setBusy] = useState(false);
   return (
     <form
-      className="card p-6 space-y-3 max-w-sm w-full"
+      className="card card-pad space-y-3 w-full" style={{ maxWidth: 400 }}
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
@@ -65,7 +65,10 @@ export function LoginForm() {
         }
       }}
     >
-      <h1 className="text-lg font-semibold">Ingreso al club</h1>
+      <div>
+        <h1 className="text-[17px] font-semibold">Ingreso al club</h1>
+        <p className="cell-meta mt-1">Usá la cuenta que te dio la coordinación del club.</p>
+      </div>
       <div>
         <label className="label" htmlFor="email">Email</label>
         <input className="input" id="email" name="email" type="email" defaultValue="admin@club.test" required />
@@ -86,7 +89,7 @@ export function MemberForm() {
   const [ok, setOk] = useState<string | null>(null);
   return (
     <form
-      className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-3"
+      className="grid grid-cols-1 md:grid-cols-2 gap-3"
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
@@ -143,6 +146,7 @@ export function MemberForm() {
       </div>
       <div className="md:col-span-2 flex items-center gap-3">
         <button className="btn">Guardar socio</button>
+        <span className="cell-meta">El legajo se asigna solo.</span>
         <Msg error={error} ok={ok} />
       </div>
     </form>
@@ -179,7 +183,7 @@ export function BatchForm({ strains }: { strains: { id: string; name: string }[]
   const [ok, setOk] = useState<string | null>(null);
   return (
     <form
-      className="card p-5 grid grid-cols-1 md:grid-cols-3 gap-3"
+      className="grid grid-cols-1 md:grid-cols-3 gap-3"
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
@@ -234,7 +238,7 @@ export function HarvestForm({ batches }: { batches: { id: string; code: string }
   const [ok, setOk] = useState<string | null>(null);
   return (
     <form
-      className="card p-5 grid grid-cols-1 md:grid-cols-4 gap-3"
+      className="grid grid-cols-1 md:grid-cols-4 gap-3"
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
@@ -267,7 +271,7 @@ export function MovementForm({ batches }: { batches: { id: string; code: string 
   const [ok, setOk] = useState<string | null>(null);
   return (
     <form
-      className="card p-5 grid grid-cols-1 md:grid-cols-4 gap-3"
+      className="grid grid-cols-1 md:grid-cols-4 gap-3"
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
@@ -295,72 +299,6 @@ export function MovementForm({ batches }: { batches: { id: string; code: string 
       <div><label className="label">Gramos</label><input className="input" name="grams" type="number" step="0.01" required /></div>
       <div><label className="label">Motivo</label><input className="input" name="reason" required /></div>
       <div className="md:col-span-4 flex items-center gap-3"><button className="btn">Registrar movimiento</button><Msg error={error} ok={ok} /></div>
-    </form>
-  );
-}
-
-export function DispenseForm({
-  members,
-  batches,
-}: {
-  members: { id: string; legajo: number; lastName: string; firstName: string }[];
-  batches: { id: string; code: string; strain: string; balanceG: number; thcPct: number | null }[];
-}) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  return (
-    <form
-      className="card p-5 grid grid-cols-1 md:grid-cols-4 gap-3"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
-        setError(null); setOk(null); setBusy(true);
-        try {
-          const res = await post("/api/dispensations", {
-            memberId: f.get("memberId"),
-            batchId: f.get("batchId"),
-            grams: Number(f.get("grams")),
-            signatureType: f.get("signatureType"),
-            signatureRef: f.get("signatureRef") || undefined,
-          });
-          setOk(`Entregado. Saldo del lote: ${res.balanceAfterG} g.`);
-          router.refresh();
-        } catch (err) {
-          setError((err as Error).message);
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      <div>
-        <label className="label">Socio</label>
-        <select className="select" name="memberId" required>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.legajo} · {m.lastName}, {m.firstName}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="label">Lote</label>
-        <select className="select" name="batchId" required>
-          {batches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.code} · {b.strain} · {b.balanceG} g {b.thcPct != null ? `· ${b.thcPct}% THC` : ""}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div><label className="label">Gramos</label><input className="input" name="grams" type="number" step="0.01" min="0.01" required /></div>
-      <div className="flex items-end"><button className="btn" disabled={busy}>{busy ? "Validando…" : "Entregar"}</button></div>
-      <div><label className="label">Firma</label>
-        <select className="select" name="signatureType"><option>PIN</option><option>FIRMA_DIGITAL</option><option>QR</option></select>
-      </div>
-      <div><label className="label">Referencia de firma</label><input className="input" name="signatureRef" placeholder="PIN verificado / comprobante" /></div>
-      <div className="md:col-span-4"><Msg error={error} ok={ok} /></div>
     </form>
   );
 }

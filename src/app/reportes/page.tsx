@@ -1,30 +1,67 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { PageHead } from "@/components/ui";
 
 const REPORTS = [
-  ["padron", "Padrón de socios", "Legajo, documento, REPROCANN, estado, consentimiento."],
-  ["dispensaciones", "Libro de dispensaciones", "Nombre, año de nacimiento, gramos, THC promedio, fecha, firma y anulaciones."],
-  ["stock", "Stock por lote", "Ingresado, dispensado, destruido y saldo por lote."],
-  ["destrucciones", "Libro de destrucciones", "Qué se destruyó, cuándo, cuánto y quién lo hizo."],
-  ["informe-anual", "Informe anual por variedad", "Cosechado, entregado, destruido y stock final por variedad con THC/CBD."],
+  {
+    slug: "padron",
+    title: "Padrón de socios",
+    purpose: "Mostrar quién está habilitado y con qué REPROCANN, ante el club o una inspección.",
+    items: ["Legajo y documento", "Estado y fecha de alta", "REPROCANN, estado y vencimiento", "Consentimiento firmado"],
+  },
+  {
+    slug: "dispensaciones",
+    title: "Libro de dispensaciones",
+    purpose: "El registro que se pide primero: qué se entregó, a quién, cuándo y con qué THC.",
+    items: ["Nombre y año de nacimiento", "Gramos, cepa y lote", "THC promedio", "Operador, firma y anulaciones"],
+  },
+  {
+    slug: "stock",
+    title: "Stock por lote",
+    purpose: "Conciliar lo cultivado contra lo entregado y lo destruido, lote por lote.",
+    items: ["Ingresado y dispensado", "Destruido y saldo", "Etapa y sala", "Cosecha"],
+  },
+  {
+    slug: "destrucciones",
+    title: "Libro de destrucciones",
+    purpose: "Justificar cada gramo que salió del stock sin haberse entregado.",
+    items: ["Fecha y lote", "Gramos y motivo", "Responsable"],
+  },
+  {
+    slug: "informe-anual",
+    title: "Informe anual por variedad",
+    purpose: "Cerrar el año: cultivado, entregado, destruido y stock final por variedad, con THC y CBD.",
+    items: ["Cosechado seco", "Entregado y destruido", "Stock final del libro", "THC y CBD promedio"],
+  },
 ];
 
 export default async function ReportesPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Reportes y libros</h1>
-      <p className="muted text-sm">CSV con separador “;” y BOM UTF-8, listo para abrir en Excel y para presentar ante la autoridad.</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {REPORTS.map(([slug, title, desc]) => (
-          <div key={slug} className="card p-4 flex flex-col gap-2">
-            <div className="font-semibold">{title}</div>
-            <div className="muted text-sm flex-1">{desc}</div>
-            <a className="btn btn-ghost self-start" href={`/api/reports/${slug}`}>Descargar CSV</a>
+    <>
+      <PageHead
+        title="Reportes y libros"
+        subtitle="CSV con separador “;” y BOM UTF-8: abre en Excel y se presenta tal cual."
+      />
+      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))" }}>
+        {REPORTS.map((r) => (
+          <div key={r.slug} className="card card-pad flex flex-col gap-3">
+            <div>
+              <div className="section-title">{r.title}</div>
+              <p className="section-sub mt-1">{r.purpose}</p>
+            </div>
+            <ul className="text-[12.5px] flex flex-col gap-1" style={{ color: "#475569" }}>
+              {r.items.map((i) => (
+                <li key={i}>· {i}</li>
+              ))}
+            </ul>
+            <a className="btn btn-secondary btn-sm self-start mt-auto" href={`/api/reports/${r.slug}`}>
+              Descargar CSV
+            </a>
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }
