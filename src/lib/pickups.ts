@@ -9,7 +9,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { conflict, notFound, unprocessable } from "./errors";
 import { getClub, limitsFromClub } from "./club";
-import { memberUsage } from "./dispensary";
+import { memberUsage, memberUsageAt } from "./dispensary";
 import { evaluatePickup, round2 } from "./pickup-rules";
 import { addDaysKey, dayKeyOf, evaluateBooking, labelOf, slotInstant, type Rule } from "./appointments";
 import { daysToExpiry } from "./labels";
@@ -64,13 +64,14 @@ export async function portalOverview(memberId: string) {
 
   const config = limitsFromClub(club);
   const limits = limitsForMember(member, config);
-  const [usage, pending, stock, pickups] = await Promise.all([
+  const [usage, pending, stockFisico, reservadoGlobal, pickups] = await Promise.all([
     memberUsage(prisma, member.id, club.timezone),
     prisma.pickupRequest.findMany({
       where: { memberId: member.id, status: { in: [...OPEN_STATUSES] } },
       select: { grams: true },
     }),
     stockTotal(prisma),
+    prisma.pickupRequest.aggregate({ where: { status: { in: [...OPEN_STATUSES] } }, _sum: { grams: true } }),
     prisma.pickupRequest.findMany({
       where: { memberId: member.id },
       orderBy: { createdAt: "desc" },
@@ -80,6 +81,7 @@ export async function portalOverview(memberId: string) {
   ]);
 
   const pendingGrams = round2(pending.reduce((a, p) => a + Number(p.grams), 0));
+  const stock = round2(Math.max(0, stockFisico - Number(reservadoGlobal._sum.grams ?? 0)));
   const disponibleMes = round2(Math.max(0, limits.monthLimitG - usage.monthGrams - pendingGrams));
   const disponibleDia = round2(Math.max(0, limits.dayLimitG - usage.dayGrams));
   const candidates: { key: "mes" | "dia" | "stock"; value: number }[] = [
@@ -156,10 +158,13 @@ export async function createPickup(input: {
       if (!member) throw notFound("Socio inexistente");
 
       const limits = limitsForMember(member, config);
-      const [usage, pendingRows, stock, dayRows] = await Promise.all([
-        memberUsage(tx, member.id, club.timezone),
+      // El cupo se mide en la fecha del retiro, no con el consumo de hoy (R04 del REA).
+      const at = slotInstant(input.dayKey, input.startMin);
+      const [usage, pendingRows, stockFisico, reservadoGlobal, dayRows] = await Promise.all([
+        memberUsageAt(tx, member.id, club.timezone, at),
         tx.pickupRequest.findMany({ where: { memberId: member.id, status: { in: [...OPEN_STATUSES] } }, select: { grams: true } }),
         stockTotal(tx),
+        tx.pickupRequest.aggregate({ where: { status: { in: [...OPEN_STATUSES] } }, _sum: { grams: true } }),
         tx.appointment.findMany({
           where: { scheduledAt: { gte: slotInstant(input.dayKey, 0), lt: slotInstant(addDaysKey(input.dayKey, 1), 0) } },
           select: { id: true, memberId: true, scheduledAt: true, status: true },
@@ -167,6 +172,10 @@ export async function createPickup(input: {
       ]);
 
       const pendingGrams = round2(pendingRows.reduce((a, p) => a + Number(p.grams), 0));
+      // Lo que se puede prometer es el stock físico menos lo que ya está reservado por cualquiera:
+      // dos socios no pueden reservar el mismo saldo (R04 del REA).
+      const reservado = round2(Number(reservadoGlobal._sum.grams ?? 0));
+      const stock = round2(Math.max(0, stockFisico - reservado));
       const decision = evaluatePickup({
         grams: input.grams,
         memberActive: member.status === "ACTIVO",
@@ -228,6 +237,8 @@ export async function createPickup(input: {
             dayLimitG: limits.dayLimitG,
             dayUsedG: usage.dayGrams,
             stockG: stock,
+            stockFisicoG: stockFisico,
+            reservadoGlobalG: reservado,
             remainingAfterG: decision.remainingAfterG,
           } as Prisma.InputJsonValue,
           notes: input.notes,

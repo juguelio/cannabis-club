@@ -78,7 +78,7 @@ export function DispensaryConsole({
       const res = await fetch("/api/dispensations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId, batchId, grams: amount, signatureType: "PIN", pickupId: pickupId ?? undefined }),
+        body: JSON.stringify({ memberId, batchId, grams: amount, signatureType: "REGISTRO_OPERADOR", pickupId: pickupId ?? undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(`${data.error ?? "ERROR"}: ${data.message ?? "no se pudo entregar"}`);

@@ -82,6 +82,8 @@ enum AppointmentStatus {
 }
 
 enum SignatureType {
+  /// La entrega la registró el operador. NO es evidencia de recepción del socio.
+  REGISTRO_OPERADOR
   PIN
   FIRMA_DIGITAL
   QR

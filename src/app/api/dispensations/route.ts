@@ -9,7 +9,7 @@ const Body = z.object({
   memberId: z.string().min(1),
   batchId: z.string().min(1),
   grams: gramsAmount.max(1000),
-  signatureType: z.enum(["PIN", "FIRMA_DIGITAL", "QR"]).optional(),
+  signatureType: z.enum(["REGISTRO_OPERADOR", "PIN", "FIRMA_DIGITAL", "QR"]).optional(),
   signatureRef: z.string().optional(),
   notes: z.string().optional(),
   pickupId: z.string().min(1).optional(),

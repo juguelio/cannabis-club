@@ -8,6 +8,11 @@ type Tx = Prisma.TransactionClient | PrismaClient;
 
 /** Uso del socio en el día y el mes locales del club, neto de reversas. */
 export async function memberUsage(tx: Tx, memberId: string, timezone: string): Promise<Usage> {
+  return memberUsageAt(tx, memberId, timezone, new Date());
+}
+
+/** Uso del día y del mes de una fecha dada (para reservar a futuro, no con el consumo de hoy). */
+export async function memberUsageAt(tx: Tx, memberId: string, timezone: string, at: Date): Promise<Usage> {
   // El uso del período se mide por la fecha de la ENTREGA, no por la del asiento.
   // Restar la reversa por su propia fecha hacía que anular ayer una entrega de ayer
   // dejara el uso de hoy en negativo y regalara cupo (R02 del REA de operación).
@@ -15,9 +20,9 @@ export async function memberUsage(tx: Tx, memberId: string, timezone: string): P
   const rows = await tx.$queryRaw<{ day: unknown; month: unknown }[]>`
     SELECT
       COALESCE(SUM(CASE WHEN (("occurredAt" AT TIME ZONE ${timezone})::date
-        = (now() AT TIME ZONE ${timezone})::date) AND "voidedAt" IS NULL THEN grams ELSE 0 END), 0) AS day,
+        = (${at}::timestamptz AT TIME ZONE ${timezone})::date) AND "voidedAt" IS NULL THEN grams ELSE 0 END), 0) AS day,
       COALESCE(SUM(CASE WHEN date_trunc('month', ("occurredAt" AT TIME ZONE ${timezone}))
-        = date_trunc('month', (now() AT TIME ZONE ${timezone})) AND "voidedAt" IS NULL THEN grams ELSE 0 END), 0) AS month
+        = date_trunc('month', (${at}::timestamptz AT TIME ZONE ${timezone})) AND "voidedAt" IS NULL THEN grams ELSE 0 END), 0) AS month
     FROM "Dispensation"
     WHERE "memberId" = ${memberId}
   `;
@@ -39,7 +44,7 @@ export type DispenseInput = {
   memberId: string;
   batchId: string;
   grams: number;
-  signatureType?: "PIN" | "FIRMA_DIGITAL" | "QR";
+  signatureType?: "REGISTRO_OPERADOR" | "PIN" | "FIRMA_DIGITAL" | "QR";
   /** Reserva que se está atendiendo, si el mostrador abrió el caso desde el portal. */
   pickupId?: string;
   signatureRef?: string | null;
@@ -95,7 +100,7 @@ export async function dispense(input: DispenseInput) {
             grams: new Prisma.Decimal(input.grams.toFixed(2)),
             thcPct: batch.thcPct,
             operatorId: input.operatorId,
-            signatureType: input.signatureType ?? "PIN",
+            signatureType: input.signatureType ?? "REGISTRO_OPERADOR",
             signatureRef: input.signatureRef ?? null,
             notes: input.notes ?? null,
             limitSnapshot: decision.snapshot as unknown as Prisma.InputJsonValue,

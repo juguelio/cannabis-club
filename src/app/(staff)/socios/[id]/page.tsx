@@ -5,6 +5,13 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { Chip, Field, Meter, PageHead, Section } from "@/components/ui";
 import { MemberActions } from "@/components/forms";
+
+const SIGNATURE: Record<string, string> = {
+  REGISTRO_OPERADOR: "Registrada por el operador",
+  PIN: "PIN del socio",
+  FIRMA_DIGITAL: "Firma digital",
+  QR: "QR del carnet",
+};
 import { age, CONSUMPTION, fmtDate, fmtDateTime, fmtGrams, MEMBER_STATUS, reprocannIssue } from "@/lib/labels";
 import { getClub, limitsFromClub } from "@/lib/club";
 import { memberUsage } from "@/lib/dispensary";
@@ -107,7 +114,7 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
                   <td className="num tnum">{fmtGrams(d.grams)}</td>
                   <td className="num tnum">{d.thcPct ? `${Number(d.thcPct)}%` : "—"}</td>
                   <td className="cell-meta">{d.operator.name}</td>
-                  <td className="cell-meta">{d.signatureType}</td>
+                  <td className="cell-meta">{SIGNATURE[d.signatureType] ?? d.signatureType}</td>
                   <td>{d.voidedAt ? <Chip tone="danger">anulada</Chip> : <Chip tone="ok">vigente</Chip>}</td>
                 </tr>
               ))}
