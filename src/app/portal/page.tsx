@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { getMemberSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { portalOverview } from "@/lib/pickups";
-import { addDaysKey, buildSlots, dayKeyOf, slotInstant, type Rule } from "@/lib/appointments";
+import { addDaysKey, buildSlots, dayKeyOf, nextOpenDays, slotInstant, type Rule } from "@/lib/appointments";
+import { closedDayKeys } from "@/lib/closed-days";
 import QRCode from "qrcode";
 import { MemberPortal } from "@/components/member-portal";
 
@@ -30,10 +31,8 @@ export default async function PortalPage() {
   const rules = (await prisma.scheduleRule.findMany({ orderBy: [{ weekday: "asc" }, { startMin: "asc" }] })) as Rule[];
   let day = today;
   let slots: { startMin: number; label: string; free: number; past: boolean; full: boolean }[] = [];
-  for (let i = 0; i < 10; i += 1) {
-    const key = addDaysKey(today, i);
-    const weekday = new Date(`${key}T00:00:00.000Z`).getUTCDay();
-    if (!rules.some((r) => r.weekday === weekday && r.active)) continue;
+  const closed = await closedDayKeys(today, 10);
+  for (const key of nextOpenDays(rules, closed, today, 10, 5).map((d) => d.key)) {
     const appointments = await prisma.appointment.findMany({
       where: { scheduledAt: { gte: slotInstant(key, 0), lt: slotInstant(addDaysKey(key, 1), 0) } },
       select: { id: true, memberId: true, scheduledAt: true, status: true },

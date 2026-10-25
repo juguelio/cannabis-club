@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CalendarCheck2, CircleAlert, QrCode } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
+import { memberDocumentStatus } from "@/lib/member-document-status";
 import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
 
@@ -83,14 +84,19 @@ export function MemberPortal({
   const [error, setError] = useState<string | null>(null);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [showCard, setShowCard] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState("all");
+  const [closedDay, setClosedDay] = useState(false);
+  const documentStatus = memberDocumentStatus(data.member);
+  const visibleHistory = history.filter((item) => historyFilter === "all" || (historyFilter === "voided" ? item.voided : !item.voided));
 
   useEffect(() => {
     let alive = true;
-    api<{ slots: Slot[]; days: Day[] }>(`/api/portal/slots?date=${day}`)
+    api<{ slots: Slot[]; days: Day[]; closed?: boolean }>(`/api/portal/slots?date=${day}`)
       .then((d) => {
         if (!alive) return;
         setSlots(d.slots ?? []);
         setDays(d.days ?? []);
+        setClosedDay(Boolean(d.closed));
         setSlot(null);
       })
       .catch(() => undefined);
@@ -127,13 +133,21 @@ export function MemberPortal({
 
   return (
     <>
+      <header className="member-intro">
+        <div><p className="panel-sub">{data.club.nombre}</p><h1>Tu espacio de socio</h1></div>
+        <nav aria-label="Secciones de tu portal" className="member-shortcuts">
+          <a href="#mi-carnet" onClick={() => setShowCard(true)}>Mi carnet</a>
+          <a href="#historial">Historial</a>
+          <a href="#documentacion">Documentación</a>
+        </nav>
+      </header>
       <section className="allowance" aria-label="Tu saldo del mes">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div style={{ fontSize: 14, color: "#a9c0b3" }}>Hola, {data.member.firstName}. Te quedan este mes</div>
             <div className="allowance-big" style={{ marginTop: 8 }}>{String(data.disponibleMes).replace(".", ",")}<small>g</small></div>
           </div>
-          <button className="rail-out" onClick={() => setShowCard((s) => !s)} aria-expanded={showCard} aria-label="Mostrar mi carnet" title="Mi carnet" style={{ padding: 8 }}>
+          <button className="rail-out" onClick={() => setShowCard((s) => !s)} aria-expanded={showCard} aria-controls="mi-carnet" aria-label={showCard ? "Ocultar mi carnet" : "Mostrar mi carnet"} title="Mi carnet" style={{ padding: 8 }}>
             <QrCode size={20} />
           </button>
         </div>
@@ -149,21 +163,17 @@ export function MemberPortal({
           <span>Legajo {data.member.legajo}</span>
           <span>·</span>
           <span style={{ color: data.member.reprocannOk ? "#a6e8bf" : "#ffb4a6" }}>
-            {data.member.reprocannOk
-              ? `REPROCANN vigente${data.member.reprocannDays != null ? `, vence en ${data.member.reprocannDays} días` : ""}`
-              : "REPROCANN vencido"}
+            REPROCANN: {documentStatus.label}
           </span>
           {data.limits.isMinor ? <><span>·</span><span>Tope reducido por edad{data.limits.thcMaxPct != null ? `, hasta ${data.limits.thcMaxPct}% THC` : ""}</span></> : null}
         </div>
-        {showCard ? (
-          <div className="flex items-center gap-4" style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #23453a" }}>
+          <div id="mi-carnet" hidden={!showCard} className="member-card" style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #23453a" }}>
             <div className="qr-box" style={{ width: 132, height: 132, flex: "none" }} dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label="Código QR de tu carnet" />
             <div style={{ fontSize: 14 }}>
               <div style={{ color: "#fff", fontWeight: 650, fontFamily: "var(--font-display)", fontSize: 18 }}>{data.member.lastName}, {data.member.firstName}</div>
               <div style={{ color: "#a9c0b3" }}>Mostralo en el mostrador: abre tu legajo al instante.</div>
             </div>
           </div>
-        ) : null}
       </section>
 
       {openPickup ? (
@@ -178,7 +188,7 @@ export function MemberPortal({
 
       <section className="panel">
         <div className="panel-head"><div>
-          <h1 className="panel-title" style={{ fontSize: 19 }}>Reservar un retiro</h1>
+          <h2 className="panel-title" style={{ fontSize: 19 }}>Reservar un retiro</h2>
           <p className="panel-sub">Reservás gramos de la producción del club y los retirás vos, en el club. El aporte de cultivo se abona al retirar y es un prorrateo de costos, no una venta.</p>
         </div></div>
         <div className="panel-body">
@@ -187,7 +197,7 @@ export function MemberPortal({
               <CircleAlert aria-hidden />
               <div>
                 {!data.member.reprocannOk
-                  ? "Tu REPROCANN está vencido: el club no puede reservarte un retiro hasta que lo renueves. Avisá en la secretaría cuando lo tengas."
+                  ? `Tu documentación requiere revisión (${documentStatus.label.toLowerCase()}). Consultá con la secretaría del club.`
                   : data.member.status !== "ACTIVO"
                     ? "Tu ficha no está activa. Hablá con la secretaría del club."
                     : data.topeMotivo === "stock"
@@ -233,7 +243,9 @@ export function MemberPortal({
               <div>
                 <span className="label">¿A qué hora?</span>
                 {slots.length === 0 ? (
-                  <p className="muted" style={{ margin: 0 }}>Ese día el club no atiende.</p>
+                  <p className="muted" style={{ margin: 0 }}>
+                    {closedDay ? "El club cerró ese día. Elegí otra fecha." : "Ese día el club no atiende."}
+                  </p>
                 ) : (
                   <div className="slot-grid" role="radiogroup" aria-label="Horario del retiro">
                     {slots.map((s) => (
@@ -287,16 +299,27 @@ export function MemberPortal({
         )}
       </section>
 
-      <section className="panel">
+      <section className="panel" id="historial" aria-labelledby="history-title">
         <div className="panel-head"><div>
-          <h2 className="panel-title">Lo que retiraste</h2>
+          <h2 className="panel-title" id="history-title">Lo que retiraste</h2>
           <p className="panel-sub">Tus últimas entregas en el club. Si una figura anulada, el club la corrigió y no cuenta para tu tope.</p>
         </div></div>
+        {history.length > 0 ? (
+          <div className="panel-body member-history-filter">
+            <label className="label" htmlFor="history-filter">Mostrar registros</label>
+            <select id="history-filter" className="input" value={historyFilter} onChange={(event) => setHistoryFilter(event.target.value)}>
+              <option value="all">Todos</option><option value="valid">Sin anular</option><option value="voided">Anulados</option>
+            </select>
+            <span className="hint" role="status">{visibleHistory.length} de {history.length} registros recientes</span>
+          </div>
+        ) : null}
         {history.length === 0 ? (
           <div className="empty">Todavía no retiraste nada.</div>
+        ) : visibleHistory.length === 0 ? (
+          <div className="empty">No hay registros con este filtro.</div>
         ) : (
           <ul className="rows">
-            {history.map((h) => (
+            {visibleHistory.map((h) => (
               <li key={h.id} className={h.voided ? "voided" : undefined}>
                 <div className="grow">
                   <div className="cell-main" style={h.voided ? { textDecoration: "line-through", color: "var(--muted)" } : undefined}>{h.strain}</div>
@@ -315,7 +338,14 @@ export function MemberPortal({
           <p className="panel-sub">Si algo no coincide con tus papeles, avisá en la secretaría: el club lo corrige en tu legajo.</p>
         </div></div>
         <div className="panel-body">
+          {documentStatus.attention ? (
+            <div className="note note-warn" style={{ marginBottom: 16 }}>
+              <CircleAlert aria-hidden /><div><b>REPROCANN: {documentStatus.label}.</b> Revisá los datos con la secretaría del club.</div>
+            </div>
+          ) : null}
           <dl className="dl">
+            <dt>Estado de la ficha</dt><dd>{{ ACTIVO: "Activo", PENDIENTE: "Pendiente", SUSPENDIDO: "Suspendido", BAJA: "De baja" }[data.member.status] ?? "Consultar en secretaría"}</dd>
+            <dt>Estado REPROCANN</dt><dd>{documentStatus.label}</dd>
             <dt>Legajo</dt><dd className="tnum">{data.member.legajo}</dd>
             <dt>REPROCANN</dt><dd>{data.member.reprocannNumber ?? "Sin número cargado"}</dd>
             <dt>Vence</dt><dd>{fmtDate(data.member.reprocannExpiresAt)}</dd>

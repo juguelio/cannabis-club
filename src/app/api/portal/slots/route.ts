@@ -1,7 +1,8 @@
 import { requireMember } from "@/lib/auth";
 import { fail, json } from "@/lib/http";
 import { prisma } from "@/lib/db";
-import { addDaysKey, buildSlots, dayKeyOf, slotInstant, type Rule } from "@/lib/appointments";
+import { addDaysKey, buildSlots, dayKeyOf, nextOpenDays, slotInstant, type Rule } from "@/lib/appointments";
+import { closedDayKeys } from "@/lib/closed-days";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const OPEN_DAYS = 10;
@@ -14,6 +15,10 @@ export async function GET(req: Request) {
     const date = url.searchParams.get("date");
     const day = date && DAY.test(date) ? date : dayKeyOf(new Date());
 
+    const today = dayKeyOf(new Date());
+    const closed = await closedDayKeys(today, OPEN_DAYS + 1);
+    const isClosed = closed.has(day);
+
     const [rules, appointments] = await Promise.all([
       prisma.scheduleRule.findMany({ orderBy: [{ weekday: "asc" }, { startMin: "asc" }] }),
       prisma.appointment.findMany({
@@ -22,25 +27,18 @@ export async function GET(req: Request) {
       }),
     ]);
 
-    const slots = buildSlots(rules as Rule[], day, appointments);
+    // Un día cerrado no ofrece horarios: el club no atiende, aunque la franja exista.
+    const slots = isClosed ? [] : buildSlots(rules as Rule[], day, appointments);
     const mine = appointments.filter((a) => a.memberId === member.memberId && a.status !== "CANCELADO");
 
-    // próximos días abiertos, para el selector
-    const today = dayKeyOf(new Date());
-    const days: { key: string; weekday: number }[] = [];
-    for (let i = 0; i < OPEN_DAYS && days.length < 5; i += 1) {
-      const key = addDaysKey(today, i);
-      const weekday = new Date(`${key}T00:00:00.000Z`).getUTCDay();
-      const hasRule = rules.some((r) => r.weekday === weekday && r.active);
-      // Hoy sólo cuenta si todavía queda algún horario por delante.
-      const stillOpen = i > 0 || buildSlots(rules as Rule[], key, []).some((s) => !s.past);
-      if (hasRule && stillOpen) days.push({ key, weekday });
-    }
+    // próximos días abiertos, para el selector (los cerrados no aparecen)
+    const days = nextOpenDays(rules as Rule[], closed, today, OPEN_DAYS, 5);
 
     return json({
       day,
       slots: slots.map((s) => ({ startMin: s.startMin, label: s.label, at: s.at, free: s.free, past: s.past, full: s.full })),
       days,
+      closed: isClosed,
       alreadyBookedToday: mine.length > 0,
     });
   } catch (error) {

@@ -8,6 +8,7 @@ import {
   labelOf,
   labelToMinutes,
   minutesToLabel,
+  nextOpenDays,
   slotInstant,
   weekdayOfKey,
   type Rule,
@@ -188,5 +189,30 @@ describe("resumen del día", () => {
       { scheduledAt: at(720), status: "CANCELADO" },
     ]);
     expect(s).toMatchObject({ total: 4, pendientes: 1, confirmados: 1, atendidos: 1, ausentes: 1, porLlegar: 2 });
+  });
+});
+
+describe("nextOpenDays", () => {
+  const rule = (weekday: number, extra: Partial<{ active: boolean; startMin: number; endMin: number; slotMin: number; capacity: number }> = {}) => ({
+    weekday, startMin: 600, endMin: 660, slotMin: 20, capacity: 2, active: true, ...extra,
+  });
+  const allWeek = [0, 1, 2, 3, 4, 5, 6].map((w) => rule(w));
+
+  it("salta los días que el club cerró", () => {
+    const today = "2026-10-26"; // lunes
+    const days = nextOpenDays(allWeek, new Set([today, "2026-10-27"]), today, 10, 5);
+    expect(days.map((d) => d.key)).toEqual(["2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01"]);
+  });
+
+  it("ignora días sin franja activa", () => {
+    const today = "2026-10-26";
+    const rules = [rule(1, { active: false }), rule(3)];
+    const days = nextOpenDays(rules, new Set(), today, 10, 5);
+    expect(days.map((d) => d.key)).toEqual(["2026-10-28", "2026-11-04"]);
+  });
+
+  it("respeta el límite de días que pide el selector", () => {
+    const days = nextOpenDays(allWeek, new Set(), "2026-10-26", 10, 3);
+    expect(days).toHaveLength(3);
   });
 });

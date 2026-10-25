@@ -140,6 +140,30 @@ export function buildSlots(
   return slots.sort((a, b) => a.startMin - b.startMin);
 }
 
+/**
+ * Próximos días que el club atiende: con franja activa, sin estar cerrado por el club
+ * y (si es hoy) con algún horario todavía por delante.
+ */
+export function nextOpenDays(
+  rules: Rule[],
+  closedKeys: Set<string>,
+  todayKey: string,
+  horizon = 10,
+  limit = 5,
+): { key: string; weekday: number }[] {
+  const days: { key: string; weekday: number }[] = [];
+  for (let i = 0; i < horizon && days.length < limit; i += 1) {
+    const key = addDaysKey(todayKey, i);
+    if (closedKeys.has(key)) continue;
+    const weekday = weekdayOfKey(key);
+    const hasRule = rules.some((r) => r.weekday === weekday && (r.active ?? true));
+    // Hoy sólo cuenta si todavía queda algún horario por delante.
+    const stillOpen = i > 0 || buildSlots(rules, key, []).some((s) => !s.past);
+    if (hasRule && stillOpen) days.push({ key, weekday });
+  }
+  return days;
+}
+
 export type BookingError = {
   ok: false;
   code: "PAST" | "NO_SLOT" | "SLOT_FULL" | "MEMBER_INACTIVE" | "DUPLICATE_DAY";
