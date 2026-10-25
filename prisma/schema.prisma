@@ -55,6 +55,8 @@ enum BatchStage {
   CUARENTENA
   AGOTADO
   DESTRUIDO
+  /// Retirado del mercado por recall: no se entrega y se avisa a los socios afectados.
+  RETIRADO
 }
 
 enum MovementType {
@@ -124,6 +126,8 @@ model Club {
   cuotaSocialArs    Decimal? @db.Decimal(12, 2)
   /// Cuota de ingreso, si el club la cobra.
   cuotaIngresoArs   Decimal? @db.Decimal(12, 2)
+  /// Exigir liberación firmada del lote antes de entregar (REA 5.1).
+  requiereLiberacion Boolean @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
@@ -254,6 +258,20 @@ model Batch {
   thcPct                Decimal?   @db.Decimal(5, 2)
   cbdPct                Decimal?   @db.Decimal(5, 2)
   notes                 String?
+  /// Liberación para entregar: nada sale de un lote sin que alguien firme que está apto.
+  releasedAt            DateTime?
+  releasedById          String?
+  releaseNote           String?
+  /// Ficha técnica: laboratorio y resultado. Sin análisis, la ficha lo dice.
+  labName               String?
+  labDate               DateTime?  @db.Date
+  labResult             String?
+  /// Muestra de retención: cuánto y hasta cuándo se guarda.
+  sampleRetainedG       Decimal?   @db.Decimal(10, 2)
+  sampleUntil           DateTime?  @db.Date
+  /// Recall activo: el lote se retira del mercado y se avisa a quien lo recibió.
+  recalledAt            DateTime?
+  recallReason          String?
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 

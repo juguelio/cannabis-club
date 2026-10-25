@@ -19,6 +19,8 @@ export const clubSettingsFields = z.object({
   aportePorGramo: z.number().min(0).max(10_000_000).nullable(),
   cuotaSocialArs: z.number().min(0).max(10_000_000).nullable(),
   cuotaIngresoArs: z.number().min(0).max(10_000_000).nullable(),
+  /** Exigir la firma de liberación del lote antes de entregar. */
+  requiereLiberacion: z.boolean(),
 });
 export const clubSettings = clubSettingsFields.refine(v => v.limiteDiarioG <= v.limiteMensualG, { message: "El tope diario no puede superar el mensual", path: ["limiteDiarioG"] })
   .refine(v => v.limiteMenorG <= v.limiteMensualG, { message: "El tope para menores debe ser igual o inferior al general", path: ["limiteMenorG"] })

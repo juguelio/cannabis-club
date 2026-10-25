@@ -8,6 +8,8 @@ import { nextStages, type Stage } from "@/lib/batch-rules";
 import { Chip, Empty, Meter, Panel } from "@/components/ui";
 import { HarvestButton, MovementButton, StageActions } from "@/components/stock-actions";
 import { BatchActions } from "@/components/batch-actions";
+import { RecallForm, ReleaseForm } from "@/components/quality-actions";
+import { fichaState } from "@/lib/batch-quality";
 import { fmtDate, fmtGrams, fmtWhen, MOVEMENT, ORIGIN, plural, STAGE } from "@/lib/labels";
 import { MOVEMENT_SIGN } from "@/lib/limits";
 
@@ -88,6 +90,38 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
               </div>
             </Panel>
           ) : null}
+
+          <Panel title="Calidad y liberación" subtitle="Nada sale del lote sin la firma de calidad, y no puede firmarla quien registró la cosecha.">
+            <div className="panel-body stack" style={{ gap: 14 }}>
+              {(() => {
+                const ficha = fichaState({ stage: batch.stage, thcPct: batch.thcPct == null ? null : Number(batch.thcPct), cbdPct: batch.cbdPct == null ? null : Number(batch.cbdPct), labResult: batch.labResult, recalledAt: batch.recalledAt });
+                return (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Chip tone={batch.releasedAt ? "ok" : "warn"}>{batch.releasedAt ? "Liberado" : "Sin liberar"}</Chip>
+                      {ficha.recalled ? <Chip tone="danger">Retirado del mercado</Chip> : null}
+                      {batch.releasedAt ? <span className="cell-meta">Firmado {fmtWhen(batch.releasedAt)}</span> : null}
+                    </div>
+                    <dl className="dl">
+                      <dt>THC</dt><dd>{ficha.thcLabel}</dd>
+                      <dt>CBD</dt><dd>{ficha.cbdLabel}</dd>
+                      <dt>Análisis</dt><dd>{ficha.analysisLabel}</dd>
+                      <dt>Laboratorio</dt><dd>{batch.labName ?? "—"}{batch.labDate ? ` · ${fmtDate(batch.labDate)}` : ""}</dd>
+                      <dt>Muestra retenida</dt><dd>{batch.sampleRetainedG ? `${fmtGrams(batch.sampleRetainedG)}${batch.sampleUntil ? ` hasta ${fmtDate(batch.sampleUntil)}` : ""}` : "No registrada"}</dd>
+                      {batch.recallReason ? <><dt>Motivo del retiro</dt><dd>{batch.recallReason}</dd></> : null}
+                      {batch.releaseNote ? <><dt>Nota de liberación</dt><dd>{batch.releaseNote}</dd></> : null}
+                    </dl>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link className="btn btn-sm btn-quiet" href={`/stock/${batch.id}/etiqueta`}>Etiqueta con QR</Link>
+                      <Link className="btn btn-sm btn-quiet" href={`/lote/${batch.code}`} target="_blank">Ficha pública</Link>
+                    </div>
+                    {!batch.releasedAt && !ficha.recalled ? <ReleaseForm id={batch.id} code={batch.code} /> : null}
+                    {!ficha.recalled && session.role === "ADMIN" ? <RecallForm id={batch.id} code={batch.code} affected={recall.length} /> : null}
+                  </>
+                );
+              })()}
+            </div>
+          </Panel>
 
           <Panel title="A quién se entregó" subtitle="Para un retiro preventivo: cada socio que recibió de este lote, neto de anulaciones.">
             {recall.length === 0 ? (

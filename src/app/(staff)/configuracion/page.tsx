@@ -40,6 +40,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           aportePorGramo: club.aportePorGramo == null ? null : Number(club.aportePorGramo),
           cuotaSocialArs: club.cuotaSocialArs == null ? null : Number(club.cuotaSocialArs),
           cuotaIngresoArs: club.cuotaIngresoArs == null ? null : Number(club.cuotaIngresoArs),
+          requiereLiberacion: club.requiereLiberacion,
         }}
       />
     );

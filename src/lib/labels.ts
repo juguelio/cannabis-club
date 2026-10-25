@@ -49,6 +49,7 @@ export const STAGE: Record<string, { label: string; tone: Tone }> = {
   DISPONIBLE: { label: "Disponible", tone: "ok" },
   AGOTADO: { label: "Agotado", tone: "mute" },
   DESTRUIDO: { label: "Destruido", tone: "danger" },
+  RETIRADO: { label: "Retirado del mercado", tone: "danger" },
 };
 
 export const MOVEMENT: Record<string, string> = {

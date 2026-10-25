@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { portalOverview } from "@/lib/pickups";
 import { addDaysKey, buildSlots, dayKeyOf, nextOpenDays, slotInstant, type Rule } from "@/lib/appointments";
 import { closedDayKeys } from "@/lib/closed-days";
+import { recalledBatchesForMember } from "@/lib/batch-quality";
 import QRCode from "qrcode";
 import { MemberPortal } from "@/components/member-portal";
 
@@ -15,7 +16,7 @@ export default async function PortalPage() {
   const session = await getMemberSession();
   if (!session) redirect("/login");
 
-  const [overview, member, deliveries] = await Promise.all([
+  const [overview, member, deliveries, recalled] = await Promise.all([
     portalOverview(session.memberId),
     prisma.member.findUniqueOrThrow({ where: { id: session.memberId }, select: { consentSignedAt: true } }),
     prisma.dispensation.findMany({
@@ -24,6 +25,7 @@ export default async function PortalPage() {
       take: 12,
       select: { id: true, occurredAt: true, grams: true, voidedAt: true, batch: { select: { code: true, strain: { select: { name: true } } } } },
     }),
+    recalledBatchesForMember(session.memberId),
   ]);
   const today = dayKeyOf(new Date());
 
@@ -51,6 +53,7 @@ export default async function PortalPage() {
   return (
     <MemberPortal
       initial={overview}
+      recalled={recalled}
       initialSlots={slots}
       initialDay={day}
       qr={qr}

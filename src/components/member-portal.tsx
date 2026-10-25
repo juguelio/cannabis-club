@@ -63,6 +63,7 @@ export function MemberPortal({
   initial,
   initialSlots,
   initialDay,
+  recalled = [],
   qr,
   history,
   consentDate,
@@ -70,6 +71,7 @@ export function MemberPortal({
   initial: Overview;
   initialSlots: Slot[];
   initialDay: string;
+  recalled?: { code: string; strain: string; grams: number; occurredAt: string; reason: string | null; recalledAt: string | null }[];
   qr: string;
   history: MemberHistory;
   consentDate: string | null;
@@ -142,6 +144,24 @@ export function MemberPortal({
           <a href="#documentacion">Documentación</a>
         </nav>
       </header>
+      {recalled.length ? (
+        <section className="note note-bad" role="alert" style={{ marginBottom: 4 }}>
+          <CircleAlert aria-hidden />
+          <div>
+            <b>Un lote que retiraste fue retirado del mercado.</b>
+            <div style={{ marginTop: 4 }}>
+              {recalled.map((r) => (
+                <div key={`${r.code}-${r.occurredAt}`}>
+                  {r.strain} · lote {r.code} · {g(r.grams)} el {fmtDate(r.occurredAt)}
+                  {r.reason ? ` · motivo: ${r.reason}` : ""}
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 6 }}>No lo consumas y escribí a la secretaría del club.</div>
+          </div>
+        </section>
+      ) : null}
+
       <section className="allowance" aria-label="Tu saldo del mes">
         <div className="flex items-start justify-between gap-3">
           <div>

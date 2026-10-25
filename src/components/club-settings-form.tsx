@@ -45,6 +45,7 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
         for (const [key] of limits) values[key] = key === "thcMaxMenor" && form.get(key) === "" ? null : Number(String(form.get(key)).replace(",", "."));
         for (const [key] of money) values[key] = form.get(key) === "" ? null : Number(String(form.get(key)).replace(",", "."));
         values.requiereReprocann = form.get("requiereReprocann") === "on";
+        values.requiereLiberacion = form.get("requiereLiberacion") === "on";
         const parsed = clubSettings.safeParse(values);
         setError(null);
         if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
@@ -98,6 +99,10 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
             <label className="check" style={{ gridColumn: "1 / -1" }}>
               <input type="checkbox" name="requiereReprocann" defaultChecked={initial.requiereReprocann} />
               <span>Exigir REPROCANN vigente para entregar<span className="hint">Si lo desactivás, el dispensario entrega aunque el REPROCANN esté vencido. No recomendado.</span></span>
+            </label>
+            <label className="check" style={{ gridColumn: "1 / -1" }}>
+              <input type="checkbox" name="requiereLiberacion" defaultChecked={initial.requiereLiberacion} />
+              <span>Exigir liberación firmada del lote<span className="hint">Nada sale de un lote sin que alguien de calidad firme que está apto, y no puede firmarlo quien registró la cosecha.</span></span>
             </label>
           </div>
         </section>

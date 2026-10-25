@@ -86,8 +86,13 @@ export async function dispense(input: DispenseInput) {
 
         const batch = await tx.batch.findUnique({ where: { id: input.batchId } });
         if (!batch) throw notFound("Lote inexistente");
+        if (batch.recalledAt || batch.stage === "RETIRADO")
+          throw conflict("BATCH_RECALLED", `El lote ${batch.code} fue retirado del mercado.`);
         if (batch.stage !== "DISPONIBLE")
           throw conflict("BATCH_NOT_AVAILABLE", `El lote ${batch.code} está en etapa ${batch.stage}, no disponible.`);
+        // Nada sale sin que alguien haya firmado que el lote está apto (REA 5.1).
+        if (club.requiereLiberacion && !batch.releasedAt)
+          throw conflict("BATCH_NOT_RELEASED", `El lote ${batch.code} todavía no está liberado: falta la firma de calidad.`);
 
         const usage = await memberUsage(tx, member.id, club.timezone);
         const decision = evaluateDispensation({
