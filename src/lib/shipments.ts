@@ -3,7 +3,7 @@ import type { Batch, Member, Shipment, ShipmentItem } from "@prisma/client";
 import { prisma } from "./db";
 import { dispense } from "./dispensary";
 import { conflict, notFound, unprocessable } from "./errors";
-import { canDispatch, isItemDelivered, shipmentCode, totalGrams } from "./shipment-rules";
+import { canDispatch, isItemDelivered, resolveShipmentStatus, shipmentCode, totalGrams } from "./shipment-rules";
 
 /**
  * Traslados: la ONG entrega a pacientes que no pasan por la sede.
@@ -218,11 +218,19 @@ export async function cancelShipment(input: { id: string; actorId: string; reaso
 }
 
 export async function listShipments(): Promise<ShipmentSummary[]> {
-  return prisma.shipment.findMany({
+  const rows = await prisma.shipment.findMany({
     include: { items: { select: { id: true, grams: true, dispensationId: true, dispensation: { select: { voidedAt: true } } } } },
     orderBy: [{ plannedAt: "desc" }, { createdAt: "desc" }],
     take: 80,
   });
+  // El estado que se devuelve es el real: si una entrega se anuló, el traslado no está entregado.
+  return rows.map((s) => ({
+    ...s,
+    status: resolveShipmentStatus(
+      s.status,
+      s.items.map((i) => ({ dispensationId: i.dispensationId, dispensationVoidedAt: i.dispensation?.voidedAt ?? null })),
+    ) as Shipment["status"],
+  }));
 }
 
 export async function shipmentDetail(id: string): Promise<ShipmentView | null> {

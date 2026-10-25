@@ -34,6 +34,14 @@ export default async function SemesterPage({ searchParams }: { searchParams: Pro
         }
       />
 
+      {payload.cultivation.plantsTotal === 0 ? (
+        <Note tone="warn" icon={CircleAlert}>
+          <b>No hay plantas en cultivo cargadas.</b> El informe declara 0 porque ningún lote está en propagación, vegetativo o
+          floración. Si hay plantas, cargá <b>cantidad de plantas</b> y <b>sala</b> en cada lote: sin ese dato el informe no sirve
+          para presentar.
+        </Note>
+      ) : null}
+
       <Panel title={`Período ${period}`} subtitle={`${payload.from} → ${payload.to}`}>
         <div className="flex flex-wrap items-center gap-3">
           {signed ? (
