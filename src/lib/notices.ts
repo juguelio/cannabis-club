@@ -77,6 +77,8 @@ const SEVERITY_ORDER = { danger: 0, warn: 1, mute: 2 } as const;
 
 export type MemberNotice = {
   kind: NoticeKind;
+  /** Identifica el hecho concreto: dos vencimientos distintos son dos episodios, no uno. */
+  episode: string;
   label: string;
   severity: "danger" | "warn" | "mute";
   detail: string;
@@ -92,7 +94,7 @@ export type NoticeInput = {
   docHash: string | null;
   consents: string[];
   balanceArs: number;
-  openPickups: { grams: number; days: number }[];
+  openPickups: { id: string; grams: number; days: number }[];
   status: string;
 };
 
@@ -100,10 +102,11 @@ export type NoticeInput = {
 export function memberNotices(m: NoticeInput, opts: { porVencerDias?: number } = {}): MemberNotice[] {
   const porVencer = opts.porVencerDias ?? 30;
   const out: MemberNotice[] = [];
-  const add = (kind: NoticeKind, detail: string, dueInDays: number | null = null) => {
+  const add = (kind: NoticeKind, detail: string, dueInDays: number | null = null, episode = "estado") => {
     const meta = NOTICE_KINDS[kind];
     out.push({
       kind,
+      episode,
       label: meta.label,
       severity: meta.severity,
       detail,
@@ -116,16 +119,18 @@ export function memberNotices(m: NoticeInput, opts: { porVencerDias?: number } =
   if (m.status === "ACTIVO" || m.status === "SUSPENDIDO") {
     const days = daysToExpiry(m.reprocannExpiresAt);
     const noVigente = m.reprocannStatus === "NO_APORTA" ? "sin declarar" : m.reprocannStatus.toLowerCase().replace("_", " ");
+    // El episodio del REPROCANN es el vencimiento: renovar abre uno nuevo y no queda tapado por el aviso anterior.
+    const expiry = m.reprocannExpiresAt ? new Date(m.reprocannExpiresAt).toISOString().slice(0, 10) : "sin-fecha";
     if (m.reprocannStatus === "VENCIDO") {
       // Vencido es un hecho del registro, no una inferencia: se dice tal cual.
-      add("REPROCANN_VENCIDO", days !== null && days < 0 ? `Venció hace ${Math.abs(days)} días` : "Figura vencido en el registro", days);
+      add("REPROCANN_VENCIDO", days !== null && days < 0 ? `Venció hace ${Math.abs(days)} días` : "Figura vencido en el registro", days, `vencido:${expiry}`);
     } else if (m.reprocannStatus !== "VIGENTE") {
       // En trámite, rechazado o sin declarar NO es "vencido": se nombra lo que el padrón sabe.
-      add("REPROCANN_NO_VIGENTE", `Estado: ${noVigente}`);
+      add("REPROCANN_NO_VIGENTE", `Estado: ${noVigente}`, null, `estado:${m.reprocannStatus}`);
     } else if (days !== null && days < 0) {
-      add("REPROCANN_VENCIDO", `Venció hace ${Math.abs(days)} días`, days);
+      add("REPROCANN_VENCIDO", `Venció hace ${Math.abs(days)} días`, days, `vencido:${expiry}`);
     } else if (days !== null && days <= porVencer) {
-      add("REPROCANN_POR_VENCER", days === 0 ? "Vence hoy" : `Vence en ${days} días`, days);
+      add("REPROCANN_POR_VENCER", days === 0 ? "Vence hoy" : `Vence en ${days} días`, days, `vence:${expiry}`);
     } else if (days === null) {
       add("REPROCANN_SIN_FECHA", "Sin fecha de vencimiento cargada");
     }
@@ -134,10 +139,11 @@ export function memberNotices(m: NoticeInput, opts: { porVencerDias?: number } =
     if (!m.docHash) add("DOCUMENTO_SIN_VERIFICAR", "Sin huella del documento en el padrón");
 
     for (const p of m.openPickups.filter((p) => p.days >= 3)) {
-      add("RESERVA_SIN_RETIRAR", `${fmtGrams(p.grams)} hace ${p.days} días`, -p.days);
+      // Cada reserva es su propio episodio: avisar por una no silencia la próxima.
+      add("RESERVA_SIN_RETIRAR", `${fmtGrams(p.grams)} hace ${p.days} días`, -p.days, `reserva:${p.id}`);
     }
 
-    if (m.balanceArs > 0) add("CUENTA_CON_SALDO", `$${m.balanceArs.toLocaleString("es-AR")} pendientes`);
+    if (m.balanceArs > 0) add("CUENTA_CON_SALDO", `$${m.balanceArs.toLocaleString("es-AR")} pendientes`, null, `saldo:${m.balanceArs}`);
   }
 
   return out.sort((a, b) => {
@@ -181,18 +187,19 @@ export async function noticeBoard() {
         reprocannStatus: true, reprocannExpiresAt: true, docHash: true,
         consents: { where: { revokedAt: null }, select: { purpose: true } },
         account: { select: { kind: true, amountArs: true } },
-        pickups: { where: { status: { in: ["SOLICITADA", "CONFIRMADA"] } }, select: { grams: true, createdAt: true } },
+        pickups: { where: { status: { in: ["SOLICITADA", "CONFIRMADA"] } }, select: { id: true, grams: true, createdAt: true } },
       },
       orderBy: { legajo: "asc" },
     }),
-    prisma.noticeLog.findMany({ orderBy: { sentAt: "desc" }, select: { memberId: true, kind: true, sentAt: true, channel: true } }),
+    prisma.noticeLog.findMany({ orderBy: { sentAt: "desc" }, select: { memberId: true, kind: true, episode: true, sentAt: true, channel: true } }),
     prisma.club.findFirst({ select: { timezone: true } }),
   ]);
   void club;
 
   const lastByKey = new Map<string, { sentAt: Date; channel: string }>();
   for (const l of logs) {
-    const key = `${l.memberId}:${l.kind}`;
+    // La clave incluye el episodio: un hecho nuevo del mismo motivo vuelve a estar "sin avisar".
+    const key = `${l.memberId}:${l.kind}:${l.episode ?? ""}`;
     if (!lastByKey.has(key)) lastByKey.set(key, { sentAt: l.sentAt, channel: l.channel });
   }
 
@@ -209,12 +216,13 @@ export async function noticeBoard() {
       consents: m.consents.map((c) => c.purpose),
       balanceArs,
       openPickups: m.pickups.map((p) => ({
-        grams: Number(p.grams),
-        days: Math.floor((Date.now() - p.createdAt.getTime()) / 86_400_000),
+      id: p.id,
+      grams: Number(p.grams),
+      days: Math.floor((Date.now() - p.createdAt.getTime()) / 86_400_000),
       })),
       status: m.status,
     }).map((n) => {
-      const last = lastByKey.get(`${m.id}:${n.kind}`);
+      const last = lastByKey.get(`${m.id}:${n.kind}:${n.episode}`) ?? lastByKey.get(`${m.id}:${n.kind}:`);
       return { ...n, lastSentAt: last ? last.sentAt.toISOString() : null, lastChannel: last?.channel ?? null };
     });
     if (notices.length === 0) continue;
@@ -227,13 +235,28 @@ export async function noticeBoard() {
   return { rows, total, urgent, sinAvisar };
 }
 
-export async function logNotice(input: { memberId: string; kind: NoticeKind; channel: NoticeChannel; actorId: string; note?: string | null }) {
+export async function logNotice(input: {
+  memberId: string;
+  kind: NoticeKind;
+  channel: NoticeChannel;
+  actorId: string;
+  /** Episodio que se está avisando: sin esto, un hecho nuevo queda tapado por el aviso viejo. */
+  episode?: string | null;
+  note?: string | null;
+}) {
   return prisma.$transaction(async (tx) => {
     const row = await tx.noticeLog.create({
-      data: { memberId: input.memberId, kind: input.kind, channel: input.channel, byId: input.actorId, note: input.note?.trim() || null },
+      data: {
+        memberId: input.memberId,
+        kind: input.kind,
+        channel: input.channel,
+        episode: input.episode?.trim() || null,
+        byId: input.actorId,
+        note: input.note?.trim() || null,
+      },
     });
     await tx.auditLog.create({
-      data: { actorId: input.actorId, action: "NOTICE_SENT", entity: "Member", entityId: input.memberId, payload: { kind: input.kind, channel: input.channel } },
+      data: { actorId: input.actorId, action: "NOTICE_SENT", entity: "Member", entityId: input.memberId, payload: { kind: input.kind, channel: input.channel, episode: row.episode } },
     });
     return row;
   });

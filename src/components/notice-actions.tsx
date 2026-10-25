@@ -14,12 +14,15 @@ type Channel = "WHATSAPP" | "LLAMADO" | "PRESENCIAL" | "EMAIL";
 export function NoticeActions({
   memberId,
   kind,
+  episode,
   label,
   waHref,
   lastSentAt,
 }: {
   memberId: string;
   kind: string;
+  /** Hecho concreto que se avisa (un vencimiento, una reserva): cada uno cuenta como episodio propio. */
+  episode: string;
   label: string;
   waHref: string | null;
   lastSentAt: string | null;
@@ -31,8 +34,8 @@ export function NoticeActions({
   async function mark(channel: Channel) {
     setBusy(true);
     try {
-      await api("/api/notices", { body: { memberId, kind, channel } });
-      toast({ tone: "ok", title: "Aviso registrado", text: `${label} · queda auditado con la fecha y quién lo hizo.` });
+      await api("/api/notices", { body: { memberId, kind, episode, channel } });
+      toast({ tone: "ok", title: "Aviso registrado", text: `${label} · queda la constancia de quién lo hizo y cuándo. No es prueba de entrega.` });
       router.refresh();
     } catch (err) {
       toast({ tone: "bad", title: "No se pudo registrar", text: errMsg(err) });
@@ -49,7 +52,7 @@ export function NoticeActions({
         <button className="btn btn-sm btn-quiet" disabled={busy} onClick={() => mark("PRESENCIAL")}>Avisar en el club</button>
       )}
       <button className="btn btn-sm" disabled={busy} onClick={() => mark(waHref ? "WHATSAPP" : "LLAMADO")}>
-        {lastSentAt ? "Volver a avisar" : "Marcar avisado"}
+        {lastSentAt ? "Avisé de nuevo" : "Ya lo avisé"}
       </button>
     </div>
   );

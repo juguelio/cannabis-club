@@ -240,6 +240,8 @@ enum NoticeChannel {
 /// desde su WhatsApp (ver docs/avisos.md).
 model NoticeLog {
   id        String        @id @default(cuid())
+  /// Episodio del aviso (mismo motivo, mismo hecho): un problema nuevo no queda tapado por el aviso viejo.
+  episode   String?
   memberId  String
   member    Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
   kind      NoticeKind
@@ -281,11 +283,13 @@ model User {
   voided        Dispensation[]  @relation("DispensationVoider")
   audits        AuditLog[]
   transports    Transport[]
+  shipments     Shipment[]      @relation("ShipmentCreator")
 }
 
 model Member {
   id               String          @id @default(cuid())
   account          AccountEntry[]
+  shipmentItems    ShipmentItem[]
   legajo           Int             @unique
   firstName        String
   lastName         String
@@ -375,6 +379,7 @@ model Batch {
 
   movements     StockMovement[]
   dispensations Dispensation[]
+  shipmentItems ShipmentItem[]
 
   @@index([stage])
   @@index([strainId])
@@ -432,8 +437,70 @@ model Dispensation {
   movement       StockMovement?
   appointment    Appointment?
   pickup         PickupRequest?
+  shipmentItem   ShipmentItem?
 
   @@index([memberId, occurredAt])
+  @@index([batchId])
+}
+
+enum ShipmentMode {
+  AEREO
+  TERRESTRE
+}
+
+enum ShipmentStatus {
+  PREPARACION
+  DESPACHADO
+  ENTREGADO
+  CANCELADO
+}
+
+/// Traslado de materia vegetal a pacientes que no retiran en sede (República entrega a distancia).
+/// No crea stock: el traslado mueve lo ya dispensado por `ShipmentItem.dispensationId`.
+model Shipment {
+  id          String         @id @default(cuid())
+  code        String         @unique
+  mode        ShipmentMode   @default(TERRESTRE)
+  status      ShipmentStatus @default(PREPARACION)
+  fromAddress String
+  toAddress   String
+  carrierName String
+  /// Quién traslada (documento del transportista o de la persona que lleva).
+  carrierDoc  String?
+  plannedAt   DateTime?
+  departedAt  DateTime?
+  deliveredAt DateTime?
+  /// Constancia del aviso previo a la autoridad (Res. 1780/2025), si corresponde.
+  noticeRef   String?
+  notes       String?
+  createdById String
+  createdBy   User           @relation("ShipmentCreator", fields: [createdById], references: [id])
+  items       ShipmentItem[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status, plannedAt])
+}
+
+/// Un paciente dentro del traslado: qué lote, cuántos gramos, con qué DDJJ firmada.
+model ShipmentItem {
+  id             String        @id @default(cuid())
+  shipmentId     String
+  shipment       Shipment      @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         Member        @relation(fields: [memberId], references: [id])
+  batchId        String
+  batch          Batch         @relation(fields: [batchId], references: [id])
+  grams          Decimal       @db.Decimal(10, 2)
+  /// La DDJJ por paciente es lo que se muestra a la autoridad: sin fecha, el traslado no sale.
+  ddjjSignedAt   DateTime?
+  ddjjNote       String?
+  dispensationId String?       @unique
+  dispensation   Dispensation? @relation(fields: [dispensationId], references: [id])
+  note           String?
+  createdAt      DateTime      @default(now())
+
+  @@index([memberId])
   @@index([batchId])
 }
 

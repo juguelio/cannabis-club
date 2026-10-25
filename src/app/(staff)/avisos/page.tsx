@@ -91,6 +91,7 @@ export default async function NoticesPage({ searchParams }: { searchParams: Prom
                         <NoticeActions
                           memberId={r.memberId}
                           kind={n.kind}
+                          episode={n.episode}
                           label={n.label}
                           waHref={waLink(r.phone, n.message)}
                           lastSentAt={n.lastSentAt}

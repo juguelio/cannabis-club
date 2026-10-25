@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import {
-  BellRing, CalendarClock, FileSpreadsheet, LayoutDashboard, LogOut, Menu, Scale, Search, Settings, Sprout, TriangleAlert, Users, X,
+  BellRing, CalendarClock, FileSpreadsheet, LayoutDashboard, LogOut, Menu, Scale, Search, Settings, Sprout, TriangleAlert, Truck, Users, X,
 } from "lucide-react";
 import { CommandPalette, useOpenPalette } from "./command-palette";
 import { ToastProvider } from "./toast";
@@ -60,6 +60,7 @@ function ShellInner({ clubName, userName, userRole, clubConfigured, pendingPicku
   const club: NavItem[] = [
     { href: "/socios", label: "Socios", icon: Users },
     { href: "/stock", label: "Stock y lotes", icon: Sprout },
+    { href: "/traslados", label: "Traslados", icon: Truck },
     { href: "/control", label: "Control", icon: Sprout },
     { href: "/avisos", label: "Avisos", icon: BellRing },
     { href: "/cierre-mensual", label: "Cierre mensual", icon: FileSpreadsheet },

@@ -52,8 +52,30 @@ describe("avisos a socios", () => {
   });
 
   it("una reserva de menos de 3 días todavía no se reclama", () => {
-    expect(memberNotices({ ...base, openPickups: [{ grams: 5, days: 2 }] })).toEqual([]);
-    expect(memberNotices({ ...base, openPickups: [{ grams: 5, days: 4 }] })[0].kind).toBe("RESERVA_SIN_RETIRAR");
+    expect(memberNotices({ ...base, openPickups: [{ id: "p1", grams: 5, days: 2 }] })).toEqual([]);
+    expect(memberNotices({ ...base, openPickups: [{ id: "p1", grams: 5, days: 4 }] })[0].kind).toBe("RESERVA_SIN_RETIRAR");
+  });
+
+  it("dos reservas distintas son dos episodios", () => {
+    const n = memberNotices({ ...base, openPickups: [{ id: "p1", grams: 5, days: 4 }, { id: "p2", grams: 2, days: 9 }] });
+    const episodes = n.filter((x) => x.kind === "RESERVA_SIN_RETIRAR").map((x) => x.episode);
+    expect(episodes).toHaveLength(2);
+    expect(new Set(episodes).size).toBe(2);
+  });
+
+  it("renovar el REPROCANN abre un episodio nuevo, no reusa el aviso anterior", () => {
+    const a = memberNotices({ ...base, reprocannStatus: "VIGENTE", reprocannExpiresAt: inDays(10) })[0];
+    const b = memberNotices({ ...base, reprocannStatus: "VIGENTE", reprocannExpiresAt: inDays(400) })[0];
+    expect(a.kind).toBe("REPROCANN_POR_VENCER");
+    expect(b).toBeUndefined();
+    const c = memberNotices({ ...base, reprocannStatus: "VIGENTE", reprocannExpiresAt: inDays(20) })[0];
+    expect(c.episode).not.toBe(a.episode);
+  });
+
+  it("el mismo hecho conserva el episodio (no se re-avisa por abrir la pantalla)", () => {
+    const first = memberNotices({ ...base, reprocannStatus: "VENCIDO", reprocannExpiresAt: inDays(-5) })[0];
+    const again = memberNotices({ ...base, reprocannStatus: "VENCIDO", reprocannExpiresAt: inDays(-5) })[0];
+    expect(first.episode).toBe(again.episode);
   });
 
   it("saldo pendiente genera aviso con el monto", () => {
