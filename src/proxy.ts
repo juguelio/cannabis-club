@@ -8,7 +8,11 @@ import { jwtVerify } from "jose";
  */
 const COOKIE = "cc_session";
 // `/lote/<código>` es la ficha neutra que abre el QR de la etiqueta: sin sesión y sin datos personales.
-const PUBLIC = ["/login", "/api/auth/login", "/api/auth/logout", "/api/health", "/lote"];
+// `/sitio` es la portada pública del club y `/api/marca/*` sus imágenes (logo, emblema, portada).
+const PUBLIC = ["/login", "/api/auth/login", "/api/auth/logout", "/api/health", "/lote", "/sitio", "/api/marca"];
+// Páginas que se dibujan sin el shell de la app aunque haya sesión (el layout lee este header).
+const BARE = ["/sitio"];
+const matches = (pathname: string, list: string[]) => list.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 const secretKey = () => new TextEncoder().encode(process.env.AUTH_SECRET ?? "");
 
@@ -24,15 +28,30 @@ async function roleFromRequest(req: NextRequest): Promise<"ADMIN" | "OPERADOR" |
   }
 }
 
+/** Deja pasar sin el header de "página desnuda" si lo trajo el cliente: solo lo pone el proxy. */
+function pass(req: NextRequest) {
+  if (!req.headers.has("x-cc-bare")) return NextResponse.next();
+  const headers = new Headers(req.headers);
+  headers.delete("x-cc-bare");
+  return NextResponse.next({ request: { headers } });
+}
+
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (PUBLIC.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return NextResponse.next();
+  if (matches(pathname, BARE)) {
+    const headers = new Headers(req.headers);
+    headers.set("x-cc-bare", "1");
+    return NextResponse.next({ request: { headers } });
+  }
+  if (matches(pathname, PUBLIC)) return pass(req);
 
   const role = await roleFromRequest(req);
   const isApi = pathname.startsWith("/api/");
   const isPortal = pathname === "/portal" || pathname.startsWith("/portal/") || pathname.startsWith("/api/portal/");
 
   if (!role) {
+    // Sin sesión, la raíz es la portada pública (si el club la apagó, /sitio manda al ingreso).
+    if (pathname === "/") return NextResponse.redirect(new URL("/sitio", req.url));
     return isApi
       ? NextResponse.json({ error: "UNAUTHORIZED", message: "Sesión requerida" }, { status: 401 })
       : NextResponse.redirect(new URL("/login", req.url));
@@ -52,7 +71,7 @@ export async function proxy(req: NextRequest) {
       : NextResponse.redirect(new URL("/", req.url));
   }
 
-  return NextResponse.next();
+  return pass(req);
 }
 
 export const config = {

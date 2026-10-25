@@ -5,11 +5,15 @@ export const CLUB_ID = "singleton";
 
 const num = (v: unknown, fallback: number) => (v == null ? fallback : Number(v));
 
+/** Las imágenes de marca pesan: quedan fuera de la ficha del club y se leen solo donde se sirven. */
+export const OMIT_IMAGES = { marcaLogo: true, marcaEmblema: true, marcaPortada: true } as const;
+
 export async function getClub() {
   return prisma.club.upsert({
     where: { id: CLUB_ID },
     update: {},
     create: { id: CLUB_ID, nombre: "Club de cultivo (sin configurar)" },
+    omit: OMIT_IMAGES,
   });
 }
 

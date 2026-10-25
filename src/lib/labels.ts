@@ -146,6 +146,7 @@ export const AUDIT_ACTION: Record<string, string> = {
   DISPENSATION_CREATE: "Registró una entrega",
   DISPENSATION_VOID: "Anuló una entrega",
   CLUB_UPDATE: "Cambió la configuración del club",
+  CLUB_BRAND_UPDATE: "Cambió la marca del club",
   APPOINTMENT_CREATE: "Agendó un turno",
   PICKUP_CREATE: "Reserva desde el portal",
   PICKUP_CONFIRM: "Confirmó una reserva",

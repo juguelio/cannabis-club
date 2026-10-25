@@ -201,7 +201,7 @@ export function DispensaryConsole({
           <div className="stack" style={{ gap: 16 }}>
             <div className="flex items-center gap-2" style={{ color: "#a6e8bf" }}>
               <CircleCheck aria-hidden /> {receipt.replay ? "Esa entrega ya estaba registrada: no se duplicó" : "Entrega registrada"}
-              <span style={{ marginLeft: "auto", fontSize: 13, color: "#9fb8aa" }}>Comprobante {receipt.id.slice(-8).toUpperCase()}</span>
+              <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--on-dark-3)" }}>Comprobante {receipt.id.slice(-8).toUpperCase()}</span>
             </div>
             <div className="readout" style={{ margin: 0, borderBottom: 0 }}>
               <span className="readout-value" style={{ width: "auto" }}>{String(receipt.grams).replace(".", ",")}</span>

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 
 import { useEffect, useState } from "react";
 import { CalendarCheck2, CircleAlert, QrCode } from "lucide-react";
@@ -145,9 +144,6 @@ export function MemberPortal({
     <>
       <header className="member-intro">
         <div className="flex items-center gap-3">
-          <span className="brand-plate" aria-hidden>
-            <Image src="/logo-republica.png" alt="" width={38} height={38} priority />
-          </span>
           <div><p className="panel-sub" style={{ margin: 0 }}>{data.club.nombre}</p><h1 style={{ margin: 0 }}>Tu espacio de socio</h1></div>
         </div>
         <nav aria-label="Secciones de tu portal" className="member-shortcuts">
