@@ -5,6 +5,8 @@ import { getClub } from "@/lib/club";
 import { prisma } from "@/lib/db";
 import { PageHead, Panel } from "@/components/ui";
 import { ClubSettingsForm } from "@/components/club-settings-form";
+import { BrandEditor } from "@/components/brand-editor";
+import { getBrandView } from "@/lib/brand-db";
 import { TeamManager } from "@/components/team-manager";
 import { PadronImport } from "@/components/padron-import";
 import { AUDIT_ACTION, fmtWhen } from "@/lib/labels";
@@ -13,6 +15,7 @@ export const metadata = { title: "Configuración" };
 
 const TABS = [
   { key: "club", label: "Club y reglas" },
+  { key: "marca", label: "Marca y sitio" },
   { key: "equipo", label: "Equipo" },
   { key: "importar", label: "Importar padrón" },
   { key: "actividad", label: "Actividad" },
@@ -32,7 +35,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     body = (
       <ClubSettingsForm
         initial={{
-          nombre: club.nombre, cuit: club.cuit ?? "", directorMedico: club.directorMedico ?? "", responsableTecnico: club.responsableTecnico ?? "",
+          nombre: club.nombre, nombreCorto: club.nombreCorto ?? "", cuit: club.cuit ?? "", directorMedico: club.directorMedico ?? "", responsableTecnico: club.responsableTecnico ?? "",
           reprocannNumber: club.reprocannNumber ?? "", reprocannCode: club.reprocannCode ?? "", limiteDiarioG: Number(club.limiteDiarioG),
           limiteMensualG: Number(club.limiteMensualG), limiteMenorG: Number(club.limiteMenorG), edadMinima: club.edadMinima,
           edadLimiteMenor: club.edadLimiteMenor, thcMaxMenor: club.thcMaxMenor == null ? null : Number(club.thcMaxMenor),
@@ -44,6 +47,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         }}
       />
     );
+  } else if (tab === "marca") {
+    const view = await getBrandView();
+    body = <BrandEditor initial={view.brand} images={view.img} nombre={view.nombre} />;
   } else if (tab === "equipo") {
     const users = await prisma.user.findMany({
       where: { role: { in: ["ADMIN", "OPERADOR"] } },
