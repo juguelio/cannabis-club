@@ -26,6 +26,13 @@ export const NOTICE_KINDS = {
     template: (name: string, detail?: string) =>
       `Hola ${name}, tu REPROCANN vence ${detail ?? "pronto"}. Si no lo renovás, no vas a poder retirar. Te conviene iniciar el trámite ahora.`,
   },
+  REPROCANN_NO_VIGENTE: {
+    label: "REPROCANN no vigente",
+    severity: "warn",
+    why: "Mientras el trámite no esté vigente, el mostrador no puede entregar.",
+    template: (name: string, detail?: string) =>
+      `Hola ${name}, en el padrón del club tu REPROCANN figura ${detail ?? "no vigente"}: todavía no está vigente. Necesitamos que termines o corrijas el trámite y nos avises para actualizarlo.`,
+  },
   REPROCANN_SIN_FECHA: {
     label: "REPROCANN sin fecha",
     severity: "warn",
@@ -108,8 +115,13 @@ export function memberNotices(m: NoticeInput, opts: { porVencerDias?: number } =
 
   if (m.status === "ACTIVO" || m.status === "SUSPENDIDO") {
     const days = daysToExpiry(m.reprocannExpiresAt);
-    if (m.reprocannStatus !== "VIGENTE") {
-      add("REPROCANN_VENCIDO", m.reprocannStatus === "NO_APORTA" ? "Sin REPROCANN declarado" : `Estado: ${m.reprocannStatus.toLowerCase().replace("_", " ")}`, days);
+    const noVigente = m.reprocannStatus === "NO_APORTA" ? "sin declarar" : m.reprocannStatus.toLowerCase().replace("_", " ");
+    if (m.reprocannStatus === "VENCIDO") {
+      // Vencido es un hecho del registro, no una inferencia: se dice tal cual.
+      add("REPROCANN_VENCIDO", days !== null && days < 0 ? `Venció hace ${Math.abs(days)} días` : "Figura vencido en el registro", days);
+    } else if (m.reprocannStatus !== "VIGENTE") {
+      // En trámite, rechazado o sin declarar NO es "vencido": se nombra lo que el padrón sabe.
+      add("REPROCANN_NO_VIGENTE", `Estado: ${noVigente}`);
     } else if (days !== null && days < 0) {
       add("REPROCANN_VENCIDO", `Venció hace ${Math.abs(days)} días`, days);
     } else if (days !== null && days <= porVencer) {

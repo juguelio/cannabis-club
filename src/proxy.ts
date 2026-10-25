@@ -38,7 +38,9 @@ export async function proxy(req: NextRequest) {
       : NextResponse.redirect(new URL("/login", req.url));
   }
 
-  if (role === "SOCIO" && !isPortal) {
+  // El socio también puede cambiar su propia clave: es su cuenta, no una acción de staff.
+  const selfService = pathname === "/api/auth/password" || pathname === "/api/auth/logout";
+  if (role === "SOCIO" && !isPortal && !selfService) {
     return isApi
       ? NextResponse.json({ error: "FORBIDDEN", message: "Tu cuenta es de socio" }, { status: 403 })
       : NextResponse.redirect(new URL("/portal", req.url));

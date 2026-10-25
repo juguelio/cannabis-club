@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { CalendarCheck2, CircleAlert, QrCode } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
+import { Chip } from "./ui";
 import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
 
@@ -66,6 +67,8 @@ export function MemberPortal({
   initialSlots,
   initialDay,
   recalled = [],
+  consents = [],
+  consentTexts = {},
   qr,
   history,
   consentDate,
@@ -73,6 +76,8 @@ export function MemberPortal({
   initial: Overview;
   initialSlots: Slot[];
   initialDay: string;
+  consents?: { purpose: string; label: string; detail: string; granted: boolean; grantedAt: string | null; by: string | null; version: string | null; revokedAt: string | null }[];
+  consentTexts?: Record<string, Record<string, string>>;
   recalled?: { code: string; strain: string; grams: number; occurredAt: string; reason: string | null; recalledAt: string | null }[];
   qr: string;
   history: MemberHistory;
@@ -393,6 +398,35 @@ export function MemberPortal({
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="panel" id="privacidad">
+        <div className="panel-head"><div>
+          <h2 className="panel-title">Privacidad y permisos</h2>
+          <p className="panel-sub">
+            Esto es lo que el club tiene registrado que autorizaste, por separado. Si querés revocar algo, pedilo en la
+            secretaría: queda registrado con fecha, no se borra.
+          </p>
+        </div></div>
+        <div className="panel-body">
+          <ul className="stack" style={{ gap: 12, listStyle: "none", padding: 0, margin: 0 }}>
+            {consents.map((c) => (
+              <li key={c.purpose} style={{ display: "grid", gap: 4 }}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <b>{c.label}</b>
+                  <Chip tone={c.granted ? "ok" : c.revokedAt ? "warn" : "mute"}>
+                    {c.granted ? "Autorizado" : c.revokedAt ? "Revocado" : "Sin registrar"}
+                  </Chip>
+                  {c.granted && c.grantedAt ? <span className="cell-meta">{fmtDate(c.grantedAt)}</span> : null}
+                  {c.version ? <span className="cell-meta">texto {c.version}</span> : null}
+                </div>
+                <span className="cell-meta">
+                  {(c.version && consentTexts[c.version]?.[c.purpose]) ?? c.detail}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       <section className="panel" id="documentacion">

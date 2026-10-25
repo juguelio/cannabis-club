@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   try {
     const body = Body.parse(await req.json());
     const user = await authenticate(body.email, body.password, clientIp(req));
-    await startSession(user);
+    await startSession(user, user.tokenVersion);
     await audit({ actorId: user.id, action: "LOGIN", entity: "User", entityId: user.id, ip: clientIp(req) });
     return json({ user });
   } catch (error) {

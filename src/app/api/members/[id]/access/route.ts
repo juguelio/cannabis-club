@@ -36,9 +36,27 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
   const passwordHash = await hashPassword(password);
   const user = await prisma.$transaction(async (tx) => {
     const user = member.user
-      ? await tx.user.update({ where: { id: member.user.id }, data: { email, passwordHash, active: true } })
+      ? await tx.user.update({
+          where: { id: member.user.id },
+          data: {
+            email,
+            passwordHash,
+            active: true,
+            mustChangePassword: true,
+            passwordChangedAt: new Date(),
+            tokenVersion: { increment: 1 },
+          },
+        })
       : await tx.user.create({
-          data: { email, name: `${member.firstName} ${member.lastName}`, passwordHash, role: "SOCIO", memberId: member.id },
+          data: {
+            email,
+            name: `${member.firstName} ${member.lastName}`,
+            passwordHash,
+            role: "SOCIO",
+            memberId: member.id,
+            mustChangePassword: true,
+            passwordChangedAt: new Date(),
+          },
         });
     await tx.auditLog.create({
       data: { actorId: actor.id, action: member.user ? "PORTAL_RESET" : "PORTAL_GRANT", entity: "Member", entityId: member.id, ip: clientIp(req), payload: { email } },

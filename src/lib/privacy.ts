@@ -52,6 +52,23 @@ export const CONSENT_PURPOSES = {
 export type ConsentPurpose = keyof typeof CONSENT_PURPOSES;
 export const CONSENT_VERSION = "2026-10";
 
+/**
+ * Texto de cada finalidad por versión: guardar sólo "2026-10" no permite contestar «¿qué acepté?».
+ * Cada versión se agrega cuando la organización aprueba el texto; el histórico no se edita.
+ */
+export const CONSENT_TEXTS: Record<string, Record<ConsentPurpose, string>> = {
+  "2026-10": {
+    DATOS_PERSONALES:
+      "Autorizo a la asociación a tratar mis datos personales (nombre, documento verificado, contacto y registro de entregas) para sostener el padrón, el legajo y la trazabilidad que exige la normativa.",
+    SALUD:
+      "Autorizo el tratamiento de los datos de salud que surjan del acompañamiento profesional (indicación, consumo y seguimiento), con acceso restringido al equipo que corresponda.",
+    IMAGEN:
+      "Autorizo el uso de mi imagen en fotos y videos institucionales del club. No incluye datos de salud ni de consumo.",
+    COMUNICACIONES:
+      "Autorizo que el club me contacte por WhatsApp, correo o teléfono para avisos administrativos (vencimientos, reservas, cuenta). No es consentimiento para publicidad de terceros.",
+  },
+};
+
 export const consentLabel = (purpose: ConsentPurpose) => CONSENT_PURPOSES[purpose].label;
 
 export async function memberConsents(memberId: string) {

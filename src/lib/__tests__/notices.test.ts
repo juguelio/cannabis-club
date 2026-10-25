@@ -68,6 +68,31 @@ describe("avisos a socios", () => {
     expect(n[n.length - 1].kind).toBe("CUENTA_CON_SALDO");
   });
 
+  it("EN_TRAMITE no se anuncia como vencido", () => {
+    const n = memberNotices({ ...base, reprocannStatus: "EN_TRAMITE", reprocannExpiresAt: null });
+    expect(n[0].kind).toBe("REPROCANN_NO_VIGENTE");
+    expect(n[0].detail).toContain("en tramite");
+    expect(n[0].message.toLowerCase()).not.toContain("vencido");
+  });
+
+  it("RECHAZADO se nombra como rechazado, sin inventar vencimiento", () => {
+    const n = memberNotices({ ...base, reprocannStatus: "RECHAZADO", reprocannExpiresAt: null });
+    expect(n[0].kind).toBe("REPROCANN_NO_VIGENTE");
+    expect(n[0].detail).toContain("rechazado");
+  });
+
+  it("sin REPROCANN declarado se dice «sin declarar»", () => {
+    const n = memberNotices({ ...base, reprocannStatus: "NO_APORTA", reprocannExpiresAt: null });
+    expect(n[0].kind).toBe("REPROCANN_NO_VIGENTE");
+    expect(n[0].detail).toContain("sin declarar");
+  });
+
+  it("VENCIDO es vencido aunque falte la fecha", () => {
+    const n = memberNotices({ ...base, reprocannStatus: "VENCIDO", reprocannExpiresAt: null });
+    expect(n[0].kind).toBe("REPROCANN_VENCIDO");
+    expect(n[0].detail).toContain("registro");
+  });
+
   it("un socio de baja no recibe avisos", () => {
     expect(memberNotices({ ...base, status: "BAJA", reprocannExpiresAt: inDays(-40), balanceArs: 5000 })).toEqual([]);
   });

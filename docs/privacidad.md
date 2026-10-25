@@ -46,12 +46,43 @@ Cuatro finalidades, registradas por separado (`Consent`): **datos personales**, 
   de nacimiento ni el documento.
 - El modo inspección (`/inspeccion`) no muestra documentos.
 
-## 4. Retención
+## 4. Retención (pendiente de aprobación formal)
 
-Los libros (entregas, stock, calidad, cierres) se conservan **5 años** desde el cierre del ejercicio.
-Los datos de contacto de un socio de baja se conservan mientras la obligación legal lo exija y después
-se anonimizan (nombre reducido a iniciales, contacto borrado, legajo y movimientos intactos), porque el
-libro tiene que seguir cuadrando sin identificar a la persona.
+**Esto todavía no es una decisión tomada.** La referencia de trabajo es **5 años** para los libros (entregas,
+stock, calidad, cierres), pero cada categoría necesita su fundamento y su responsable, y eso lo aprueba la
+organización con asesoramiento legal. Hasta que exista esa matriz, la app **no promete** un plazo: lo que sí hace
+es no borrar nada del libro y no permitir editar asientos.
+
+Propuesta para esa matriz (a validar, no vigente):
+
+| Categoría | Retención propuesta | Fundamento | Responsable |
+|---|---|---|---|
+| Entregas y stock (libros) | 5 años | trazabilidad ante inspección | Responsable Técnico |
+| Legajo del socio (identidad, contacto) | mientras dure el vínculo + 5 años | obligación registral | Administración |
+| Consentimientos | 5 años desde la revocación | prueba del consentimiento | Administración |
+| Datos de salud | a definir con el Director Médico | secreto profesional | Director Médico |
+| Imágenes de documento | **no se guardan en la app** | minimización | Administración |
+
+## 4 bis. Qué no promete la huella del documento
+
+`docHash` **reduce** la exposición: sin la clave no se recupera el número. **No** vuelve anónimo el padrón (sigue
+siendo nominativo), **no** protege si se compromete `DOC_HASH_KEY` o un respaldo de la base, y **no** evita que un
+atacante con acceso a la app consulte por documento exacto. Un incidente acá es de dos clases distintas y hay que
+nombrarlas por separado:
+
+- **Pérdida de acceso** (se rota o se pierde la clave): los socios ya no se pueden verificar por documento. Se
+  resuelve re-verificando en el mostrador. No hay filtración.
+- **Compromiso de datos** (base o clave filtradas): hay que evaluar notificación y contención; la huella reduce el
+  daño respecto de guardar el número, no lo elimina.
+
+## 4 ter. Acceso y credenciales
+
+- La clave que se dicta en el mostrador es **temporal**: vence a las **72 horas** y obliga a cambiarla en el primer
+  ingreso (`/portal/clave`). Si vence, hay que pedir una nueva en la secretaría.
+- Cambiar o restablecer la clave **invalida las sesiones anteriores** (`User.tokenVersion` va en el token: un token
+  viejo deja de valer aunque no haya expirado).
+- La política mínima es 8 caracteres, con letras, distinta de la temporal. No hay recuperación por email: la
+  recuperación es asistida en la secretaría, y el mensaje de login no revela si el email existe.
 
 ## 5. Pendiente (decisiones de la comisión, no del sistema)
 

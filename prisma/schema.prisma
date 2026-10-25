@@ -219,6 +219,7 @@ model Consent {
 /// Motivos por los que el club le escribe a un socio (REA 5).
 enum NoticeKind {
   REPROCANN_VENCIDO
+  REPROCANN_NO_VIGENTE
   REPROCANN_POR_VENCER
   REPROCANN_SIN_FECHA
   CONSENTIMIENTO_FALTANTE
@@ -255,6 +256,11 @@ model NoticeLog {
 
 model User {
   id           String    @id @default(cuid())
+  /// Cambiar la clave (o restablecerla) sube la versión: los tokens viejos dejan de valer.
+  tokenVersion     Int       @default(0)
+  /// Clave temporal entregada en el mostrador: hay que cambiarla y vence.
+  mustChangePassword Boolean @default(false)
+  passwordChangedAt  DateTime?
   closes       MonthlyClose[] @relation("CloseSigner")
   consents     Consent[]      @relation("ConsentGrantor")
   noticesSent  NoticeLog[]    @relation("NoticeSender")
