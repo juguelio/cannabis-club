@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { CalendarClock, CalendarPlus, CircleCheck, PackageOpen, Scale, ShieldAlert } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { dashboardData } from "@/lib/dashboard";
+import { noticeBoard } from "@/lib/notices";
 import { Avatar, Chip, Empty, Meter, Note, Panel } from "@/components/ui";
 import { APPOINTMENT_STATUS, daysToExpiry, fmtGrams, fmtLongDay, fmtWhen, plural, reprocannIssue, STAGE } from "@/lib/labels";
 
@@ -17,7 +18,7 @@ export default async function Dashboard() {
   const session = await getSession();
   if (!session) redirect("/login");
   const now = new Date();
-  const d = await dashboardData(now);
+  const [d, notices] = await Promise.all([dashboardData(now), noticeBoard()]);
 
   const attention = d.blocked.length + d.expiring.length;
   const maxBar = Math.max(1, ...d.series.map((p) => p.grams));
@@ -53,6 +54,13 @@ export default async function Dashboard() {
           <div className="fact-label">Socios activos</div>
           <div className="fact-value">{d.members.active}</div>
           <div className="fact-hint">{d.members.pending ? `${plural(d.members.pending, "pendiente", "pendientes")} de alta` : `${d.members.total} en el padrón`}</div>
+        </Link>
+        <Link className="fact" href="/avisos" data-tone={notices.urgent ? "danger" : notices.total ? "warn" : undefined}>
+          <div className="fact-label">Avisos pendientes</div>
+          <div className="fact-value">{notices.total}</div>
+          <div className="fact-hint">
+            {notices.urgent ? `${plural(notices.urgent, "urgente", "urgentes")} · ${plural(notices.sinAvisar, "sin avisar", "sin avisar")}` : notices.total ? `${plural(notices.sinAvisar, "sin avisar", "sin avisar")}` : "Nadie pendiente"}
+          </div>
         </Link>
         <Link className="fact" href="/socios?filtro=reprocann" data-tone={d.blocked.length ? "danger" : d.expiring.length ? "warn" : undefined}>
           <div className="fact-label">REPROCANN a revisar</div>

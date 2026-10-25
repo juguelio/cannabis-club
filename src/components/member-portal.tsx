@@ -162,6 +162,24 @@ export function MemberPortal({
         </section>
       ) : null}
 
+      {data.member.reprocannDays != null && data.member.reprocannDays <= 30 ? (
+        <section className="note note-warn" role="status" style={{ marginBottom: 4 }}>
+          <CircleAlert aria-hidden />
+          <div>
+            <b>
+              {data.member.reprocannDays < 0
+                ? "Tu REPROCANN está vencido."
+                : data.member.reprocannDays === 0
+                  ? "Tu REPROCANN vence hoy."
+                  : `Tu REPROCANN vence en ${data.member.reprocannDays} días.`}
+            </b>{" "}
+            {data.member.reprocannDays < 0
+              ? "No vas a poder retirar hasta renovarlo. Cuando lo tengas, avisanos y lo cargamos."
+              : "Iniciá la renovación ahora para no quedarte sin poder retirar."}
+          </div>
+        </section>
+      ) : null}
+
       <section className="allowance" aria-label="Tu saldo del mes">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -261,6 +279,7 @@ export function MemberPortal({
                   {data.topeMotivo === "dia" ? `por el tope diario de ${g(data.limits.dayLimitG)}` : data.topeMotivo === "mes" ? "de tu saldo del mes" : "según el stock del club"}.
                   {estimated != null ? ` Aporte estimado: ${MONEY.format(estimated)}.` : data.club.aportePorGramo != null ? ` Aporte: ${MONEY.format(data.club.aportePorGramo)} por gramo.` : ""}
                 </span>
+                <span className="cell-meta">El saldo del mes se renueva el día 1 y el tope diario a las 00:00.</span>
               </div>
 
               <div>

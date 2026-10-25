@@ -214,10 +214,48 @@ model Consent {
   @@index([memberId, purpose])
 }
 
+/// Motivos por los que el club le escribe a un socio (REA 5).
+enum NoticeKind {
+  REPROCANN_VENCIDO
+  REPROCANN_POR_VENCER
+  REPROCANN_SIN_FECHA
+  CONSENTIMIENTO_FALTANTE
+  RESERVA_SIN_RETIRAR
+  CUENTA_CON_SALDO
+  DOCUMENTO_SIN_VERIFICAR
+}
+
+enum NoticeChannel {
+  WHATSAPP
+  LLAMADO
+  PRESENCIAL
+  EMAIL
+}
+
+/// Registro de avisos: append-only. Sirve para no avisar dos veces lo mismo y para mostrar
+/// quién avisó, cuándo y por qué canal. El envío real no lo hace la app: lo hace una persona
+/// desde su WhatsApp (ver docs/avisos.md).
+model NoticeLog {
+  id        String        @id @default(cuid())
+  memberId  String
+  member    Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  kind      NoticeKind
+  channel   NoticeChannel
+  sentAt    DateTime      @default(now())
+  byId      String
+  by        User          @relation("NoticeSender", fields: [byId], references: [id])
+  note      String?
+  createdAt DateTime      @default(now())
+
+  @@index([memberId, kind, sentAt])
+  @@index([sentAt])
+}
+
 model User {
   id           String    @id @default(cuid())
   closes       MonthlyClose[] @relation("CloseSigner")
   consents     Consent[]      @relation("ConsentGrantor")
+  noticesSent  NoticeLog[]    @relation("NoticeSender")
   accountEntries AccountEntry[] @relation("AccountEntryCreator")
   email        String    @unique
   name         String
@@ -275,6 +313,7 @@ model Member {
   movements     StockMovement[]
   transports    Transport[]     @relation("TransportDriver")
   consents      Consent[]
+  notices       NoticeLog[]
 
   @@index([status])
   @@index([lastName, firstName])
