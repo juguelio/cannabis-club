@@ -28,6 +28,9 @@ export async function PATCH(req: Request) {
         limiteDiarioG: Number(current.limiteDiarioG), limiteMensualG: Number(current.limiteMensualG),
         limiteMenorG: Number(current.limiteMenorG), thcMaxMenor: current.thcMaxMenor == null ? null : Number(current.thcMaxMenor),
         cuit: current.cuit ?? "", directorMedico: current.directorMedico ?? "", responsableTecnico: current.responsableTecnico ?? "",
+        aportePorGramo: current.aportePorGramo == null ? null : Number(current.aportePorGramo),
+        cuotaSocialArs: current.cuotaSocialArs == null ? null : Number(current.cuotaSocialArs),
+        cuotaIngresoArs: current.cuotaIngresoArs == null ? null : Number(current.cuotaIngresoArs),
         reprocannNumber: current.reprocannNumber ?? "", reprocannCode: current.reprocannCode ?? "", ...body });
       const updated = await tx.club.update({ where: { id: CLUB_ID }, data: body });
       await tx.auditLog.create({ data: { actorId: user.id, action: "CLUB_UPDATE", entity: "Club", entityId: CLUB_ID, ip: clientIp(req), payload: body } });

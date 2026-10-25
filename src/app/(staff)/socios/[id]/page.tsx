@@ -9,6 +9,8 @@ import { memberUsage } from "@/lib/dispensary";
 import { Avatar, Chip, Empty, Meter, Note, Panel } from "@/components/ui";
 import { VoidButton } from "@/components/forms";
 import { MemberEditor, MemberStatusActions, PortalAccess } from "@/components/member-editor";
+import { AccountPanel } from "@/components/account-panel";
+import { memberAccount } from "@/lib/account";
 import {
   age, AUDIT_ACTION, CONSUMPTION, daysToExpiry, FIELD_LABEL, fmtDate, fmtGrams, fmtWhen, MEMBER_STATUS, plural, reprocannIssue, SIGNATURE,
 } from "@/lib/labels";
@@ -34,9 +36,10 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
   ]);
   if (!member) notFound();
 
-  const [usage, activity] = await Promise.all([
+  const [usage, activity, account] = await Promise.all([
     memberUsage(prisma, member.id, club.timezone),
     prisma.auditLog.findMany({ where: { entity: "Member", entityId: member.id }, orderBy: { createdAt: "desc" }, take: 12, include: { actor: { select: { name: true } } } }),
+    memberAccount(member.id, 12),
   ]);
   const limits = limitsFromClub(club);
   const years = age(member.birthDate);
@@ -102,6 +105,14 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
 
       <div className="grid-2">
         <div className="stack">
+          <Panel title="Cuenta corriente" subtitle="Cuota social y aporte de cultivo. Es un libro: corregir es un contra-asiento.">
+            <AccountPanel memberId={member.id} balance={account.balance} entries={account.entries.map((e) => ({
+              id: e.id, kind: e.kind, concept: e.concept, amountArs: Number(e.amountArs), period: e.period,
+              occurredAt: e.occurredAt.toISOString(), note: e.note, voided: Boolean(e.voidedAt), reversed: e.reversalOfId != null,
+              by: e.creator?.name ?? null,
+            }))} canVoid={session.role === "ADMIN"} />
+          </Panel>
+
           <Panel title="Este mes" subtitle={member.monthlyForecastG ? `Previsión declarada: ${fmtGrams(member.monthlyForecastG)} por mes.` : "Sin previsión declarada."}>
             <div className="panel-body stack" style={{ gap: 14 }}>
               <div>

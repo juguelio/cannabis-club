@@ -37,6 +37,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           limiteMensualG: Number(club.limiteMensualG), limiteMenorG: Number(club.limiteMenorG), edadMinima: club.edadMinima,
           edadLimiteMenor: club.edadLimiteMenor, thcMaxMenor: club.thcMaxMenor == null ? null : Number(club.thcMaxMenor),
           maxSocios: club.maxSocios, requiereReprocann: club.requiereReprocann,
+          aportePorGramo: club.aportePorGramo == null ? null : Number(club.aportePorGramo),
+          cuotaSocialArs: club.cuotaSocialArs == null ? null : Number(club.cuotaSocialArs),
+          cuotaIngresoArs: club.cuotaIngresoArs == null ? null : Number(club.cuotaIngresoArs),
         }}
       />
     );

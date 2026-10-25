@@ -27,6 +27,11 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
     ["thcMaxMenor", "THC máximo con tope reducido (%)"],
     ["maxSocios", "Cupo de socios"],
   ] as const;
+  const money = [
+    ["aportePorGramo", "Aporte de cultivo por gramo ($)"],
+    ["cuotaSocialArs", "Cuota social mensual ($)"],
+    ["cuotaIngresoArs", "Cuota de ingreso ($), opcional"],
+  ] as const;
 
   return (
     <form
@@ -38,6 +43,7 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
         const values: Record<string, unknown> = {};
         for (const [key] of identity) values[key] = String(form.get(key) ?? "");
         for (const [key] of limits) values[key] = key === "thcMaxMenor" && form.get(key) === "" ? null : Number(String(form.get(key)).replace(",", "."));
+        for (const [key] of money) values[key] = form.get(key) === "" ? null : Number(String(form.get(key)).replace(",", "."));
         values.requiereReprocann = form.get("requiereReprocann") === "on";
         const parsed = clubSettings.safeParse(values);
         setError(null);
@@ -63,6 +69,18 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
                 <label className="label" htmlFor={`c-${key}`}>{label}</label>
                 <input className="input" id={`c-${key}`} name={key} defaultValue={initial[key]} required={key === "nombre"} maxLength={key === "cuit" ? 20 : 120} />
                 {hint ? <span className="hint">{hint}</span> : null}
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2 className="panel-title">Cuotas y aportes</h2><p className="panel-sub">Es el prorrateo de los costos del club, no un precio: la app lo llama aporte de cultivo y cuota social. Un aporte por gramo convierte el estimado del portal en un cargo real en la cuenta del socio.</p></div></div>
+          <div className="panel-body field-row">
+            {money.map(([key, label]) => (
+              <div key={key}>
+                <label className="label" htmlFor={`c-${key}`}>{label}</label>
+                <input className="input tnum" id={`c-${key}`} name={key} inputMode="decimal" defaultValue={initial[key] ?? ""} placeholder="0" />
+                {key === "aportePorGramo" ? <span className="hint">Sin valor: la entrega no genera cargo.</span> : null}
               </div>
             ))}
           </div>

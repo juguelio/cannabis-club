@@ -10,6 +10,7 @@ import { prisma } from "./db";
 import { conflict, notFound, unprocessable } from "./errors";
 import { isClosedDay } from "./closed-days";
 import { getClub, limitsFromClub } from "./club";
+import { balanceOf, periodOf } from "./account";
 import { memberUsage, memberUsageAt } from "./dispensary";
 import { evaluatePickup, round2 } from "./pickup-rules";
 import { addDaysKey, dayKeyOf, evaluateBooking, labelOf, slotInstant, type Rule } from "./appointments";
@@ -86,6 +87,17 @@ export async function portalOverview(memberId: string) {
   const tope = round2(Math.max(0, binding.value));
   const aportePorGramo = club.aportePorGramo == null ? null : Number(club.aportePorGramo);
 
+  // Estado de cuenta: el socio ve lo que debe o lo que tiene a favor, sin editar nada.
+  const asientos = await prisma.accountEntry.findMany({
+    where: { memberId: member.id },
+    select: { kind: true, amountArs: true, concept: true, occurredAt: true },
+  });
+  const saldo = balanceOf(asientos);
+  const periodoActual = periodOf(new Date());
+  const aporteMes = asientos
+    .filter((a) => a.concept === "APORTE_CULTIVO" && periodOf(a.occurredAt) === periodoActual)
+    .reduce((acc, a) => acc + Number(a.amountArs), 0);
+
   return {
     member: {
       id: member.id,
@@ -102,6 +114,7 @@ export async function portalOverview(memberId: string) {
       monthlyForecastG: member.monthlyForecastG == null ? null : Number(member.monthlyForecastG),
     },
     club: { nombre: club.nombre, timezone: club.timezone, aportePorGramo },
+    cuenta: { saldo, periodo: periodoActual, aportesDelMes: Math.round(aporteMes * 100) / 100 },
     limits: {
       monthLimitG: limits.monthLimitG,
       dayLimitG: limits.dayLimitG,

@@ -8,6 +8,7 @@ import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
 
 type Overview = {
+  cuenta?: { saldo: number; periodo: string; aportesDelMes: number };
   member: {
     legajo: number;
     status: string;
@@ -167,6 +168,22 @@ export function MemberPortal({
           </span>
           {data.limits.isMinor ? <><span>·</span><span>Tope reducido por edad{data.limits.thcMaxPct != null ? `, hasta ${data.limits.thcMaxPct}% THC` : ""}</span></> : null}
         </div>
+        {data.cuenta ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", fontSize: 13, color: "#a9c0b3", marginTop: 10 }}>
+            <span>Aporte de cultivo de {data.cuenta.periodo}: <b style={{ color: "#fff" }}>{MONEY.format(data.cuenta.aportesDelMes)}</b></span>
+            <span>·</span>
+            <span>
+              Cuenta:{" "}
+              <b style={{ color: data.cuenta.saldo > 0.009 ? "#ffb4a6" : data.cuenta.saldo < -0.009 ? "#a6e8bf" : "#fff" }}>
+                {data.cuenta.saldo > 0.009
+                  ? `adeudás ${MONEY.format(data.cuenta.saldo)}`
+                  : data.cuenta.saldo < -0.009
+                    ? `a favor ${MONEY.format(Math.abs(data.cuenta.saldo))}`
+                    : "al día"}
+              </b>
+            </span>
+          </div>
+        ) : null}
           <div id="mi-carnet" hidden={!showCard} className="member-card" style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #23453a" }}>
             <div className="qr-box" style={{ width: 132, height: 132, flex: "none" }} dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label="Código QR de tu carnet" />
             <div style={{ fontSize: 14 }}>

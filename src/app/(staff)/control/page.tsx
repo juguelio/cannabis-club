@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { Chip, Empty, PageHead, Section } from "@/components/ui";
 import { fmtDate, fmtGrams } from "@/lib/labels";
+import { MonthlyFees } from "@/components/monthly-fees";
+import { periodOf } from "@/lib/account";
 
 const DIAS = 30;
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -13,6 +15,8 @@ export default async function ControlPage() {
   if (!session) redirect("/login");
 
   const hoy = new Date();
+  const periodo = periodOf(hoy);
+  const club = await prisma.club.findUnique({ where: { id: "singleton" }, select: { cuotaSocialArs: true } });
   const en30 = new Date(hoy.getTime() + DIAS * DIA_MS);
   const hace3 = new Date(hoy.getTime() - 3 * DIA_MS);
 
@@ -188,6 +192,12 @@ export default async function ControlPage() {
               </table>
             )}
           </div>
+        </div>
+      </Section>
+
+      <Section title="Cuotas del mes" subtitle="La cuota social se cobra una sola vez por socio activo y período.">
+        <div className="card card-pad">
+          <MonthlyFees period={periodo} cuota={Number(club?.cuotaSocialArs ?? 0)} />
         </div>
       </Section>
     </>

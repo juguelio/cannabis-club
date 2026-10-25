@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "./db";
 import { getClub, limitsFromClub } from "./club";
+import { chargeDispensation } from "./account";
 import { conflict, notFound, unprocessable } from "./errors";
 import { evaluateDispensation, type Usage } from "./limits";
 
@@ -155,6 +156,15 @@ export async function dispense(input: DispenseInput) {
           },
         });
 
+        // El aporte de cultivo deja de ser una estimación del portal: queda como cargo en la cuenta del socio.
+        await chargeDispensation(tx, {
+          memberId: member.id,
+          dispensationId: dispensation.id,
+          grams: input.grams,
+          aportePorGramo: Number(club.aportePorGramo ?? 0),
+          occurredAt: dispensation.occurredAt,
+        });
+
         await tx.auditLog.create({
           data: {
             actorId: input.operatorId,
@@ -274,6 +284,26 @@ export async function voidDispensation(input: {
       where: { id: dispensation.id },
       data: { voidedAt: new Date(), voidedById: input.actorId, voidReason: input.reason },
     });
+
+    // El cargo del aporte de cultivo también se revierte, con contra-asiento (no se borra).
+    const cargo = await tx.accountEntry.findUnique({ where: { dispensationId: dispensation.id } });
+    if (cargo && !cargo.voidedAt) {
+      const reversal = await tx.accountEntry.findUnique({ where: { reversalOfId: cargo.id }, select: { id: true } });
+      if (!reversal) {
+        await tx.accountEntry.create({
+          data: {
+            memberId: cargo.memberId,
+            kind: cargo.kind === "CARGO" ? "PAGO" : "CARGO",
+            concept: "AJUSTE",
+            amountArs: cargo.amountArs,
+            reversalOfId: cargo.id,
+            note: `Anulación de la entrega: ${input.reason}`,
+            createdById: input.actorId,
+          },
+        });
+        await tx.accountEntry.update({ where: { id: cargo.id }, data: { voidedAt: new Date() } });
+      }
+    }
 
     // El contra-asiento devuelve gramos: un lote que se había agotado vuelve a estar disponible.
     const batch = await tx.batch.findUnique({ where: { id: dispensation.batchId }, select: { stage: true } });

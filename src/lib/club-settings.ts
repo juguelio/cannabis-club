@@ -15,6 +15,10 @@ export const clubSettingsFields = z.object({
   thcMaxMenor: z.number().min(0).max(100).nullable(),
   maxSocios: z.number().int().positive().max(100000),
   requiereReprocann: z.boolean(),
+  /** Prorrateo de costos, no precio: aporte por gramo y cuota social mensual. */
+  aportePorGramo: z.number().min(0).max(10_000_000).nullable(),
+  cuotaSocialArs: z.number().min(0).max(10_000_000).nullable(),
+  cuotaIngresoArs: z.number().min(0).max(10_000_000).nullable(),
 });
 export const clubSettings = clubSettingsFields.refine(v => v.limiteDiarioG <= v.limiteMensualG, { message: "El tope diario no puede superar el mensual", path: ["limiteDiarioG"] })
   .refine(v => v.limiteMenorG <= v.limiteMensualG, { message: "El tope para menores debe ser igual o inferior al general", path: ["limiteMenorG"] })

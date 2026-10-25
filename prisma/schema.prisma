@@ -120,12 +120,55 @@ model Club {
   timezone          String   @default("America/Argentina/Buenos_Aires")
   /// Aporte de cultivo por gramo (prorrateo de costos, NO precio de venta).
   aportePorGramo    Decimal? @db.Decimal(10, 2)
+  /// Cuota social mensual (prorrateo de costos fijos, NO precio).
+  cuotaSocialArs    Decimal? @db.Decimal(12, 2)
+  /// Cuota de ingreso, si el club la cobra.
+  cuotaIngresoArs   Decimal? @db.Decimal(12, 2)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
 
+enum AccountKind {
+  CARGO
+  PAGO
+}
+
+enum AccountConcept {
+  CUOTA_SOCIAL
+  CUOTA_INGRESO
+  APORTE_CULTIVO
+  AJUSTE
+}
+
+/// Cuenta corriente del socio: libro append-only. Corregir es contra-asiento (`reversalOfId`),
+/// nunca editar ni borrar. El saldo es la suma con signo de los asientos.
+model AccountEntry {
+  id             String         @id @default(cuid())
+  memberId       String
+  member         Member         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  kind           AccountKind
+  concept        AccountConcept
+  amountArs      Decimal        @db.Decimal(12, 2)
+  /// Período `YYYY-MM` cuando el asiento es periódico (cuota social).
+  period         String?
+  occurredAt     DateTime       @default(now())
+  /// Un aporte de cultivo nace de una entrega concreta, y sólo uno por entrega.
+  dispensationId String?        @unique
+  note           String?
+  createdById    String?
+  creator        User?          @relation("AccountEntryCreator", fields: [createdById], references: [id])
+  /// Asiento que este revierte (contra-asiento).
+  reversalOfId   String?        @unique
+  voidedAt       DateTime?
+  createdAt      DateTime       @default(now())
+
+  @@unique([memberId, concept, period])
+  @@index([memberId, occurredAt])
+}
+
 model User {
   id           String    @id @default(cuid())
+  accountEntries AccountEntry[] @relation("AccountEntryCreator")
   email        String    @unique
   name         String
   passwordHash String
@@ -146,6 +189,7 @@ model User {
 
 model Member {
   id               String          @id @default(cuid())
+  account          AccountEntry[]
   legajo           Int             @unique
   firstName        String
   lastName         String
