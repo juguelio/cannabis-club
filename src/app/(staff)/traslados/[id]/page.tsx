@@ -5,7 +5,7 @@ import { Chip, Field, PageHead, Panel } from "@/components/ui";
 import { ShipmentItemForm } from "@/components/shipment-item-form";
 import { DdjjToggle, ShipmentActions } from "@/components/shipment-actions";
 import { fmtDate, fmtDateTime, fmtGrams } from "@/lib/labels";
-import { canDispatch, shipmentDetail, totalGrams } from "@/lib/shipments";
+import { canDispatch, resolveShipmentStatus, shipmentDetail, totalGrams } from "@/lib/shipments";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +43,11 @@ export default async function ShipmentPage({ params }: { params: Promise<{ id: s
     .map((b) => ({ id: b.id, code: b.code, strain: b.strain.name, available: Math.round((balanceOf.get(b.id) ?? 0) * 100) / 100 }))
     .filter((b) => b.available > 0);
 
-  const meta = STATUS[shipment.status] ?? { label: shipment.status, tone: "mute" as const };
+  const effective = resolveShipmentStatus(
+    shipment.status,
+    shipment.items.map((i) => ({ dispensationId: i.dispensationId, dispensationVoidedAt: i.dispensation?.voidedAt ?? null })),
+  );
+  const meta = STATUS[effective] ?? { label: effective, tone: "mute" as const };
   const ready = canDispatch(shipment.items.map((i) => ({ grams: Number(i.grams), ddjjSignedAt: i.ddjjSignedAt })));
 
   return (
@@ -55,7 +59,7 @@ export default async function ShipmentPage({ params }: { params: Promise<{ id: s
         actions={
           <div className="flex items-center gap-2">
             <Link className="btn btn-quiet btn-sm" href={`/traslados/${shipment.id}/remito`}>Remito</Link>
-            <ShipmentActions id={shipment.id} status={shipment.status} />
+            <ShipmentActions id={shipment.id} status={effective} />
           </div>
         }
       />
@@ -110,7 +114,13 @@ export default async function ShipmentPage({ params }: { params: Promise<{ id: s
                     {item.ddjjSignedAt ? <Chip tone="ok">Firmada {fmtDate(item.ddjjSignedAt)}</Chip> : <Chip tone="danger">Falta</Chip>}
                   </td>
                   <td>
-                    {item.dispensationId ? <Chip tone="ok">Registrada</Chip> : <span className="cell-meta">Pendiente</span>}
+                    {item.dispensationId && item.dispensation?.voidedAt ? (
+                      <Chip tone="danger">Anulada</Chip>
+                    ) : item.dispensationId ? (
+                      <Chip tone="ok">Registrada</Chip>
+                    ) : (
+                      <span className="cell-meta">Pendiente</span>
+                    )}
                   </td>
                   {shipment.status === "PREPARACION" ? (
                     <td className="num"><DdjjToggle shipmentId={shipment.id} itemId={item.id} signed={Boolean(item.ddjjSignedAt)} /></td>

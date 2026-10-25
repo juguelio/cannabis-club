@@ -174,6 +174,25 @@ model AccountEntry {
 
 /// Cierre mensual firmado: congela los totales del período con la firma de quien lo cierra.
 /// Append-only: corregir es un cierre nuevo que declara cuál reemplaza (`supersedesId`).
+/// Informe semestral en carácter de declaración jurada (Res. 1780/2025): plantas totales y en
+/// floración, variedades y actividad del semestre, congelado con firma y huella.
+model SemesterReport {
+  id           String   @id @default(cuid())
+  /// Período `AAAA-S1` (enero-junio) o `AAAA-S2` (julio-diciembre).
+  period       String   @unique
+  payload      Json
+  hash         String
+  signedById   String
+  signer       User     @relation("SemesterSigner", fields: [signedById], references: [id])
+  signedAt     DateTime @default(now())
+  note         String?
+  /// Informe que reemplaza, si este corrige uno anterior.
+  supersedesId String?  @unique
+  createdAt    DateTime @default(now())
+
+  @@index([signedAt])
+}
+
 model MonthlyClose {
   id             String   @id @default(cuid())
   /// Período `YYYY-MM`.
@@ -264,6 +283,7 @@ model User {
   mustChangePassword Boolean @default(false)
   passwordChangedAt  DateTime?
   closes       MonthlyClose[] @relation("CloseSigner")
+  semesterReports SemesterReport[] @relation("SemesterSigner")
   consents     Consent[]      @relation("ConsentGrantor")
   noticesSent  NoticeLog[]    @relation("NoticeSender")
   accountEntries AccountEntry[] @relation("AccountEntryCreator")
@@ -497,6 +517,8 @@ model ShipmentItem {
   ddjjNote       String?
   dispensationId String?       @unique
   dispensation   Dispensation? @relation(fields: [dispensationId], references: [id])
+  /// Intento de entrega: si la anterior se anula, la nueva usa otra clave de idempotencia.
+  attempt        Int           @default(1)
   note           String?
   createdAt      DateTime      @default(now())
 

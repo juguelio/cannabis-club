@@ -64,6 +64,7 @@ function ShellInner({ clubName, userName, userRole, clubConfigured, pendingPicku
     { href: "/control", label: "Control", icon: Sprout },
     { href: "/avisos", label: "Avisos", icon: BellRing },
     { href: "/cierre-mensual", label: "Cierre mensual", icon: FileSpreadsheet },
+    { href: "/informe-semestral", label: "Informe semestral", icon: FileSpreadsheet },
     { href: "/reportes", label: "Libros", icon: FileSpreadsheet },
   ];
   const admin: NavItem[] =

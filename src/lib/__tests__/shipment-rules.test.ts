@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canDispatch, shipmentCode, totalGrams } from "../shipment-rules";
+import { canDispatch, isItemDelivered, resolveShipmentStatus, shipmentCode, totalGrams } from "../shipment-rules";
 
 describe("código del traslado", () => {
   it("arma TR-AAAAMMDD-NN con secuencia del día", () => {
@@ -33,6 +33,29 @@ describe("¿puede salir el traslado?", () => {
 
   it("con todo firmado y con gramos, sale", () => {
     expect(canDispatch([{ grams: 10, ddjjSignedAt: new Date() }, { grams: 5, ddjjSignedAt: "2026-10-25" }]).ok).toBe(true);
+  });
+});
+
+describe("entrega y anulación", () => {
+  const entregado = { dispensationId: "d1", dispensationVoidedAt: null };
+  const anulado = { dispensationId: "d1", dispensationVoidedAt: new Date("2026-10-25T18:00:00Z") };
+  const pendiente = { dispensationId: null, dispensationVoidedAt: null };
+
+  it("una dispensa anulada no cuenta como entregada", () => {
+    expect(isItemDelivered(entregado)).toBe(true);
+    expect(isItemDelivered(anulado)).toBe(false);
+    expect(isItemDelivered(pendiente)).toBe(false);
+  });
+
+  it("si se anula una entrega, el traslado vuelve a despachado", () => {
+    expect(resolveShipmentStatus("ENTREGADO", [entregado])).toBe("ENTREGADO");
+    expect(resolveShipmentStatus("ENTREGADO", [anulado])).toBe("DESPACHADO");
+    expect(resolveShipmentStatus("DESPACHADO", [entregado, entregado])).toBe("ENTREGADO");
+    expect(resolveShipmentStatus("DESPACHADO", [entregado, pendiente])).toBe("DESPACHADO");
+  });
+
+  it("un traslado cancelado sigue cancelado", () => {
+    expect(resolveShipmentStatus("CANCELADO", [entregado])).toBe("CANCELADO");
   });
 });
 

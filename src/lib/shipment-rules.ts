@@ -25,6 +25,26 @@ export function canDispatch(items: { grams: number; ddjjSignedAt: Date | string 
   return { ok: true };
 }
 
+/**
+ * Un ítem está entregado sólo si su dispensa existe y **no** fue anulada. Anular una entrega
+ * devuelve el traslado a "despachado": el estado no puede decir entregado sobre un asiento anulado.
+ */
+export function isItemDelivered(item: { dispensationId: string | null; dispensationVoidedAt?: Date | string | null }): boolean {
+  return Boolean(item.dispensationId) && !item.dispensationVoidedAt;
+}
+
+/** Estado real del traslado según sus ítems (la base guarda el último estado escrito). */
+export function resolveShipmentStatus(
+  current: string,
+  items: { dispensationId: string | null; dispensationVoidedAt?: Date | string | null }[],
+): string {
+  if (current === "CANCELADO") return "CANCELADO";
+  if (items.length === 0) return current;
+  if (items.every(isItemDelivered)) return "ENTREGADO";
+  if (current === "ENTREGADO") return "DESPACHADO";
+  return current;
+}
+
 export function totalGrams(items: { grams: unknown }[]): number {
   return Math.round(items.reduce((acc, i) => acc + Number(i.grams), 0) * 100) / 100;
 }

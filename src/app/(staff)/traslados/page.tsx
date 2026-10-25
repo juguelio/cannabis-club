@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { Chip, Empty, PageHead, Panel } from "@/components/ui";
 import { ShipmentForm } from "@/components/shipment-form";
 import { fmtDate, fmtGrams } from "@/lib/labels";
-import { listShipments, totalGrams } from "@/lib/shipments";
+import { listShipments, resolveShipmentStatus, totalGrams } from "@/lib/shipments";
 import { Truck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -60,8 +60,12 @@ export default async function ShipmentsPage() {
             </thead>
             <tbody>
               {shipments.map((s) => {
-                const meta = STATUS[s.status] ?? { label: s.status, tone: "mute" as const };
-                const entregados = s.items.filter((i) => i.dispensationId).length;
+                const effective = resolveShipmentStatus(
+                  s.status,
+                  s.items.map((i) => ({ dispensationId: i.dispensationId, dispensationVoidedAt: i.dispensation?.voidedAt ?? null })),
+                );
+                const meta = STATUS[effective] ?? { label: effective, tone: "mute" as const };
+                const entregados = s.items.filter((i) => i.dispensationId && !i.dispensation?.voidedAt).length;
                 return (
                   <tr key={s.id}>
                     <td>

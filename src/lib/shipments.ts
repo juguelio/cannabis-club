@@ -3,7 +3,7 @@ import type { Batch, Member, Shipment, ShipmentItem } from "@prisma/client";
 import { prisma } from "./db";
 import { dispense } from "./dispensary";
 import { conflict, notFound, unprocessable } from "./errors";
-import { canDispatch, shipmentCode, totalGrams } from "./shipment-rules";
+import { canDispatch, isItemDelivered, shipmentCode, totalGrams } from "./shipment-rules";
 
 /**
  * Traslados: la ONG entrega a pacientes que no pasan por la sede.
@@ -15,16 +15,22 @@ import { canDispatch, shipmentCode, totalGrams } from "./shipment-rules";
  * - Un traslado no se "marca entregado" a mano: se entrega ítem por ítem y el estado lo escribe el sistema.
  */
 
-export type ShipmentItemView = ShipmentItem & { member: Member; batch: Batch & { strain?: { name: string } | null } };
+export type ShipmentItemView = ShipmentItem & {
+  member: Member;
+  batch: Batch & { strain?: { name: string } | null };
+  dispensation?: { id: string; voidedAt: Date | null } | null;
+};
 
 export type ShipmentView = Shipment & {
   items: ShipmentItemView[];
   createdBy: { name: string };
 };
 
-export type ShipmentSummary = Shipment & { items: { id: string; grams: unknown; dispensationId: string | null }[] };
+export type ShipmentSummary = Shipment & {
+  items: { id: string; grams: unknown; dispensationId: string | null; dispensation?: { voidedAt: Date | null } | null }[];
+};
 
-export { canDispatch, shipmentCode, totalGrams } from "./shipment-rules";
+export { canDispatch, isItemDelivered, resolveShipmentStatus, shipmentCode, totalGrams } from "./shipment-rules";
 export type { DispatchCheck } from "./shipment-rules";
 
 export async function createShipment(input: {
@@ -133,18 +139,26 @@ export async function deliverShipment(input: { id: string; actorId: string; ip?:
   delivery: DeliveryResult[];
   status: Shipment["status"];
 }> {
-  const shipment = await prisma.shipment.findUnique({ where: { id: input.id }, include: { items: true } });
+  const shipment = await prisma.shipment.findUnique({
+    where: { id: input.id },
+    include: { items: { include: { dispensation: { select: { voidedAt: true } } } } },
+  });
   if (!shipment) throw notFound("Traslado inexistente");
   if (shipment.status === "CANCELADO") throw conflict("SHIPMENT_CANCELLED", "El traslado está cancelado.");
   if (shipment.status === "PREPARACION") throw conflict("SHIPMENT_NOT_DISPATCHED", "Primero hay que despachar el traslado.");
 
   const delivery: DeliveryResult[] = [];
   for (const item of shipment.items) {
-    if (item.dispensationId) {
-      delivery.push({ itemId: item.id, ok: true, dispensationId: item.dispensationId });
+    if (isItemDelivered({ dispensationId: item.dispensationId, dispensationVoidedAt: item.dispensation?.voidedAt ?? null })) {
+      delivery.push({ itemId: item.id, ok: true, dispensationId: item.dispensationId! });
       continue;
     }
     try {
+      // Si la entrega anterior se anuló, este es otro intento: se libera el vínculo y cambia la clave.
+      const attempt = item.dispensationId ? item.attempt + 1 : item.attempt;
+      if (item.dispensationId) {
+        await prisma.shipmentItem.update({ where: { id: item.id }, data: { dispensationId: null, attempt } });
+      }
       const result = await dispense({
         memberId: item.memberId,
         batchId: item.batchId,
@@ -153,9 +167,9 @@ export async function deliverShipment(input: { id: string; actorId: string; ip?:
         notes: `Traslado ${shipment.code} a ${shipment.toAddress}`,
         operatorId: input.actorId,
         ip: input.ip ?? null,
-        idempotencyKey: `ship-${item.id}`,
+        idempotencyKey: `ship-${item.id}-${attempt}`,
       });
-      await prisma.shipmentItem.update({ where: { id: item.id }, data: { dispensationId: result.dispensation.id } });
+      await prisma.shipmentItem.update({ where: { id: item.id }, data: { dispensationId: result.dispensation.id, attempt } });
       delivery.push({ itemId: item.id, ok: true, dispensationId: result.dispensation.id });
     } catch (error) {
       const e = error as { code?: string; message?: string; status?: number };
@@ -163,8 +177,15 @@ export async function deliverShipment(input: { id: string; actorId: string; ip?:
     }
   }
 
-  const fresh = await prisma.shipment.findUnique({ where: { id: input.id }, include: { items: true } });
-  const allDelivered = Boolean(fresh && fresh.items.length > 0 && fresh.items.every((i) => i.dispensationId));
+  const fresh = await prisma.shipment.findUnique({
+    where: { id: input.id },
+    include: { items: { include: { dispensation: { select: { voidedAt: true } } } } },
+  });
+  const allDelivered = Boolean(
+    fresh &&
+      fresh.items.length > 0 &&
+      fresh.items.every((i) => isItemDelivered({ dispensationId: i.dispensationId, dispensationVoidedAt: i.dispensation?.voidedAt ?? null })),
+  );
   const status: Shipment["status"] = allDelivered ? "ENTREGADO" : "DESPACHADO";
   const updated = await prisma.shipment.update({
     where: { id: input.id },
@@ -198,7 +219,7 @@ export async function cancelShipment(input: { id: string; actorId: string; reaso
 
 export async function listShipments(): Promise<ShipmentSummary[]> {
   return prisma.shipment.findMany({
-    include: { items: { select: { id: true, grams: true, dispensationId: true } } },
+    include: { items: { select: { id: true, grams: true, dispensationId: true, dispensation: { select: { voidedAt: true } } } } },
     orderBy: [{ plannedAt: "desc" }, { createdAt: "desc" }],
     take: 80,
   });
@@ -208,7 +229,10 @@ export async function shipmentDetail(id: string): Promise<ShipmentView | null> {
   return prisma.shipment.findUnique({
     where: { id },
     include: {
-      items: { include: { member: true, batch: { include: { strain: true } } }, orderBy: { createdAt: "asc" } },
+      items: {
+        include: { member: true, batch: { include: { strain: true } }, dispensation: { select: { id: true, voidedAt: true } } },
+        orderBy: { createdAt: "asc" },
+      },
       createdBy: { select: { name: true } },
     },
   });
