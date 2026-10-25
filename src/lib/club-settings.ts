@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const clubSettingsFields = z.object({
-  nombre: z.string().trim().min(2, "Ingresá el nombre del club").max(120),
+  nombre: z.string().trim().min(2, "Ingresá el nombre del club").max(160),
+  nombreCorto: z.string().trim().max(40).nullable().optional(),
   cuit: z.string().trim().max(20),
   directorMedico: z.string().trim().max(120),
   responsableTecnico: z.string().trim().max(120),

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getAnySession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -13,7 +14,14 @@ export default async function LoginPage() {
   return (
     <div className="auth">
       <section className="auth-side">
-        <div style={{ fontFamily: "var(--font-display)", fontWeight: 650, color: "#fff", fontSize: 16 }}>{club?.nombre ?? "Club de cultivo"}</div>
+        <div className="flex items-center gap-3">
+          <span className="brand-plate brand-plate--lg" aria-hidden>
+            <Image src="/logo-republica.png" alt="" width={64} height={64} priority />
+          </span>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: 650, color: "#fff", fontSize: 17, lineHeight: 1.2 }}>
+            {club?.nombre ?? "Club de cultivo"}
+          </div>
+        </div>
         <div style={{ margin: "48px 0" }}>
           <h1>Cada gramo, con nombre y fecha.</h1>
           <p>

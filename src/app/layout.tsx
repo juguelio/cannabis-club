@@ -8,7 +8,7 @@ import { MemberShell, Shell } from "@/components/shell";
 import { addDaysKey, dayKeyOf, slotInstant } from "@/lib/appointments";
 
 export const metadata: Metadata = {
-  title: { default: "Club de cultivo", template: "%s · Club de cultivo" },
+  title: { default: "República · gestión del club", template: "%s · República" },
   description: "Padrón de socios, stock y registro de entregas para asociaciones de cultivo.",
   robots: { index: false, follow: false },
 };
@@ -27,7 +27,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   const club = await prisma.club.findUnique({ where: { id: "singleton" } });
-  const clubName = club?.nombre ?? "Club de cultivo";
+  const clubName = club?.nombreCorto || club?.nombre || "Club de cultivo";
 
   if (session.role === "SOCIO") {
     return (

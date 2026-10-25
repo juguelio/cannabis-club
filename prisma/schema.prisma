@@ -106,6 +106,8 @@ model ClosedDay {
 model Club {
   id                String   @id @default("singleton")
   nombre            String
+  /// Nombre corto para el rail y el portal; el `nombre` largo va en libros y comprobantes.
+  nombreCorto       String?
   cuit              String?
   reprocannNumber   String?
   reprocannCode     String?

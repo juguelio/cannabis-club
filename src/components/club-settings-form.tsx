@@ -11,7 +11,8 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const identity = [
-    ["nombre", "Nombre del club", "Como figura en el estatuto."],
+    ["nombre", "Nombre del club", "Como figura en el estatuto; va en libros y comprobantes."],
+    ["nombreCorto", "Nombre corto", "Para el menú y el portal (por ejemplo, «República ONG»)."],
     ["cuit", "CUIT", ""],
     ["directorMedico", "Director médico", "Nombre y matrícula."],
     ["responsableTecnico", "Responsable técnico", "Nombre y matrícula."],
@@ -68,7 +69,7 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
             {identity.map(([key, label, hint]) => (
               <div key={key}>
                 <label className="label" htmlFor={`c-${key}`}>{label}</label>
-                <input className="input" id={`c-${key}`} name={key} defaultValue={initial[key]} required={key === "nombre"} maxLength={key === "cuit" ? 20 : 120} />
+                <input className="input" id={`c-${key}`} name={key} defaultValue={initial[key] ?? ""} required={key === "nombre"} maxLength={key === "cuit" ? 20 : 120} />
                 {hint ? <span className="hint">{hint}</span> : null}
               </div>
             ))}

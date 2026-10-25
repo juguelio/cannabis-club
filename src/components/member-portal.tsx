@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useEffect, useState } from "react";
 import { CalendarCheck2, CircleAlert, QrCode } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
@@ -137,7 +139,12 @@ export function MemberPortal({
   return (
     <>
       <header className="member-intro">
-        <div><p className="panel-sub">{data.club.nombre}</p><h1>Tu espacio de socio</h1></div>
+        <div className="flex items-center gap-3">
+          <span className="brand-plate" aria-hidden>
+            <Image src="/logo-republica.png" alt="" width={38} height={38} priority />
+          </span>
+          <div><p className="panel-sub" style={{ margin: 0 }}>{data.club.nombre}</p><h1 style={{ margin: 0 }}>Tu espacio de socio</h1></div>
+        </div>
         <nav aria-label="Secciones de tu portal" className="member-shortcuts">
           <a href="#mi-carnet" onClick={() => setShowCard(true)}>Mi carnet</a>
           <a href="#historial">Historial</a>

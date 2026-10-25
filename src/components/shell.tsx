@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
@@ -15,14 +16,6 @@ function isActive(path: string, href: string) {
   return href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
 }
 
-const monogram = (name: string) =>
-  name
-    .replace(/\(.*?\)/g, "")
-    .split(/\s+/)
-    .filter((w) => w.length > 2)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("") || "CC";
 
 const ROLE: Record<string, string> = { ADMIN: "Administración", OPERADOR: "Mostrador" };
 
@@ -98,7 +91,9 @@ function ShellInner({ clubName, userName, userRole, clubConfigured, pendingPicku
       <aside className="rail" data-open={drawer} aria-label="Navegación principal">
         <div className="flex items-start justify-between">
           <Link href="/" className="rail-brand">
-            <span className="monogram" aria-hidden>{monogram(clubName)}</span>
+            <span className="brand-plate" aria-hidden>
+              <Image src="/logo-republica.png" alt="" width={38} height={38} priority />
+            </span>
             <span style={{ minWidth: 0 }}>
               <span className="rail-club" style={{ display: "block" }}>{clubName}</span>
               <span className="rail-sub" style={{ display: "block" }}>Asociación de cultivo</span>
@@ -166,7 +161,9 @@ export function MemberShell({ clubName, userName, children }: { clubName: string
     <ToastProvider>
       <header className="member-top">
         <div className="member-top-inner">
-          <span className="monogram" aria-hidden>{monogram(clubName)}</span>
+          <span className="brand-plate" aria-hidden>
+            <Image src="/logo-republica.png" alt="" width={38} height={38} priority />
+          </span>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div className="truncate" style={{ fontFamily: "var(--font-display)", fontWeight: 650, color: "#fff", fontSize: 15 }}>{clubName}</div>
             <div style={{ fontSize: 12.5, color: "#9fb8aa" }}>Portal del socio · {userName}</div>
