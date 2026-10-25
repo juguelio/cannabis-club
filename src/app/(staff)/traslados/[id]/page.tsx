@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { Chip, Field, PageHead, Panel } from "@/components/ui";
 import { ShipmentItemForm } from "@/components/shipment-item-form";
 import { DdjjToggle, ShipmentActions } from "@/components/shipment-actions";
-import { fmtDate, fmtDateTime, fmtGrams } from "@/lib/labels";
+import { fmtDate, fmtDateTime, fmtGrams, plural } from "@/lib/labels";
 import { canDispatch, resolveShipmentStatus, shipmentDetail, totalGrams } from "@/lib/shipments";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +64,7 @@ export default async function ShipmentPage({ params }: { params: Promise<{ id: s
         }
       />
 
-      <Panel title="Estado" subtitle={`${shipment.items.length} pacientes · ${fmtGrams(totalGrams(shipment.items))}`} action={<Chip tone={meta.tone}>{meta.label}</Chip>}>
+      <Panel title="Estado" subtitle={`${plural(shipment.items.length, "paciente", "pacientes")} · ${fmtGrams(totalGrams(shipment.items))}`} action={<Chip tone={meta.tone}>{meta.label}</Chip>}>
         <div className="grid-2">
           <Field label="Sale desde" value={shipment.fromAddress} />
           <Field label="Destino" value={shipment.toAddress} />
