@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { docFingerprint } from "@/lib/privacy";
 import { requireUser } from "@/lib/auth";
 import { body, route } from "@/lib/api";
 import { clientIp } from "@/lib/http";
@@ -17,12 +18,15 @@ export const POST = route(async (req) => {
   const { csv, commit } = await body(req, Body);
   const parsed = parsePadron(csv);
   const existing = await prisma.member.findMany({
-    where: { docNumber: { in: parsed.rows.map((r) => r.docNumber) } },
-    select: { docNumber: true, legajo: true },
+    where: { docHash: { in: parsed.rows.map((r) => docFingerprint(r.docNumber).docHash) } },
+    select: { docHash: true, legajo: true },
   });
-  const known = new Map(existing.map((m) => [m.docNumber, m.legajo]));
-  const fresh = parsed.rows.filter((r) => !known.has(r.docNumber));
-  const skipped = parsed.rows.filter((r) => known.has(r.docNumber)).map((r) => ({ line: r.line, docNumber: r.docNumber, legajo: known.get(r.docNumber)! }));
+  const known = new Map(existing.map((m) => [m.docHash!, m.legajo]));
+  const hashOf = (doc: string) => docFingerprint(doc).docHash;
+  const fresh = parsed.rows.filter((r) => !known.has(hashOf(r.docNumber)));
+  const skipped = parsed.rows
+    .filter((r) => known.has(hashOf(r.docNumber)))
+    .map((r) => ({ line: r.line, docNumber: `····${r.docNumber.slice(-4)}`, legajo: known.get(hashOf(r.docNumber))! }));
 
   if (!commit) return { preview: fresh, skipped, issues: parsed.issues, headers: parsed.headers };
   if (fresh.length === 0) return { created: 0, skipped, issues: parsed.issues };
@@ -38,7 +42,9 @@ export const POST = route(async (req) => {
           legajo,
           firstName: r.firstName,
           lastName: r.lastName,
-          docNumber: r.docNumber,
+          docHash: docFingerprint(r.docNumber).docHash,
+          docLast4: docFingerprint(r.docNumber).docLast4,
+          docVerifiedAt: new Date(),
           birthDate: day(r.birthDate)!,
           phone: r.phone,
           email: r.email,

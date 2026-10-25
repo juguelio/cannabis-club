@@ -25,7 +25,7 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
 
   const [pickups, members, batches, dispensations, club, appts] = await Promise.all([
     listPickups(),
-    prisma.member.findMany({ where: { status: "ACTIVO" }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], select: { id: true, legajo: true, firstName: true, lastName: true, docNumber: true } }),
+    prisma.member.findMany({ where: { status: "ACTIVO" }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], select: { id: true, legajo: true, firstName: true, lastName: true, docLast4: true } }),
     batchesWithTotals({ stage: "DISPONIBLE" }),
     prisma.dispensation.findMany({
       where: onlyToday ? { occurredAt: { gte: slotInstant(today, 0) } } : {},
@@ -79,7 +79,7 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
       />
 
       <DispensaryConsole
-        members={members.map((m) => ({ id: m.id, legajo: m.legajo, name: `${m.lastName}, ${m.firstName}`, docNumber: m.docNumber }))}
+        members={members.map((m) => ({ id: m.id, legajo: m.legajo, name: `${m.lastName}, ${m.firstName}`, docLast4: m.docLast4 }))}
         batches={available}
         queue={queue}
         initialMemberId={sp?.socio}

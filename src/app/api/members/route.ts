@@ -1,6 +1,7 @@
 import { calendarDate, optionalDate } from "@/lib/validation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { docFingerprint } from "@/lib/privacy";
 import { requireUser } from "@/lib/auth";
 import { clientIp, fail, json } from "@/lib/http";
 import { conflict, unprocessable } from "@/lib/errors";
@@ -37,7 +38,7 @@ export async function GET(req: Request) {
               OR: [
                 { firstName: { contains: q, mode: "insensitive" } },
                 { lastName: { contains: q, mode: "insensitive" } },
-                { docNumber: { contains: q } },
+                { docLast4: { contains: q.replace(/\D/g, "") || "\u0000" } },
                 { reprocannNumber: { contains: q, mode: "insensitive" } },
               ],
             }
@@ -59,8 +60,10 @@ export async function POST(req: Request) {
 
     if (body.status === "ACTIVO" && !body.consentSignedAt)
       throw unprocessable("CONSENT_REQUIRED", "Para dar de alta como activo hace falta la fecha del consentimiento firmado.");
-    const existing = await prisma.member.findUnique({ where: { docNumber: body.docNumber } });
-    if (existing) throw conflict("DOC_EXISTS", `Ya existe un socio con documento ${body.docNumber}.`);
+    // El número no se archiva: se calcula la huella y se busca por ella (REA 4).
+    const doc = docFingerprint(body.docNumber);
+    const existing = await prisma.member.findUnique({ where: { docHash: doc.docHash } });
+    if (existing) throw conflict("DOC_EXISTS", `Ese documento ya está en el padrón (legajo ${existing.legajo}).`);
 
     const member = await prisma.$transaction(async tx => {
       const last = await tx.member.aggregate({ _max: { legajo: true } });
@@ -72,7 +75,9 @@ export async function POST(req: Request) {
           firstName: body.firstName,
           lastName: body.lastName,
           docType: body.docType,
-          docNumber: body.docNumber,
+          docHash: doc.docHash,
+          docLast4: doc.docLast4,
+          docVerifiedAt: new Date(),
           birthDate: new Date(`${body.birthDate}T00:00:00.000Z`),
           address: body.address || null,
           phone: body.phone || null,

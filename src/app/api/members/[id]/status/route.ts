@@ -33,7 +33,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         id: member.id,
         legajo: member.legajo,
         name: `${member.lastName}, ${member.firstName}`,
-        docNumber: member.docNumber,
+        docLast4: member.docLast4,
         status: member.status,
         statusLabel: MEMBER_STATUS[member.status]?.label ?? member.status,
         reprocannStatus: member.reprocannStatus,

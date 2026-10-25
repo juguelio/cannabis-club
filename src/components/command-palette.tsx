@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { maskDoc } from "@/lib/doc-format";
 import {
   CalendarClock, ClipboardList, FileSpreadsheet, LayoutDashboard, Leaf, Scale, Search, Settings, Sprout, UserPlus, Users,
 } from "lucide-react";
@@ -25,7 +26,7 @@ const Ctx = createContext<() => void>(() => undefined);
 export const useOpenPalette = () => useContext(Ctx);
 
 type Found = {
-  members: { id: string; legajo: number; firstName: string; lastName: string; docNumber: string; status: string; reprocannStatus: string }[];
+  members: { id: string; legajo: number; firstName: string; lastName: string; docLast4: string | null; status: string; reprocannStatus: string }[];
   batches: { id: string; code: string; stage: string; strain: { name: string } }[];
 };
 
@@ -71,7 +72,7 @@ export function CommandPalette({ children, isAdmin }: { children: React.ReactNod
       key: `m-${m.id}`,
       group: "Socios",
       label: `${m.lastName}, ${m.firstName}`,
-      meta: `Legajo ${m.legajo} · DNI ${m.docNumber}${m.status !== "ACTIVO" ? ` · ${m.status.toLowerCase()}` : m.reprocannStatus !== "VIGENTE" ? ` · ${REPROCANN_STATUS[m.reprocannStatus]?.label ?? ""}` : ""}`,
+      meta: `Legajo ${m.legajo} · ${maskDoc(m.docLast4)}${m.status !== "ACTIVO" ? ` · ${m.status.toLowerCase()}` : m.reprocannStatus !== "VIGENTE" ? ` · ${REPROCANN_STATUS[m.reprocannStatus]?.label ?? ""}` : ""}`,
       href: `/socios/${m.id}`,
       alt: m.status === "ACTIVO" ? `/dispensario?socio=${m.id}` : undefined,
       icon: Users,

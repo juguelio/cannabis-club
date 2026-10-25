@@ -17,14 +17,14 @@ export const GET = route(async (req) => {
       where: {
         OR: [
           ...(legajo != null ? [{ legajo }] : []),
-          { docNumber: { contains: digits } },
+          { docLast4: { contains: digits } },
           { reprocannNumber: { contains: q, mode: "insensitive" as const } },
           { id: { in: nameIds } },
         ],
       },
       orderBy: [{ status: "asc" }, { lastName: "asc" }],
       take: 8,
-      select: { id: true, legajo: true, firstName: true, lastName: true, docNumber: true, status: true, reprocannStatus: true, reprocannExpiresAt: true },
+      select: { id: true, legajo: true, firstName: true, lastName: true, docLast4: true, status: true, reprocannStatus: true, reprocannExpiresAt: true },
     }),
     prisma.batch.findMany({
       where: { OR: [{ code: { contains: q, mode: "insensitive" } }, { strain: { name: { contains: q, mode: "insensitive" } } }] },

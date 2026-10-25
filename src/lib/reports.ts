@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
+import { maskDoc } from "./privacy";
 import { CONSUMPTION, MEMBER_STATUS, REPROCANN_STATUS, STAGE } from "./labels";
 
 export type ReportOptions = { from?: string | null; to?: string | null; year?: number | null };
@@ -63,7 +64,7 @@ async function padron(): Promise<Report> {
       m.lastName,
       m.firstName,
       m.docType,
-      m.docNumber,
+      maskDoc(m.docLast4),
       fdate(m.birthDate),
       MEMBER_STATUS[m.status]?.label ?? m.status,
       m.reprocannNumber ?? "",
@@ -108,7 +109,7 @@ async function dispensaciones(opts: ReportOptions): Promise<Report> {
       d.member.lastName,
       d.member.firstName,
       d.member.birthDate.getUTCFullYear(),
-      d.member.docNumber,
+      maskDoc(d.member.docLast4),
       d.batch.strain.name,
       d.batch.code,
       fnum(d.grams),

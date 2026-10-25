@@ -11,7 +11,7 @@ import { MemberPicker } from "./member-picker";
 import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
 
-type MemberOption = { id: string; legajo: number; name: string; docNumber?: string };
+type MemberOption = { id: string; legajo: number; name: string; docLast4?: string | null };
 
 const fmtDay = (key: string) => {
   const [y, m, d] = key.split("-").map(Number);

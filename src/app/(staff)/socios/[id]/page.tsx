@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import QRCode from "qrcode";
 import { ArrowLeft, History, Scale } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { maskDoc, memberConsents } from "@/lib/privacy";
+import { ConsentPanel } from "@/components/consent-panel";
 import { getSession } from "@/lib/auth";
 import { getClub, limitsFromClub } from "@/lib/club";
 import { memberUsage } from "@/lib/dispensary";
@@ -36,10 +38,11 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
   ]);
   if (!member) notFound();
 
-  const [usage, activity, account] = await Promise.all([
+  const [usage, activity, account, consents] = await Promise.all([
     memberUsage(prisma, member.id, club.timezone),
     prisma.auditLog.findMany({ where: { entity: "Member", entityId: member.id }, orderBy: { createdAt: "desc" }, take: 12, include: { actor: { select: { name: true } } } }),
     memberAccount(member.id, 12),
+    memberConsents(member.id),
   ]);
   const limits = limitsFromClub(club);
   const years = age(member.birthDate);
@@ -63,7 +66,7 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
             <h1 className="profile-name">{member.lastName}, {member.firstName}</h1>
             <div className="profile-meta">
               <span>Legajo {member.legajo}</span>
-              <span>DNI {member.docNumber}</span>
+              <span>{maskDoc(member.docLast4)}</span>
               <span>{years} años</span>
               <span>{CONSUMPTION[member.consumptionType]}</span>
             </div>
@@ -212,9 +215,15 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
                 <dt>Email</dt><dd>{member.email ?? "—"}</dd>
                 <dt>Domicilio</dt><dd>{member.address ?? "—"}</dd>
                 <dt>Nacimiento</dt><dd>{fmtDate(member.birthDate)}</dd>
-                <dt>Consentimiento</dt><dd>{member.consentSignedAt ? `Firmado el ${fmtDate(member.consentSignedAt)}` : "Falta firmar"}</dd>
+                <dt>Documento</dt><dd>{maskDoc(member.docLast4)}{member.docVerifiedAt ? ` · verificado el ${fmtDate(member.docVerifiedAt)}` : ""}</dd>
               </dl>
               {member.notes ? <p className="muted" style={{ margin: "14px 0 0", fontSize: 14, whiteSpace: "pre-line" }}>{member.notes}</p> : null}
+            </div>
+          </Panel>
+
+          <Panel title="Consentimientos" subtitle="Por finalidad: el socio puede autorizar sus datos y negar la imagen. Revocar deja la fecha, no borra el registro.">
+            <div className="panel-body">
+              <ConsentPanel memberId={member.id} initial={consents} isAdmin={session.role === "ADMIN"} />
             </div>
           </Panel>
 

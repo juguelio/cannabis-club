@@ -22,7 +22,7 @@ export default async function TurnosPage({ searchParams }: { searchParams: Promi
     prisma.member.findMany({
       where: { status: "ACTIVO" },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-      select: { id: true, legajo: true, firstName: true, lastName: true, docNumber: true },
+      select: { id: true, legajo: true, firstName: true, lastName: true, docLast4: true },
     }),
   ]);
 
@@ -35,7 +35,7 @@ export default async function TurnosPage({ searchParams }: { searchParams: Promi
       <AppointmentsBoard
         initial={board}
         today={today}
-        members={members.map((m) => ({ id: m.id, legajo: m.legajo, name: `${m.lastName}, ${m.firstName}`, docNumber: m.docNumber }))}
+        members={members.map((m) => ({ id: m.id, legajo: m.legajo, name: `${m.lastName}, ${m.firstName}`, docLast4: m.docLast4 }))}
       />
     </>
   );

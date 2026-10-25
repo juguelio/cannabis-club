@@ -189,9 +189,35 @@ model MonthlyClose {
   @@index([signedAt])
 }
 
+/// Consentimiento por finalidad: se registra y se revoca por separado (REA 4).
+enum ConsentPurpose {
+  DATOS_PERSONALES
+  SALUD
+  IMAGEN
+  COMUNICACIONES
+}
+
+model Consent {
+  id          String         @id @default(cuid())
+  memberId    String
+  member      Member         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  purpose     ConsentPurpose
+  version     String
+  grantedAt   DateTime       @default(now())
+  grantedById String?
+  grantedBy   User?          @relation("ConsentGrantor", fields: [grantedById], references: [id], onDelete: SetNull)
+  revokedAt   DateTime?
+  note        String?
+  createdAt   DateTime       @default(now())
+
+  @@unique([memberId, purpose, version])
+  @@index([memberId, purpose])
+}
+
 model User {
   id           String    @id @default(cuid())
   closes       MonthlyClose[] @relation("CloseSigner")
+  consents     Consent[]      @relation("ConsentGrantor")
   accountEntries AccountEntry[] @relation("AccountEntryCreator")
   email        String    @unique
   name         String
@@ -218,7 +244,11 @@ model Member {
   firstName        String
   lastName         String
   docType          String          @default("DNI")
-  docNumber        String          @unique
+  /// Huella HMAC-SHA256 del documento normalizado: el número no se archiva (REA 4).
+  docHash          String?         @unique
+  /// Últimos 4 dígitos, para verificar en el mostrador sin exponer el número.
+  docLast4         String?
+  docVerifiedAt    DateTime?
   birthDate        DateTime        @db.Date
   address          String?
   phone            String?
@@ -244,6 +274,7 @@ model Member {
   dispensations Dispensation[]
   movements     StockMovement[]
   transports    Transport[]     @relation("TransportDriver")
+  consents      Consent[]
 
   @@index([status])
   @@index([lastName, firstName])

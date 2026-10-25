@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { docFingerprint } from "../src/lib/privacy";
 
 const prisma = new PrismaClient();
 const D = (v: number) => new Prisma.Decimal(v.toFixed(2));
@@ -119,6 +120,14 @@ async function main() {
     },
   });
 
+  /** Los documentos del seed se convierten en huella: el número no queda en la base. */
+  const withDoc = <T extends { docNumber: string }>(m: T) => {
+    const fp = docFingerprint(m.docNumber);
+    const { docNumber, ...rest } = m;
+    void docNumber;
+    return { ...rest, docHash: fp.docHash, docLast4: fp.docLast4, docVerifiedAt: date("2026-01-05") };
+  };
+
   const membersData = [
     {
       legajo: 1, firstName: "María", lastName: "Gómez", docNumber: "30111222", birthDate: date("1988-04-12"),
@@ -152,7 +161,7 @@ async function main() {
     },
   ];
   const members = [] as { id: string; legajo: number }[];
-  for (const data of membersData) {
+  for (const data of membersData.map(withDoc)) {
     const m = await prisma.member.create({ data });
     members.push({ id: m.id, legajo: m.legajo });
   }
@@ -240,7 +249,7 @@ async function main() {
   for (const [i, [firstName, lastName, docNumber, birth, consumo, forecast]] of extra.entries()) {
     const m = await prisma.member.create({
       data: {
-        legajo: 6 + i, firstName, lastName, docNumber, birthDate: date(birth), status: "ACTIVO", admittedAt: date("2026-03-01"),
+        legajo: 6 + i, firstName, lastName, ...withDoc({ docNumber }), birthDate: date(birth), status: "ACTIVO", admittedAt: date("2026-03-01"),
         reprocannNumber: `REP-00${6 + i}00`, reprocannStatus: "VIGENTE",
         reprocannExpiresAt: date(i === 2 ? soon : "2027-05-01"), consumptionType: consumo, monthlyForecastG: D(forecast),
         consentSignedAt: date("2026-03-01"), phone: `+54 9 2972 40-${String(1000 + i * 37)}`,

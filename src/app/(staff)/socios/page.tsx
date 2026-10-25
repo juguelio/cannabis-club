@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { FileUp, Search, UserPlus, Users } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { maskDoc } from "@/lib/privacy";
 import { getSession } from "@/lib/auth";
 import { getClub, limitsFromClub } from "@/lib/club";
 import { monthUsageByMember } from "@/lib/usage";
@@ -31,7 +32,7 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
     ? {
         OR: [
           ...(/^\d{1,6}$/.test(digits) ? [{ legajo: Number(digits) }] : []),
-          { docNumber: { contains: digits || query } },
+          ...(digits ? [{ docLast4: { contains: digits } }] : []),
           { reprocannNumber: { contains: query, mode: "insensitive" } },
           { id: { in: await memberIdsByName(query) } },
         ],
@@ -148,7 +149,7 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
                           </span>
                         </Link>
                       </td>
-                      <td className="tnum hide-sm">{m.docNumber}</td>
+                      <td className="tnum hide-sm">{maskDoc(m.docLast4)}</td>
                       <td className="tnum hide-sm">{years}</td>
                       <td className="hide-sm"><Chip tone={st.tone}>{st.label}</Chip></td>
                       <td><Chip tone={issue.tone}>{issue.label.replace("REPROCANN ", "")}</Chip></td>

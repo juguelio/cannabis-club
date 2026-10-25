@@ -2,8 +2,9 @@
 
 import { useId, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
+import { maskDoc } from "@/lib/doc-format";
 
-export type PickerMember = { id: string; legajo: number; name: string; docNumber?: string; hint?: string };
+export type PickerMember = { id: string; legajo: number; name: string; docLast4?: string | null; hint?: string };
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -40,7 +41,7 @@ export function MemberPicker({
         const name = fold(m.name);
         let score = 0;
         if (/^\d+$/.test(digits) && String(m.legajo) === digits) score = 100;
-        else if (/^\d+$/.test(digits) && m.docNumber?.includes(digits)) score = 60;
+        else if (/^\d+$/.test(digits) && m.docLast4?.includes(digits)) score = 60;
         else if (words.every((w) => name.includes(w))) score = name.startsWith(words[0]) ? 50 : 30;
         return { m, score };
       })
@@ -112,7 +113,7 @@ export function MemberPicker({
                 >
                   <span className="tnum muted" style={{ width: 34, fontWeight: 600 }}>{m.legajo}</span>
                   <span className="grow truncate" style={{ fontWeight: 550 }}>{m.name}</span>
-                  {m.hint ? <span className="cell-meta">{m.hint}</span> : m.docNumber ? <span className="cell-meta tnum">{m.docNumber}</span> : null}
+                  {m.hint ? <span className="cell-meta">{m.hint}</span> : m.docLast4 ? <span className="cell-meta tnum">{maskDoc(m.docLast4)}</span> : null}
                 </li>
               ))}
             </ul>
