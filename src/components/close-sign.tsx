@@ -1,0 +1,43 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { api, errMsg } from "@/lib/client";
+import { useToast } from "@/components/toast";
+
+/** Firma del cierre mensual: congela los totales del período (REA 3). */
+export function CloseSign({ period }: { period: string }) {
+  const router = useRouter();
+  const toast = useToast();
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function sign() {
+    if (!window.confirm(`Firmar el cierre de ${period}. Los totales quedan congelados: corregirlos después requiere un cierre nuevo. ¿Seguir?`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api<{ close: { hash: string } }>("/api/close", { body: { period, note: note.trim() || undefined } });
+      toast({ tone: "ok", title: "Cierre firmado", text: `Huella ${res.close.hash.slice(0, 12)}… guardada con el período.` });
+      router.refresh();
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="stack" style={{ gap: 10 }}>
+      <div>
+        <label className="label" htmlFor="close-note">Nota del cierre (opcional)</label>
+        <input id="close-note" className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej.: mes con recall del lote L-2026-002" />
+      </div>
+      {error ? <div className="note note-warn" role="alert">{error}</div> : null}
+      <div>
+        <button className="btn" onClick={sign} disabled={busy}>{busy ? "Firmando…" : `Firmar cierre de ${period}`}</button>
+      </div>
+    </div>
+  );
+}

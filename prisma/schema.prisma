@@ -170,8 +170,28 @@ model AccountEntry {
   @@index([memberId, occurredAt])
 }
 
+/// Cierre mensual firmado: congela los totales del período con la firma de quien lo cierra.
+/// Append-only: corregir es un cierre nuevo que declara cuál reemplaza (`supersedesId`).
+model MonthlyClose {
+  id             String   @id @default(cuid())
+  /// Período `YYYY-MM`.
+  period         String   @unique
+  payload        Json
+  /// Huella SHA-256 del contenido: si alguien toca el payload, deja de cerrar.
+  hash           String
+  signedById     String
+  signer         User     @relation("CloseSigner", fields: [signedById], references: [id])
+  signedAt       DateTime @default(now())
+  note           String?
+  supersedesId   String?  @unique
+  createdAt      DateTime @default(now())
+
+  @@index([signedAt])
+}
+
 model User {
   id           String    @id @default(cuid())
+  closes       MonthlyClose[] @relation("CloseSigner")
   accountEntries AccountEntry[] @relation("AccountEntryCreator")
   email        String    @unique
   name         String

@@ -68,9 +68,16 @@ function ShellInner({ clubName, userName, userRole, clubConfigured, pendingPicku
     { href: "/socios", label: "Socios", icon: Users },
     { href: "/stock", label: "Stock y lotes", icon: Sprout },
     { href: "/control", label: "Control", icon: Sprout },
+    { href: "/cierre-mensual", label: "Cierre mensual", icon: FileSpreadsheet },
     { href: "/reportes", label: "Libros", icon: FileSpreadsheet },
   ];
-  const admin: NavItem[] = userRole === "ADMIN" ? [{ href: "/configuracion", label: "Configuración", icon: Settings }] : [];
+  const admin: NavItem[] =
+    userRole === "ADMIN"
+      ? [
+          { href: "/inspeccion", label: "Modo inspección", icon: FileSpreadsheet },
+          { href: "/configuracion", label: "Configuración", icon: Settings },
+        ]
+      : [];
 
   const link = (item: NavItem) => {
     const Icon = item.icon;
