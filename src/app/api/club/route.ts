@@ -1,7 +1,7 @@
 
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { getClub, CLUB_ID } from "@/lib/club";
+import { getClub, CLUB_ID, OMIT_IMAGES } from "@/lib/club";
 import { clubSettings, clubSettingsFields } from "@/lib/club-settings";
 import { clientIp, fail, json } from "@/lib/http";
 
@@ -23,7 +23,7 @@ export async function PATCH(req: Request) {
     const body = Body.parse(await req.json());
     await getClub();
     const club = await prisma.$transaction(async tx => {
-      const current = await tx.club.findUniqueOrThrow({ where: { id: CLUB_ID } });
+      const current = await tx.club.findUniqueOrThrow({ where: { id: CLUB_ID }, omit: OMIT_IMAGES });
       clubSettings.parse({ ...current,
         limiteDiarioG: Number(current.limiteDiarioG), limiteMensualG: Number(current.limiteMensualG),
         limiteMenorG: Number(current.limiteMenorG), thcMaxMenor: current.thcMaxMenor == null ? null : Number(current.thcMaxMenor),
@@ -32,7 +32,7 @@ export async function PATCH(req: Request) {
         cuotaSocialArs: current.cuotaSocialArs == null ? null : Number(current.cuotaSocialArs),
         cuotaIngresoArs: current.cuotaIngresoArs == null ? null : Number(current.cuotaIngresoArs),
         reprocannNumber: current.reprocannNumber ?? "", reprocannCode: current.reprocannCode ?? "", ...body });
-      const updated = await tx.club.update({ where: { id: CLUB_ID }, data: body });
+      const updated = await tx.club.update({ where: { id: CLUB_ID }, data: body, omit: OMIT_IMAGES });
       await tx.auditLog.create({ data: { actorId: user.id, action: "CLUB_UPDATE", entity: "Club", entityId: CLUB_ID, ip: clientIp(req), payload: body } });
       return updated;
     }, { isolationLevel: "Serializable" });

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
@@ -9,6 +8,7 @@ import {
 } from "lucide-react";
 import { CommandPalette, useOpenPalette } from "./command-palette";
 import { ToastProvider } from "./toast";
+import { BrandMark, type BrandMarkInfo } from "./brand-mark";
 
 type NavItem = { href: string; label: string; icon: React.ElementType; count?: number };
 
@@ -21,6 +21,7 @@ const ROLE: Record<string, string> = { ADMIN: "Administración", OPERADOR: "Most
 
 export function Shell(props: {
   clubName: string;
+  mark: BrandMarkInfo;
   userName: string;
   userRole: string;
   clubConfigured: boolean;
@@ -37,7 +38,7 @@ export function Shell(props: {
   );
 }
 
-function ShellInner({ clubName, userName, userRole, clubConfigured, pendingPickups, todayAppointments, children }: Parameters<typeof Shell>[0]) {
+function ShellInner({ clubName, mark, userName, userRole, clubConfigured, pendingPickups, todayAppointments, children }: Parameters<typeof Shell>[0]) {
   const path = usePathname();
   const openPalette = useOpenPalette();
   const [drawer, setDrawer] = useState(false);
@@ -93,16 +94,14 @@ function ShellInner({ clubName, userName, userRole, clubConfigured, pendingPicku
       <aside className="rail" data-open={drawer} aria-label="Navegación principal">
         <div className="flex items-start justify-between">
           <Link href="/" className="rail-brand">
-            <span className="brand-plate" aria-hidden>
-              <Image src="/logo-republica.png" alt="" width={38} height={38} priority />
-            </span>
+            <BrandMark info={mark} />
             <span style={{ minWidth: 0 }}>
-              <span className="rail-club" style={{ display: "block" }}>{clubName}</span>
+              <span className="rail-club wordmark" style={{ display: "block" }}>{clubName}</span>
               <span className="rail-sub" style={{ display: "block" }}>Asociación de cultivo</span>
             </span>
           </Link>
           {drawer ? (
-            <button className="icon-btn" style={{ color: "#c9d9cf" }} onClick={() => setDrawer(false)} aria-label="Cerrar menú"><X /></button>
+            <button className="icon-btn" style={{ color: "var(--on-dark-2)" }} onClick={() => setDrawer(false)} aria-label="Cerrar menú"><X /></button>
           ) : null}
         </div>
         <nav className="flex flex-col gap-0.5">
@@ -158,17 +157,15 @@ function ShellInner({ clubName, userName, userRole, clubConfigured, pendingPicku
   );
 }
 
-export function MemberShell({ clubName, userName, children }: { clubName: string; userName: string; children: React.ReactNode }) {
+export function MemberShell({ clubName, mark, userName, children }: { clubName: string; mark: BrandMarkInfo; userName: string; children: React.ReactNode }) {
   return (
     <ToastProvider>
       <header className="member-top">
         <div className="member-top-inner">
-          <span className="brand-plate" aria-hidden>
-            <Image src="/logo-republica.png" alt="" width={38} height={38} priority />
-          </span>
+          <BrandMark info={mark} />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div className="truncate" style={{ fontFamily: "var(--font-display)", fontWeight: 650, color: "#fff", fontSize: 15 }}>{clubName}</div>
-            <div style={{ fontSize: 12.5, color: "#9fb8aa" }}>Portal del socio · {userName}</div>
+            <div className="truncate wordmark member-top-club">{clubName}</div>
+            <div className="member-top-sub">Portal del socio · {userName}</div>
           </div>
           <form action="/api/auth/logout" method="post">
             <button className="rail-out" type="submit" aria-label="Cerrar sesión" title="Cerrar sesión"><LogOut size={16} /></button>

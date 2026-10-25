@@ -130,6 +130,14 @@ model Club {
   cuotaIngresoArs   Decimal? @db.Decimal(12, 2)
   /// Exigir liberación firmada del lote antes de entregar (REA 5.1).
   requiereLiberacion Boolean @default(true)
+  /// Marca del club (colores, tipografías, textos del sitio). Validada por src/lib/brand.ts; null = aspecto por defecto.
+  marca              Json?
+  /// Imágenes de marca como data URL (png/jpeg/webp), servidas por /api/marca/<tipo>.
+  marcaLogo          String?  @db.Text
+  marcaEmblema       String?  @db.Text
+  marcaPortada       String?  @db.Text
+  /// Sube con cada cambio de marca: invalida la caché de las imágenes.
+  marcaVersion       Int      @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
