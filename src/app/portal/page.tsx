@@ -8,6 +8,7 @@ import { recalledBatchesForMember } from "@/lib/batch-quality";
 import { CONSENT_TEXTS, memberConsents } from "@/lib/privacy";
 import QRCode from "qrcode";
 import { MemberPortal } from "@/components/member-portal";
+import { catalogoDelClub } from "@/lib/variedades";
 
 export const metadata = { title: "Mi portal" };
 
@@ -18,7 +19,7 @@ export default async function PortalPage() {
   if (!session) redirect("/login");
   if (session.mustChangePassword) redirect("/portal/clave");
 
-  const [overview, member, deliveries, recalled, consents] = await Promise.all([
+  const [overview, member, deliveries, recalled, consents, variedades] = await Promise.all([
     portalOverview(session.memberId),
     prisma.member.findUniqueOrThrow({ where: { id: session.memberId }, select: { consentSignedAt: true } }),
     prisma.dispensation.findMany({
@@ -29,6 +30,7 @@ export default async function PortalPage() {
     }),
     recalledBatchesForMember(session.memberId),
     memberConsents(session.memberId),
+    catalogoDelClub(),
   ]);
   const today = dayKeyOf(new Date());
 
@@ -64,6 +66,7 @@ export default async function PortalPage() {
       qr={qr}
       consentDate={member.consentSignedAt?.toISOString() ?? null}
       history={deliveries.map((d) => ({ id: d.id, at: d.occurredAt.toISOString(), grams: Number(d.grams), strain: d.batch.strain.name, batch: d.batch.code, voided: Boolean(d.voidedAt) }))}
+      variedades={variedades}
     />
   );
 }

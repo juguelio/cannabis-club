@@ -2,10 +2,11 @@
 
 
 import { useEffect, useState } from "react";
-import { CalendarCheck2, CircleAlert, QrCode } from "lucide-react";
+import { CalendarCheck2, CircleAlert, Leaf, QrCode } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
+import type { Variedad } from "@/lib/variedad-rules";
 import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
 
@@ -71,6 +72,7 @@ export function MemberPortal({
   qr,
   history,
   consentDate,
+  variedades = [],
 }: {
   initial: Overview;
   initialSlots: Slot[];
@@ -81,6 +83,7 @@ export function MemberPortal({
   qr: string;
   history: MemberHistory;
   consentDate: string | null;
+  variedades?: Variedad[];
 }) {
   const toast = useToast();
   const [data, setData] = useState<Overview>(initial);
@@ -148,6 +151,7 @@ export function MemberPortal({
         </div>
         <nav aria-label="Secciones de tu portal" className="member-shortcuts">
           <a href="#mi-carnet" onClick={() => setShowCard(true)}>Mi carnet</a>
+          <a href="#variedades">Variedades</a>
           <a href="#historial">Historial</a>
           <a href="#documentacion">Documentación</a>
         </nav>
@@ -361,6 +365,50 @@ export function MemberPortal({
             })}
           </ul>
         )}
+      </section>
+
+      <section className="panel" id="variedades" aria-labelledby="variedades-title">
+        <div className="panel-head"><div>
+          <h2 className="panel-title" style={{ fontSize: 19 }} id="variedades-title">Variedades del club</h2>
+          <p className="panel-sub">Lo que el club tiene cultivado. No se vende: el aporte de cultivo se prorratea al retirar y lo ves en tu cuenta.</p>
+        </div></div>
+        <div className="panel-body">
+          {variedades.length === 0 ? (
+            <div className="note note-mute">
+              <Leaf aria-hidden />
+              <div>Todavía no hay variedades publicadas. Cuando el club cierre una cosecha, aparecen acá.</div>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+              {variedades.map((v) => (
+                <div
+                  key={v.id}
+                  style={{
+                    border: `1px ${v.disponible ? "solid" : "dashed"} var(--line)`,
+                    borderRadius: 12,
+                    padding: "14px 16px",
+                    opacity: v.disponible ? 1 : 0.8,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <b style={{ fontFamily: "var(--font-display)", fontSize: 16 }}>{v.nombre}</b>
+                    <Chip tone={v.disponible ? "ok" : "mute"}>{v.disponible ? "Con stock" : "Sin stock"}</Chip>
+                  </div>
+                  {v.genetica ? <div className="panel-sub" style={{ marginTop: 4, marginBottom: 0 }}>{v.genetica}</div> : null}
+                  {v.thc != null || v.cbd != null ? (
+                    <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                      {v.thc != null ? <Chip tone="mute">THC {v.thc}%</Chip> : null}
+                      {v.cbd != null ? <Chip tone="mute">CBD {v.cbd}%</Chip> : null}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="panel-sub" style={{ marginTop: 12, marginBottom: 0 }}>
+            Para llevarte algo, reservá un retiro arriba: elegís gramos y horario, y el club lo prepara.
+          </p>
+        </div>
       </section>
 
       <section className="panel" id="historial" aria-labelledby="history-title">
