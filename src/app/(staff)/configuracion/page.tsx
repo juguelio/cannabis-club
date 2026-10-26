@@ -9,6 +9,7 @@ import { BrandEditor } from "@/components/brand-editor";
 import { getBrandView } from "@/lib/brand-db";
 import { TeamManager } from "@/components/team-manager";
 import { PendingAccess } from "@/components/pending-access";
+import { AccessRequests } from "@/components/access-requests";
 import { PadronImport } from "@/components/padron-import";
 import { AUDIT_ACTION, fmtWhen } from "@/lib/labels";
 
@@ -78,6 +79,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     const nombre = (m: { legajo: number; firstName: string; lastName: string }) => `${m.lastName}, ${m.firstName}`;
     body = (
       <div className="stack" style={{ gap: 18 }}>
+        <AccessRequests />
         <PendingAccess
           pendientes={pendientes.map((p) => {
             const s = sugeridos.find((m) => String(m.email ?? "").toLowerCase() === p.email);

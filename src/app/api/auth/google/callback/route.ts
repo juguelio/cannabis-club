@@ -5,6 +5,7 @@ import { clientIp } from "@/lib/http";
 import { startSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { OAUTH_COOKIE, OAUTH_COOKIE_PATH, exchangeAndVerify, googleConfig, openState } from "@/lib/google";
+import { crearSesionSolicitud } from "@/lib/onboarding";
 import { MAX_ALTAS_POR_IP_24H, decideGoogleLogin, pendingDefaults } from "@/lib/google-rules";
 
 const destino = (role: string) => (role === "SOCIO" ? "/portal" : "/");
@@ -15,7 +16,10 @@ const destino = (role: string) => (role === "SOCIO" ? "/portal" : "/");
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const origin = url.origin;
+  // El origen sale de APP_BASE_URL: en local Next arma `req.url` con `localhost`
+  // y la cookie termina en otro origen que el que sigue el navegador.
+  const base = process.env.APP_BASE_URL || url.origin;
+  const origin = base.endsWith("/") ? base.slice(0, -1) : base;
   const volver = (qs: string) => NextResponse.redirect(`${origin}/login?${qs}`, 302);
 
   const cfg = googleConfig();
@@ -49,7 +53,17 @@ export async function GET(req: Request) {
 
   const decision = decideGoogleLogin(user, profile);
 
-  if (decision.kind === "pendiente") return volver(`error=${decision.motivo.toLowerCase()}`);
+  // Si la cuenta existe pero no está habilitada y no tiene legajo, está a mitad del onboarding:
+  // se la manda a completar la solicitud en vez de rechazarla (puede volver cuantas veces quiera).
+  const aMitad = (u: typeof user) => !!u && !u.active && !u.memberId;
+
+  if (decision.kind === "pendiente") {
+    if (aMitad(user)) {
+      await crearSesionSolicitud(user!.id);
+      return NextResponse.redirect(`${origin}/solicitud`, 302);
+    }
+    return volver(`error=${decision.motivo.toLowerCase()}`);
+  }
 
   if (decision.kind === "alta_inactiva") {
     // Freno anti-abuso: un bot no puede llenar el padrón de cuentas pendientes.
@@ -69,7 +83,9 @@ export async function GET(req: Request) {
       ip,
       payload: { email: creada.email, via: "google", googleSub: profile.sub },
     });
-    return volver("aviso=pendiente");
+    // Se abre la sesión de onboarding: con esa cookie sólo se llega a /solicitud.
+    await crearSesionSolicitud(creada.id);
+    return NextResponse.redirect(`${origin}/solicitud`, 302);
   }
 
   // Sesión: si es la primera vez con Google, se ata el `sub` a esta cuenta.

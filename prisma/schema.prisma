@@ -1,4 +1,3 @@
-
 // Esquema derivado del REA (docs/REA-clubes-europeos.md).
 // Regla base: el stock NO es un campo, es la suma de StockMovement. El registro es append-only.
 
@@ -104,32 +103,32 @@ model ClosedDay {
 /// Configuración del club. Los topes son configuración, no constantes:
 /// el default europeo es 25 g/día, 50 g/mes, 30 g y <=10% THC para menores de 21.
 model Club {
-  id                String   @id @default("singleton")
-  nombre            String
+  id                 String   @id @default("singleton")
+  nombre             String
   /// Nombre corto para el rail y el portal; el `nombre` largo va en libros y comprobantes.
-  nombreCorto       String?
-  cuit              String?
-  reprocannNumber   String?
-  reprocannCode     String?
-  directorMedico    String?
+  nombreCorto        String?
+  cuit               String?
+  reprocannNumber    String?
+  reprocannCode      String?
+  directorMedico     String?
   responsableTecnico String?
-  limiteDiarioG     Decimal  @default(25) @db.Decimal(6, 2)
-  limiteMensualG    Decimal  @default(50) @db.Decimal(6, 2)
-  limiteMenorG      Decimal  @default(30) @db.Decimal(6, 2)
-  edadMinima        Int      @default(18)
-  edadLimiteMenor   Int      @default(21)
-  thcMaxMenor       Decimal? @db.Decimal(5, 2)
-  maxSocios         Int      @default(500)
-  requiereReprocann Boolean  @default(true)
-  timezone          String   @default("America/Argentina/Buenos_Aires")
+  limiteDiarioG      Decimal  @default(25) @db.Decimal(6, 2)
+  limiteMensualG     Decimal  @default(50) @db.Decimal(6, 2)
+  limiteMenorG       Decimal  @default(30) @db.Decimal(6, 2)
+  edadMinima         Int      @default(18)
+  edadLimiteMenor    Int      @default(21)
+  thcMaxMenor        Decimal? @db.Decimal(5, 2)
+  maxSocios          Int      @default(500)
+  requiereReprocann  Boolean  @default(true)
+  timezone           String   @default("America/Argentina/Buenos_Aires")
   /// Aporte de cultivo por gramo (prorrateo de costos, NO precio de venta).
-  aportePorGramo    Decimal? @db.Decimal(10, 2)
+  aportePorGramo     Decimal? @db.Decimal(10, 2)
   /// Cuota social mensual (prorrateo de costos fijos, NO precio).
-  cuotaSocialArs    Decimal? @db.Decimal(12, 2)
+  cuotaSocialArs     Decimal? @db.Decimal(12, 2)
   /// Cuota de ingreso, si el club la cobra.
-  cuotaIngresoArs   Decimal? @db.Decimal(12, 2)
+  cuotaIngresoArs    Decimal? @db.Decimal(12, 2)
   /// Exigir liberación firmada del lote antes de entregar (REA 5.1).
-  requiereLiberacion Boolean @default(true)
+  requiereLiberacion Boolean  @default(true)
   /// Marca del club (colores, tipografías, textos del sitio). Validada por src/lib/brand.ts; null = aspecto por defecto.
   marca              Json?
   /// Imágenes de marca como data URL (png/jpeg/webp), servidas por /api/marca/<tipo>.
@@ -138,8 +137,8 @@ model Club {
   marcaPortada       String?  @db.Text
   /// Sube con cada cambio de marca: invalida la caché de las imágenes.
   marcaVersion       Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 enum AccountKind {
@@ -202,18 +201,18 @@ model SemesterReport {
 }
 
 model MonthlyClose {
-  id             String   @id @default(cuid())
+  id           String   @id @default(cuid())
   /// Período `YYYY-MM`.
-  period         String   @unique
-  payload        Json
+  period       String   @unique
+  payload      Json
   /// Huella SHA-256 del contenido: si alguien toca el payload, deja de cerrar.
-  hash           String
-  signedById     String
-  signer         User     @relation("CloseSigner", fields: [signedById], references: [id])
-  signedAt       DateTime @default(now())
-  note           String?
-  supersedesId   String?  @unique
-  createdAt      DateTime @default(now())
+  hash         String
+  signedById   String
+  signer       User     @relation("CloseSigner", fields: [signedById], references: [id])
+  signedAt     DateTime @default(now())
+  note         String?
+  supersedesId String?  @unique
+  createdAt    DateTime @default(now())
 
   @@index([signedAt])
 }
@@ -284,70 +283,72 @@ model NoticeLog {
 }
 
 model User {
-  id           String    @id @default(cuid())
+  id                 String           @id @default(cuid())
   /// Cambiar la clave (o restablecerla) sube la versión: los tokens viejos dejan de valer.
-  tokenVersion     Int       @default(0)
+  tokenVersion       Int              @default(0)
   /// Clave temporal entregada en el mostrador: hay que cambiarla y vence.
-  mustChangePassword Boolean @default(false)
+  mustChangePassword Boolean          @default(false)
   passwordChangedAt  DateTime?
-  closes       MonthlyClose[] @relation("CloseSigner")
-  semesterReports SemesterReport[] @relation("SemesterSigner")
-  consents     Consent[]      @relation("ConsentGrantor")
-  noticesSent  NoticeLog[]    @relation("NoticeSender")
-  accountEntries AccountEntry[] @relation("AccountEntryCreator")
-  email        String    @unique
-  name         String
+  closes             MonthlyClose[]   @relation("CloseSigner")
+  semesterReports    SemesterReport[] @relation("SemesterSigner")
+  consents           Consent[]        @relation("ConsentGrantor")
+  noticesSent        NoticeLog[]      @relation("NoticeSender")
+  accountEntries     AccountEntry[]   @relation("AccountEntryCreator")
+  email              String           @unique
+  name               String
   /// Nulo cuando la cuenta se creó con Google: no hay clave que verificar.
-  passwordHash String?
+  passwordHash       String?
   /// Identidad de Google (`sub`), estable aunque la persona cambie de email.
-  googleSub    String?   @unique
-  role         Role      @default(OPERADOR)
-  active       Boolean   @default(true)
-  memberId     String?   @unique
-  member       Member?   @relation(fields: [memberId], references: [id])
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
+  googleSub          String?          @unique
+  role               Role             @default(OPERADOR)
+  active             Boolean          @default(true)
+  memberId           String?          @unique
+  member             Member?          @relation(fields: [memberId], references: [id])
+  lastLoginAt        DateTime?
+  createdAt          DateTime         @default(now())
 
-  movements     StockMovement[] @relation("MovementActor")
-  appointments  Appointment[]   @relation("AppointmentOperator")
-  dispensations Dispensation[]  @relation("DispensationOperator")
-  voided        Dispensation[]  @relation("DispensationVoider")
-  audits        AuditLog[]
-  transports    Transport[]
-  shipments     Shipment[]      @relation("ShipmentCreator")
+  movements        StockMovement[] @relation("MovementActor")
+  appointments     Appointment[]   @relation("AppointmentOperator")
+  dispensations    Dispensation[]  @relation("DispensationOperator")
+  voided           Dispensation[]  @relation("DispensationVoider")
+  audits           AuditLog[]
+  transports       Transport[]
+  shipments        Shipment[]      @relation("ShipmentCreator")
+  accessRequest    AccessRequest?
+  reviewedRequests AccessRequest[] @relation("AccessReviewer")
 }
 
 model Member {
-  id               String          @id @default(cuid())
-  account          AccountEntry[]
-  shipmentItems    ShipmentItem[]
-  legajo           Int             @unique
-  firstName        String
-  lastName         String
-  docType          String          @default("DNI")
+  id                 String          @id @default(cuid())
+  account            AccountEntry[]
+  shipmentItems      ShipmentItem[]
+  legajo             Int             @unique
+  firstName          String
+  lastName           String
+  docType            String          @default("DNI")
   /// Huella HMAC-SHA256 del documento normalizado: el número no se archiva (REA 4).
-  docHash          String?         @unique
+  docHash            String?         @unique
   /// Últimos 4 dígitos, para verificar en el mostrador sin exponer el número.
-  docLast4         String?
-  docVerifiedAt    DateTime?
-  birthDate        DateTime        @db.Date
-  address          String?
-  phone            String?
-  email            String?
-  status           MemberStatus    @default(PENDIENTE)
-  statusReason     String?
-  admittedAt       DateTime?       @db.Date
-  leftAt           DateTime?       @db.Date
-  reprocannNumber  String?
-  reprocannStatus  ReprocannStatus @default(NO_APORTA)
-  reprocannExpiresAt DateTime?     @db.Date
-  consumptionType  ConsumptionType @default(LUDICO)
-  monthlyForecastG Decimal?        @db.Decimal(6, 2)
-  consentSignedAt  DateTime?
-  consentVersion   String?
-  notes            String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  docLast4           String?
+  docVerifiedAt      DateTime?
+  birthDate          DateTime        @db.Date
+  address            String?
+  phone              String?
+  email              String?
+  status             MemberStatus    @default(PENDIENTE)
+  statusReason       String?
+  admittedAt         DateTime?       @db.Date
+  leftAt             DateTime?       @db.Date
+  reprocannNumber    String?
+  reprocannStatus    ReprocannStatus @default(NO_APORTA)
+  reprocannExpiresAt DateTime?       @db.Date
+  consumptionType    ConsumptionType @default(LUDICO)
+  monthlyForecastG   Decimal?        @db.Decimal(6, 2)
+  consentSignedAt    DateTime?
+  consentVersion     String?
+  notes              String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   user          User?
   appointments  Appointment[]
@@ -357,18 +358,19 @@ model Member {
   transports    Transport[]     @relation("TransportDriver")
   consents      Consent[]
   notices       NoticeLog[]
+  accessRequest AccessRequest?
 
   @@index([status])
   @@index([lastName, firstName])
 }
 
 model Strain {
-  id       String  @id @default(cuid())
-  name     String  @unique
+  id       String   @id @default(cuid())
+  name     String   @unique
   genetics String?
   thcPct   Decimal? @db.Decimal(5, 2)
   cbdPct   Decimal? @db.Decimal(5, 2)
-  active   Boolean @default(true)
+  active   Boolean  @default(true)
   batches  Batch[]
 }
 
@@ -418,25 +420,25 @@ model Batch {
 
 /// Libro de movimientos: append-only. Corregir = contra-asiento (reversalOfId), nunca UPDATE.
 model StockMovement {
-  id             String       @id @default(cuid())
+  id             String         @id @default(cuid())
   batchId        String
-  batch          Batch        @relation(fields: [batchId], references: [id])
+  batch          Batch          @relation(fields: [batchId], references: [id])
   type           MovementType
-  grams          Decimal      @db.Decimal(10, 2)
+  grams          Decimal        @db.Decimal(10, 2)
   reason         String?
-  occurredAt     DateTime     @default(now())
+  occurredAt     DateTime       @default(now())
   actorId        String
-  actor          User         @relation("MovementActor", fields: [actorId], references: [id])
+  actor          User           @relation("MovementActor", fields: [actorId], references: [id])
   memberId       String?
-  member         Member?      @relation(fields: [memberId], references: [id])
-  dispensationId String?      @unique
-  dispensation   Dispensation? @relation(fields: [dispensationId], references: [id])
+  member         Member?        @relation(fields: [memberId], references: [id])
+  dispensationId String?        @unique
+  dispensation   Dispensation?  @relation(fields: [dispensationId], references: [id])
   transportId    String?
-  transport      Transport?   @relation(fields: [transportId], references: [id])
-  reversalOfId   String?      @unique
+  transport      Transport?     @relation(fields: [transportId], references: [id])
+  reversalOfId   String?        @unique
   reversalOf     StockMovement? @relation("Reversal", fields: [reversalOfId], references: [id])
   reversedBy     StockMovement? @relation("Reversal")
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime       @default(now())
 
   @@index([batchId, occurredAt])
   @@index([memberId, occurredAt])
@@ -444,26 +446,26 @@ model StockMovement {
 }
 
 model Dispensation {
-  id             String        @id @default(cuid())
+  id             String         @id @default(cuid())
   memberId       String
-  member         Member        @relation(fields: [memberId], references: [id])
+  member         Member         @relation(fields: [memberId], references: [id])
   batchId        String
-  batch          Batch         @relation(fields: [batchId], references: [id])
-  grams          Decimal       @db.Decimal(10, 2)
-  thcPct         Decimal?      @db.Decimal(5, 2)
-  occurredAt     DateTime      @default(now())
+  batch          Batch          @relation(fields: [batchId], references: [id])
+  grams          Decimal        @db.Decimal(10, 2)
+  thcPct         Decimal?       @db.Decimal(5, 2)
+  occurredAt     DateTime       @default(now())
   operatorId     String
-  operator       User          @relation("DispensationOperator", fields: [operatorId], references: [id])
-  signatureType  SignatureType @default(PIN)
+  operator       User           @relation("DispensationOperator", fields: [operatorId], references: [id])
+  signatureType  SignatureType  @default(PIN)
   signatureRef   String?
   /// Snapshot del cálculo de límites al momento de entregar (defensa posterior).
   limitSnapshot  Json
   notes          String?
   /// Clave del intento de entrega: reintentar la misma intención no duplica el asiento.
-  idempotencyKey String?       @unique
+  idempotencyKey String?        @unique
   voidedAt       DateTime?
   voidedById     String?
-  voidedBy       User?         @relation("DispensationVoider", fields: [voidedById], references: [id])
+  voidedBy       User?          @relation("DispensationVoider", fields: [voidedById], references: [id])
   voidReason     String?
   movement       StockMovement?
   appointment    Appointment?
@@ -538,18 +540,18 @@ model ShipmentItem {
 }
 
 model Transport {
-  id           String   @id @default(cuid())
-  occurredAt   DateTime @default(now())
-  fromAddress  String
-  toAddress    String
-  grams        Decimal  @db.Decimal(10, 2)
-  strainIds    Json?
-  driverId     String
-  driver       Member   @relation("TransportDriver", fields: [driverId], references: [id])
-  createdById  String
-  createdBy    User     @relation(fields: [createdById], references: [id])
-  notes        String?
-  movements    StockMovement[]
+  id          String          @id @default(cuid())
+  occurredAt  DateTime        @default(now())
+  fromAddress String
+  toAddress   String
+  grams       Decimal         @db.Decimal(10, 2)
+  strainIds   Json?
+  driverId    String
+  driver      Member          @relation("TransportDriver", fields: [driverId], references: [id])
+  createdById String
+  createdBy   User            @relation(fields: [createdById], references: [id])
+  notes       String?
+  movements   StockMovement[]
 
   @@index([occurredAt])
 }
@@ -616,16 +618,16 @@ model Appointment {
 /// No es una venta: el club prorratea su costo de cultivo y el retiro se hace en el club,
 /// con el mismo chequeo de REPROCANN y topes que una entrega de mostrador.
 model PickupRequest {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   memberId       String
-  member         Member       @relation(fields: [memberId], references: [id])
-  grams          Decimal      @db.Decimal(10, 2)
-  status         PickupStatus @default(SOLICITADA)
-  appointmentId  String?      @unique
-  appointment    Appointment? @relation(fields: [appointmentId], references: [id])
+  member         Member        @relation(fields: [memberId], references: [id])
+  grams          Decimal       @db.Decimal(10, 2)
+  status         PickupStatus  @default(SOLICITADA)
+  appointmentId  String?       @unique
+  appointment    Appointment?  @relation(fields: [appointmentId], references: [id])
   /// Aporte estimado congelado al reservar (costo por gramo x gramos).
-  aportePorGramo Decimal?     @db.Decimal(10, 2)
-  aporteEstimado Decimal?     @db.Decimal(12, 2)
+  aportePorGramo Decimal?      @db.Decimal(10, 2)
+  aporteEstimado Decimal?      @db.Decimal(12, 2)
   /// Foto del cálculo de topes al reservar, para poder explicar después.
   limitSnapshot  Json?
   notes          String?
@@ -633,11 +635,74 @@ model PickupRequest {
   fulfilledAt    DateTime?
   canceledAt     DateTime?
   cancelReason   String?
-  dispensationId String?      @unique
+  dispensationId String?       @unique
   dispensation   Dispensation? @relation(fields: [dispensationId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([memberId, createdAt])
   @@index([status, createdAt])
+}
+
+/// Solicitud de alta: el expediente que llena la persona después de entrar con Google.
+/// No es un socio todavía; sólo cuando el club aprueba se crea el legajo.
+model AccessRequest {
+  id                 String              @id @default(cuid())
+  userId             String              @unique
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName          String
+  lastName           String
+  birthDate          DateTime            @db.Date
+  phone              String
+  address            String
+  locality           String?
+  docType            String              @default("DNI")
+  /// Huella del documento: sirve para detectar duplicados sin archivar el número en claro.
+  docHash            String
+  docLast4           String
+  /// Número completo cifrado (AES-256-GCM): se descifra sólo al crear el legajo.
+  docNumberCipher    Bytes?
+  reprocannNumber    String
+  reprocannExpiresAt DateTime            @db.Date
+  consumptionType    ConsumptionType     @default(LUDICO)
+  /// DDJJ del solicitante y versión del texto aceptado.
+  affidavitAccepted  Boolean             @default(false)
+  affidavitVersion   String?
+  status             AccessRequestStatus @default(PENDIENTE)
+  submittedAt        DateTime            @default(now())
+  reviewedAt         DateTime?
+  reviewedById       String?
+  reviewedBy         User?               @relation("AccessReviewer", fields: [reviewedById], references: [id])
+  rejectionReason    String?
+  memberId           String?             @unique
+  member             Member?             @relation(fields: [memberId], references: [id])
+  documents          AccessDocument[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([status, submittedAt])
+}
+
+/// Archivo del legajo (DNI frente/dorso, credencial REPROCANN). Cifrado en reposo:
+/// en la base sólo hay ciphertext; el mime, el tamaño y la huella quedan para poder auditar.
+model AccessDocument {
+  id         String        @id @default(cuid())
+  requestId  String
+  request    AccessRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  tipo       String
+  mime       String
+  size       Int
+  sha256     String
+  iv         Bytes
+  tag        Bytes
+  data       Bytes
+  uploadedAt DateTime      @default(now())
+
+  @@index([requestId])
+}
+
+enum AccessRequestStatus {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
 }

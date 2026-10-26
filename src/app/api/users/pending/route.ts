@@ -10,7 +10,8 @@ import { route } from "@/lib/api";
 export const GET = route(async () => {
   await requireUser(["ADMIN"]);
   const users = await prisma.user.findMany({
-    where: { active: false },
+    // Quien ya presentó su solicitud se revisa en «Solicitudes de alta», no acá.
+    where: { active: false, accessRequest: { is: null } },
     orderBy: { createdAt: "desc" },
     select: { id: true, email: true, name: true, role: true, googleSub: true, createdAt: true, memberId: true },
   });
