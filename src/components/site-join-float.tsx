@@ -13,10 +13,7 @@ export function SiteJoinFloat() {
 
   useEffect(() => {
     const hero = document.querySelector(".s-hero");
-    if (!hero) {
-      setVisible(true);
-      return;
-    }
+    if (!hero) return;
     const io = new IntersectionObserver(([entry]) => setVisible(!entry.isIntersecting), {
       rootMargin: "-70px 0px 0px 0px",
     });
