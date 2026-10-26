@@ -9,9 +9,9 @@ import { jwtVerify } from "jose";
 const COOKIE = "cc_session";
 // `/lote/<código>` es la ficha neutra que abre el QR de la etiqueta: sin sesión y sin datos personales.
 // `/sitio` es la portada pública del club y `/api/marca/*` sus imágenes (logo, emblema, portada).
-const PUBLIC = ["/login", "/api/auth/login", "/api/auth/logout", "/api/health", "/lote", "/sitio", "/api/marca"];
+const PUBLIC = ["/login", "/api/auth/login", "/api/auth/google", "/api/auth/logout", "/api/health", "/lote", "/sitio", "/privacidad", "/api/marca"];
 // Páginas que se dibujan sin el shell de la app aunque haya sesión (el layout lee este header).
-const BARE = ["/sitio"];
+const BARE = ["/sitio", "/privacidad"];
 const matches = (pathname: string, list: string[]) => list.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 const secretKey = () => new TextEncoder().encode(process.env.AUTH_SECRET ?? "");

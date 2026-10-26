@@ -4,12 +4,31 @@ import Link from "next/link";
 import { getBrandView } from "@/lib/brand-db";
 import { BrandMark } from "@/components/brand-mark";
 import { LoginForm } from "@/components/forms";
+import { isGoogleEnabled } from "@/lib/google";
 
 export const metadata = { title: "Ingresar" };
 
-export default async function LoginPage() {
+/** Los avisos de la vuelta de Google se muestran tal cual, sin inventar nada. */
+const AVISOS: Record<string, string> = {
+  pendiente: "Quedó registrado tu pedido de acceso. El club tiene que aprobarlo y avisarte.",
+  google_no_configurado: "El ingreso con Google no está configurado en este club.",
+  google_estado: "La sesión de Google venció. Probá de nuevo.",
+  google_cancelado: "Cancelaste el ingreso con Google.",
+  google_codigo: "Google no devolvió el permiso. Probá de nuevo.",
+  google_validacion: "No pudimos verificar tu cuenta de Google. Probá de nuevo.",
+  google_limite: "Demasiados pedidos de acceso desde esta conexión. Probá más tarde.",
+  email_no_verificado: "Ese email de Google no está verificado. Usá una cuenta con el email confirmado.",
+  cuenta_inactiva: "Tu cuenta todavía no está habilitada. El club tiene que aprobarla.",
+  socio_sin_legajo: "Tu cuenta no está vinculada a ningún legajo del padrón. Pedí el alta en la secretaría.",
+  otra_cuenta_google: "Ese email ya está vinculado a otra cuenta de Google. Hablá con la secretaría del club.",
+};
+
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; aviso?: string }> }) {
   const session = await getAnySession();
   if (session) redirect(session.role === "SOCIO" ? "/portal" : "/");
+  const sp = await searchParams;
+  const clave = sp.error ?? sp.aviso ?? "";
+  const nota = AVISOS[clave] ?? null;
   const view = await getBrandView();
 
   return (
@@ -49,7 +68,12 @@ export default async function LoginPage() {
         <div className="auth-card">
           <h2>Ingresar</h2>
           <p className="muted" style={{ margin: "0 0 22px", fontSize: 14.5 }}>Equipo del club y socios con acceso al portal.</p>
-          <LoginForm />
+          {nota ? (
+            <div className={sp.error ? "note note-danger" : "note"} role="status" style={{ marginBottom: 16 }}>
+              {nota}
+            </div>
+          ) : null}
+          <LoginForm google={isGoogleEnabled()} />
         </div>
       </main>
     </div>

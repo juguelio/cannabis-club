@@ -297,7 +297,10 @@ model User {
   accountEntries AccountEntry[] @relation("AccountEntryCreator")
   email        String    @unique
   name         String
-  passwordHash String
+  /// Nulo cuando la cuenta se creó con Google: no hay clave que verificar.
+  passwordHash String?
+  /// Identidad de Google (`sub`), estable aunque la persona cambie de email.
+  googleSub    String?   @unique
   role         Role      @default(OPERADOR)
   active       Boolean   @default(true)
   memberId     String?   @unique

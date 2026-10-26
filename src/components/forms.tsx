@@ -18,7 +18,19 @@ const str = (v: FormDataEntryValue | null) => {
 };
 const today = () => new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
 
-export function LoginForm() {
+/** La G de Google, en sus cuatro colores: es la marca del proveedor, no del club. */
+function GoogleMark() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden focusable="false">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6c1.9-5.6 7.1-9.7 13.6-9.7z" />
+      <path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-2.8-.4-4.1H24v8.4h12.5c-.3 2.1-1.6 5.2-4.6 7.3l7.6 5.9c4.5-4.2 6.6-10.3 6.6-17.5z" />
+      <path fill="#FBBC05" d="M10.4 28.8A14.6 14.6 0 0 1 9.6 24c0-1.7.3-3.3.8-4.8l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.8-6z" />
+      <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.9l-7.6-5.9c-2 1.4-4.8 2.4-8.3 2.4-6.5 0-11.7-4.1-13.6-9.7l-7.8 6C6.5 42.6 14.6 48 24 48z" />
+    </svg>
+  );
+}
+
+export function LoginForm({ google = false }: { google?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,6 +54,19 @@ export function LoginForm() {
         }
       }}
     >
+      {google ? (
+        <>
+          <a className="btn btn-lg btn-block" href="/api/auth/google" style={{ gap: 10 }}>
+            <GoogleMark />
+            Continuar con Google
+          </a>
+          <div className="muted" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, margin: "2px 0" }} aria-hidden>
+            <span style={{ flex: 1, height: 1, background: "var(--line, currentColor)", opacity: 0.28 }} />
+            o con tu clave
+            <span style={{ flex: 1, height: 1, background: "var(--line, currentColor)", opacity: 0.28 }} />
+          </div>
+        </>
+      ) : null}
       <div>
         <label className="label" htmlFor="email">Email</label>
         <input className="input" id="email" name="email" type="email" autoComplete="username" required autoFocus />

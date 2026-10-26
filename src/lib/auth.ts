@@ -123,7 +123,12 @@ export async function authenticate(rawEmail: string, password: string, ip: strin
   const email = rawEmail.trim().toLowerCase();
   await assertNotLocked(email);
   const user = await prisma.user.findUnique({ where: { email } });
-  const ok = Boolean(user?.active) && !(user!.role === "SOCIO" && !user!.memberId) && (await verifyPassword(password, user!.passwordHash));
+  // Sin clave (cuenta creada con Google) no hay contraseña válida posible.
+  const ok =
+    Boolean(user?.active) &&
+    !(user!.role === "SOCIO" && !user!.memberId) &&
+    Boolean(user!.passwordHash) &&
+    (await verifyPassword(password, user!.passwordHash!));
   if (!user || !ok) {
     await recordFailure(email, ip);
     throw unauthorized("Email o contraseña incorrectos");

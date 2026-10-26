@@ -8,6 +8,7 @@ import { ClubSettingsForm } from "@/components/club-settings-form";
 import { BrandEditor } from "@/components/brand-editor";
 import { getBrandView } from "@/lib/brand-db";
 import { TeamManager } from "@/components/team-manager";
+import { PendingAccess } from "@/components/pending-access";
 import { PadronImport } from "@/components/padron-import";
 import { AUDIT_ACTION, fmtWhen } from "@/lib/labels";
 
@@ -56,7 +57,45 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       orderBy: [{ active: "desc" }, { name: "asc" }],
       select: { id: true, email: true, name: true, role: true, active: true, lastLoginAt: true },
     });
-    body = <TeamManager meId={user.id} users={users.map((u) => ({ ...u, lastLoginAt: u.lastLoginAt?.toISOString() ?? null }))} />;
+    const pendientes = await prisma.user.findMany({
+      where: { active: false },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, email: true, name: true, role: true, googleSub: true, createdAt: true, memberId: true },
+    });
+    const emails = pendientes.map((p) => p.email);
+    const sugeridos = emails.length
+      ? await prisma.member.findMany({
+          where: { email: { in: emails }, user: null },
+          select: { id: true, legajo: true, firstName: true, lastName: true, email: true },
+        })
+      : [];
+    const candidatos = await prisma.member.findMany({
+      where: { user: null },
+      orderBy: { legajo: "asc" },
+      take: 200,
+      select: { id: true, legajo: true, firstName: true, lastName: true, email: true },
+    });
+    const nombre = (m: { legajo: number; firstName: string; lastName: string }) => `${m.lastName}, ${m.firstName}`;
+    body = (
+      <div className="stack" style={{ gap: 18 }}>
+        <PendingAccess
+          pendientes={pendientes.map((p) => {
+            const s = sugeridos.find((m) => String(m.email ?? "").toLowerCase() === p.email);
+            return {
+              id: p.id,
+              email: p.email,
+              name: p.name,
+              role: p.role,
+              conGoogle: Boolean(p.googleSub),
+              createdAt: fmtWhen(p.createdAt),
+              sugerido: s ? { id: s.id, legajo: s.legajo, nombre: nombre(s) } : null,
+            };
+          })}
+          candidatos={candidatos.map((m) => ({ id: m.id, legajo: m.legajo, nombre: nombre(m) }))}
+        />
+        <TeamManager meId={user.id} users={users.map((u) => ({ ...u, lastLoginAt: u.lastLoginAt?.toISOString() ?? null }))} />
+      </div>
+    );
   } else if (tab === "importar") {
     body = <PadronImport />;
   } else {
