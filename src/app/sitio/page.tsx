@@ -10,6 +10,7 @@ import { CLUB_ID } from "@/lib/club";
 import { whatsappHref } from "@/lib/brand";
 import { catalogoDelClub } from "@/lib/variedades";
 import { BrandMark } from "@/components/brand-mark";
+import { SiteJoinFloat } from "@/components/site-join-float";
 import "./sitio.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -293,6 +294,7 @@ export default async function SitioPage() {
         </div>
       </footer>
 
+      <SiteJoinFloat />
       {wa ? <a className="s-wa-float" href={wa} target="_blank" rel="noreferrer" aria-label="Escribir por WhatsApp"><WhatsappIcon /></a> : null}
     </div>
   );
