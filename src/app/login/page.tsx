@@ -23,7 +23,7 @@ const AVISOS: Record<string, string> = {
   otra_cuenta_google: "Ese email ya está vinculado a otra cuenta de Google. Hablá con la secretaría del club.",
 };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; aviso?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; aviso?: string; alta?: string }> }) {
   const session = await getAnySession();
   if (session) redirect(session.role === "SOCIO" ? "/portal" : "/");
   const sp = await searchParams;
@@ -66,8 +66,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       </section>
       <main className="auth-main">
         <div className="auth-card">
-          <h2>Ingresar</h2>
-          <p className="muted" style={{ margin: "0 0 22px", fontSize: 14.5 }}>Equipo del club y socios con acceso al portal.</p>
+          <h2>{sp.alta ? "Asociate al club" : "Ingresar"}</h2>
+          <p className="muted" style={{ margin: "0 0 22px", fontSize: 14.5 }}>
+            {sp.alta
+              ? "Entrás con Google, completás tu solicitud con el DNI y el REPROCANN, y la comisión la revisa. Hasta que la aprueben no se abre el portal."
+              : "Equipo del club y socios con acceso al portal."}
+          </p>
           {nota ? (
             <div className={sp.error ? "note note-danger" : "note"} role="status" style={{ marginBottom: 16 }}>
               {nota}

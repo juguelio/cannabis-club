@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Check, Clock, HeartHandshake, Leaf, Mail, MapPin, QrCode, ShieldCheck, Stethoscope } from "lucide-react";
+import { Check, Clock, HeartHandshake, Leaf, Mail, MapPin, QrCode, ShieldCheck, Stethoscope, UserPlus } from "lucide-react";
 import { getAnySession } from "@/lib/auth";
 import { getBrandView } from "@/lib/brand-db";
 import { prisma } from "@/lib/db";
@@ -50,7 +50,7 @@ export default async function SitioPage() {
   if (!brand.sitio.publico && !isAdmin) redirect("/login");
 
   const wa = brand.contacto.whatsapp
-    ? whatsappHref(brand.contacto.whatsapp, `Hola ${view.nombre}, quiero información para asociarme.`)
+    ? whatsappHref(brand.contacto.whatsapp, `Hola ${view.nombre}, tengo una consulta.`)
     : null;
   const ig = brand.contacto.instagram ? `https://www.instagram.com/${brand.contacto.instagram}/` : null;
   const parrafos = brand.presentacion.split(/\n{2,}|\r\n\r\n/).map((p) => p.trim()).filter(Boolean);
@@ -94,7 +94,7 @@ export default async function SitioPage() {
               </h1>
               <p className="s-lead">{parrafos[0] && parrafos[0].length <= 260 ? parrafos[0] : lead}</p>
               <div className="s-actions">
-                {wa ? <a className="s-btn s-btn-wa" href={wa} target="_blank" rel="noreferrer"><WhatsappIcon />Quiero asociarme</a> : <a className="s-btn s-btn-firma" href="#asociarse">Cómo asociarme</a>}
+                <Link className="s-btn s-btn-firma" href="/login?alta=1"><UserPlus aria-hidden style={{ width: 17, height: 17 }} />Quiero asociarme</Link>
                 <Link className="s-btn s-btn-ghost" href="/login">Ya soy socio</Link>
               </div>
               <div className="s-facts">
@@ -195,8 +195,8 @@ export default async function SitioPage() {
               {brand.sitio.pasos.map((p, i) => <li key={i} className="s-step">{p}</li>)}
             </ol>
             <div className="s-ready">
-              <p>¿Tenés dudas con el REPROCANN? Te orientamos.</p>
-              {wa ? <a className="s-btn s-btn-wa" href={wa} target="_blank" rel="noreferrer"><WhatsappIcon />Escribinos</a> : null}
+              <p>El alta se hace online: entrás con Google y subís tu DNI y el REPROCANN.</p>
+              <Link className="s-btn s-btn-firma" href="/login?alta=1">Empezar mi alta</Link>
             </div>
           </div>
         </section>
@@ -267,7 +267,7 @@ export default async function SitioPage() {
           <div className="s-wrap">
             <h2 className="s-big"><small>{brand.lema || "Cultivo solidario"}</small>Sumate al club</h2>
             <div className="s-close-actions">
-              {wa ? <a className="s-btn s-btn-wa" href={wa} target="_blank" rel="noreferrer"><WhatsappIcon />Quiero asociarme</a> : null}
+              <Link className="s-btn s-btn-firma" href="/login?alta=1">Quiero asociarme</Link>
               <Link className="s-btn s-btn-ghost" href="/login">Ingresar al portal</Link>
             </div>
           </div>
