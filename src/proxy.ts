@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { apuntaAProduccion } from "@/lib/db-fingerprint";
 
 /**
  * Corta el paso antes de renderizar: un socio no debe ni entrar a la consola del club
@@ -38,6 +39,23 @@ function pass(req: NextRequest) {
 }
 
 export async function proxy(req: NextRequest) {
+  // Candado de entornos: un preview no puede escribir en la base de producción.
+  const metodo = req.method.toUpperCase();
+  if (
+    (process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "development") &&
+    metodo !== "GET" &&
+    metodo !== "HEAD" &&
+    apuntaAProduccion()
+  ) {
+    return NextResponse.json(
+      {
+        error: "ENTORNO_COMPARTIDO",
+        message: "Este entorno está apuntando a la base de producción: no se permiten cambios.",
+      },
+      { status: 409 },
+    );
+  }
+
   const { pathname } = req.nextUrl;
   if (matches(pathname, BARE)) {
     const headers = new Headers(req.headers);

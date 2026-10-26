@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { huellaBase } from "@/lib/db-fingerprint";
 
 /**
  * Chequeo de vida para el deploy: la app responde y la base contesta. Sin datos.
@@ -8,10 +8,7 @@ import { prisma } from "@/lib/db";
  */
 export async function GET() {
   const started = Date.now();
-  const url = process.env.DATABASE_URL ?? "";
-  const host = url.match(/@([^/:]+)/)?.[1] ?? "";
-  const base = url.split("?")[0].split("/").pop() ?? "";
-  const huella = host ? createHash("sha256").update(`${host}/${base}`).digest("hex").slice(0, 12) : null;
+  const huella = huellaBase();
 
   try {
     await prisma.$queryRaw`SELECT 1`;
