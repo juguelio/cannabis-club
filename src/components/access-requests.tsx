@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Chip, Empty, Panel } from "@/components/ui";
 import { Inbox } from "lucide-react";
 
@@ -41,6 +42,7 @@ const dia = (iso: string) =>
  * rechazar exige un motivo que la persona va a leer en su pantalla.
  */
 export function AccessRequests() {
+  const router = useRouter();
   const [solicitudes, setSolicitudes] = useState<Solicitud[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [abierta, setAbierta] = useState<string | null>(null);
@@ -77,6 +79,8 @@ export function AccessRequests() {
       setAbierta(null);
       setMotivo("");
       await cargar();
+      // La lista de «Accesos pendientes» la arma el servidor: hay que re-renderizarla.
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pudimos completar la acción.");
     } finally {

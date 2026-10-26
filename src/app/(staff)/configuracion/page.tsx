@@ -59,7 +59,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       select: { id: true, email: true, name: true, role: true, active: true, lastLoginAt: true },
     });
     const pendientes = await prisma.user.findMany({
-      where: { active: false },
+      // Quien ya presentó su solicitud vive en «Solicitudes de alta», no acá.
+      where: { active: false, accessRequest: { is: null } },
       orderBy: { createdAt: "desc" },
       select: { id: true, email: true, name: true, role: true, googleSub: true, createdAt: true, memberId: true },
     });
