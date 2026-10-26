@@ -2,9 +2,12 @@ import { prisma } from "@/lib/db";
 import { route } from "@/lib/api";
 import { conflict, notFound, unprocessable } from "@/lib/errors";
 import { requireUser } from "@/lib/auth";
+import { audit } from "@/lib/audit";
 import { clientIp } from "@/lib/http";
 import { decryptText } from "@/lib/docs-crypto";
 import { AFFIDAVIT_VERSION, faltantesParaAprobar, legajoSiguiente } from "@/lib/access-request";
+import { getBrandView } from "@/lib/brand-db";
+import { enviarEmail, textoAprobado } from "@/lib/mailer";
 
 /**
  * Aprobar la solicitud = crear el legajo. Es el único camino por el que una cuenta
@@ -92,9 +95,30 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
     return member;
   });
 
+  // Aviso por email: si no hay proveedor configurado, el alta igual quedó hecha.
+  const club = await getBrandView();
+  const aviso = await enviarEmail({
+    to: solicitud.user.email,
+    subject: `Tu alta en ${club.nombre} está aprobada`,
+    text: textoAprobado({
+      nombre: solicitud.firstName,
+      legajo: resultado.legajo,
+      club: club.nombre,
+      url: `${process.env.APP_BASE_URL ?? ""}/login`,
+    }),
+  });
+  await audit({
+    actorId: admin.id,
+    action: "ACCESS_APPROVED_NOTICE",
+    entity: "AccessRequest",
+    entityId: solicitud.id,
+    ip: clientIp(req),
+    payload: { email: solicitud.user.email, enviado: aviso.enviado, motivo: aviso.motivo ?? null },
+  });
+
   return {
     socio: { id: resultado.id, legajo: resultado.legajo, email: solicitud.user.email },
     mensaje: `Legajo ${resultado.legajo} creado. La cuenta ya puede entrar al portal.`,
-    ip: clientIp(req),
+    aviso: aviso.enviado ? "email" : "sin_email",
   };
 });

@@ -44,8 +44,27 @@ Después de la aprobación, esa cookie deja de servir: el portal exige la sesió
 - El club sigue siendo el que decide: el sistema valida que el expediente esté completo, no que la persona merezca
   el alta.
 
+## Retención (30 días)
+
+`POST /api/mantenimiento/retencion` (sólo ADMIN) borra los archivos de las solicitudes **rechazadas** hace más de
+30 días, deja la solicitud con su motivo y registra `ACCESS_DOC_RETENTION` con el detalle. Los archivos de un socio
+aprobado **no se tocan**: son su legajo. Pensado para un cron diario; a mano también sirve.
+
+## Avisos por email
+
+Al aprobar y al rechazar se manda un mail (`src/lib/mailer.ts`, API HTTP de Resend, sin SDK):
+
+- **Aprobado**: legajo, y el link de ingreso con Google.
+- **Rechazado**: el motivo tal cual lo escribió el club y cómo volver a presentar.
+
+Si faltan `RESEND_API_KEY` y `CLUB_MAIL_FROM`, **no se manda nada y el alta funciona igual**: el asiento
+`ACCESS_APPROVED_NOTICE` / `ACCESS_REJECTED_NOTICE` queda con `enviado: false` y el motivo. Nunca se inventa un
+remitente: el dominio tiene que estar verificado en Resend.
+
+Pasos para activarlo: crear cuenta en Resend → verificar el dominio del club (registros DNS) → cargar
+`RESEND_API_KEY` y `CLUB_MAIL_FROM` (por ejemplo `República ONG <no-reply@dominio-del-club>`).
+
 ## Pendiente
 
-- **Retención**: borrar los archivos de una solicitud rechazada a los 30 días (hoy quedan). Falta un job.
-- **Aviso al aprobar**: no hay email; la persona se entera al volver a entrar. Con Resend se puede avisar.
-- **Firma de la DDJJ**: hoy es un checkbox con versión de texto (`AFFIDAVIT_VERSION`), no una firma digital.
+- **Firma digital de la DDJJ**: hoy es un checkbox con versión de texto (`AFFIDAVIT_VERSION`).
+- **Cron de retención**: la ruta existe; falta agendarla (Vercel Cron o launchd).
