@@ -2,12 +2,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Check, Clock, HeartHandshake, Mail, MapPin, QrCode, ShieldCheck, Stethoscope } from "lucide-react";
+import { Check, Clock, HeartHandshake, Leaf, Mail, MapPin, QrCode, ShieldCheck, Stethoscope } from "lucide-react";
 import { getAnySession } from "@/lib/auth";
 import { getBrandView } from "@/lib/brand-db";
 import { prisma } from "@/lib/db";
 import { CLUB_ID } from "@/lib/club";
 import { whatsappHref } from "@/lib/brand";
+import { catalogoDelClub } from "@/lib/variedades";
 import { BrandMark } from "@/components/brand-mark";
 import "./sitio.css";
 
@@ -37,10 +38,11 @@ const PILARES = [
 ];
 
 export default async function SitioPage() {
-  const [view, session, clubRow] = await Promise.all([
+  const [view, session, clubRow, variedades] = await Promise.all([
     getBrandView(),
     getAnySession(),
     prisma.club.findUnique({ where: { id: CLUB_ID }, select: { edadMinima: true } }).catch(() => null),
+    catalogoDelClub(),
   ]);
   const club = { edadMinima: clubRow?.edadMinima ?? 18 };
   const { brand } = view;
@@ -72,6 +74,7 @@ export default async function SitioPage() {
           </Link>
           <nav className="s-nav" aria-label="Secciones">
             <a href="#que-es">Qué es</a>
+            {variedades.length ? <a href="#variedades">Variedades</a> : null}
             <a href="#asociarse">Asociarse</a>
             {brand.sitio.envios ? <a href="#envios">Envíos</a> : null}
             <a href="#preguntas">Preguntas</a>
@@ -141,6 +144,36 @@ export default async function SitioPage() {
             </ul>
           </div>
         </section>
+
+        {variedades.length ? (
+          <section className="s-sec" id="variedades">
+            <div className="s-wrap s-two">
+              <div>
+                <h2 className="s-big"><small>Qué cultivamos</small>Las variedades del club</h2>
+                <p className="s-intro">
+                  Esto es lo que el club tiene cultivado hoy. No hay venta al público: cada socio retira su parte según su indicación y
+                  el tope que fija la comisión. El estado se actualiza con el stock real.
+                </p>
+                <p className="s-note">Si una variedad figura sin stock, vuelve cuando se cierra la próxima cosecha.</p>
+              </div>
+              <ul className="s-pillars">
+                {variedades.map((v) => (
+                  <li key={v.id} style={{ opacity: v.disponible ? 1 : 0.7 }}>
+                    <span><Leaf aria-hidden /></span>
+                    <div>
+                      <b>{v.nombre}</b>
+                      <p>
+                        {[v.genetica, v.thc != null ? `THC ${v.thc}%` : null, v.cbd != null ? `CBD ${v.cbd}%` : null].filter(Boolean).join(" · ")}
+                        {v.genetica || v.thc != null || v.cbd != null ? " — " : ""}
+                        <b>{v.disponible ? "Con stock" : "Sin stock"}</b>
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        ) : null}
 
         {parrafos.length ? (
           <section className="s-sec s-on-tint" id="quienes-somos">
