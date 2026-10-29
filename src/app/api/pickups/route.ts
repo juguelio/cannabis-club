@@ -4,7 +4,7 @@ import { listPickups } from "@/lib/pickups";
 
 export async function GET() {
   try {
-    await requireUser(["ADMIN", "OPERADOR"]);
+    await requireUser(["ADMIN", "OPERADOR", "DISPENSADOR"]);
     return json({ pickups: await listPickups() });
   } catch (error) {
     return fail(error);

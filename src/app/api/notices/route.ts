@@ -14,7 +14,7 @@ const Body = z.object({
 
 export async function GET() {
   try {
-    await requireUser(["ADMIN", "OPERADOR"]);
+    await requireUser(["ADMIN", "OPERADOR", "DISPENSADOR"]);
     const board = await noticeBoard();
     return json({ total: board.total, urgent: board.urgent, sinAvisar: board.sinAvisar, rows: board.rows });
   } catch (error) {
@@ -25,7 +25,7 @@ export async function GET() {
 /** Registrar que se avisó: no envía nada, deja constancia de quién avisó y por dónde. */
 export async function POST(req: Request) {
   try {
-    const session = await requireUser(["ADMIN", "OPERADOR"]);
+    const session = await requireUser(["ADMIN", "OPERADOR", "DISPENSADOR"]);
     const body = Body.parse(await req.json());
     if (!isNoticeKind(body.kind)) throw badRequest("INVALID_KIND", "Motivo de aviso desconocido.");
     if (!isNoticeChannel(body.channel)) throw badRequest("INVALID_CHANNEL", "Canal desconocido.");

@@ -33,7 +33,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser(["ADMIN", "OPERADOR"]);
+    const user = await requireUser(["ADMIN", "OPERADOR", "DISPENSADOR"]);
     const body = Body.parse(await req.json());
     const result = await dispense({ ...body, operatorId: user.id, ip: clientIp(req) });
     return json(

@@ -11,6 +11,7 @@ import { TeamManager } from "@/components/team-manager";
 import { PendingAccess } from "@/components/pending-access";
 import { AccessRequests } from "@/components/access-requests";
 import { CatalogoManager } from "@/components/catalogo-manager";
+import { DatosLegalesForm } from "@/components/datos-legales-form";
 import { PadronImport } from "@/components/padron-import";
 import { AUDIT_ACTION, fmtWhen } from "@/lib/labels";
 
@@ -18,6 +19,7 @@ export const metadata = { title: "Configuración" };
 
 const TABS = [
   { key: "club", label: "Club y reglas" },
+  { key: "legales", label: "Datos legales" },
   { key: "altas", label: "Altas de socios" },
   { key: "catalogo", label: "Catálogo" },
   { key: "marca", label: "Marca y sitio" },
@@ -41,6 +43,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <ClubSettingsForm
         initial={{
           nombre: club.nombre, nombreCorto: club.nombreCorto ?? "", cuit: club.cuit ?? "", directorMedico: club.directorMedico ?? "", responsableTecnico: club.responsableTecnico ?? "",
+          directorMedicoMatricula: club.directorMedicoMatricula ?? "", responsableTecnicoTitulo: club.responsableTecnicoTitulo ?? "",
+          personeria: club.personeria ?? "", reps: club.reps ?? "", domicilioLegal: club.domicilioLegal ?? "",
           reprocannNumber: club.reprocannNumber ?? "", reprocannCode: club.reprocannCode ?? "", limiteDiarioG: Number(club.limiteDiarioG),
           limiteMensualG: Number(club.limiteMensualG), limiteMenorG: Number(club.limiteMenorG), edadMinima: club.edadMinima,
           edadLimiteMenor: club.edadLimiteMenor, thcMaxMenor: club.thcMaxMenor == null ? null : Number(club.thcMaxMenor),
@@ -49,6 +53,24 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           cuotaSocialArs: club.cuotaSocialArs == null ? null : Number(club.cuotaSocialArs),
           cuotaIngresoArs: club.cuotaIngresoArs == null ? null : Number(club.cuotaIngresoArs),
           requiereLiberacion: club.requiereLiberacion,
+        }}
+      />
+    );
+  } else if (tab === "legales") {
+    const club = await getClub();
+    body = (
+      <DatosLegalesForm
+        initial={{
+          nombre: club.nombre,
+          cuit: club.cuit ?? "",
+          personeria: club.personeria ?? "",
+          reps: club.reps ?? "",
+          domicilioLegal: club.domicilioLegal ?? "",
+          reprocannNumber: club.reprocannNumber ?? "",
+          directorMedico: club.directorMedico ?? "",
+          directorMedicoMatricula: club.directorMedicoMatricula ?? "",
+          responsableTecnico: club.responsableTecnico ?? "",
+          responsableTecnicoTitulo: club.responsableTecnicoTitulo ?? "",
         }}
       />
     );

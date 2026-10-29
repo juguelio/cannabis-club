@@ -11,7 +11,7 @@ const Body = z.object({
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requireUser(["ADMIN", "OPERADOR"]);
+    const user = await requireUser(["ADMIN", "OPERADOR", "DISPENSADOR"]);
     const { id } = await ctx.params;
     const body = Body.parse(await req.json());
     if (!isStatus(body.status)) return json({ error: "VALIDATION", message: "Estado inválido" }, 400);

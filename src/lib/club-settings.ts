@@ -5,9 +5,16 @@ export const clubSettingsFields = z.object({
   nombreCorto: z.string().trim().max(40).nullable().optional(),
   cuit: z.string().trim().max(20),
   directorMedico: z.string().trim().max(120),
+  directorMedicoMatricula: z.string().trim().max(60).default(""),
   responsableTecnico: z.string().trim().max(120),
+  responsableTecnicoTitulo: z.string().trim().max(120).default(""),
   reprocannNumber: z.string().trim().max(100),
   reprocannCode: z.string().trim().max(100),
+  /** Personería jurídica: número y fecha de la resolución (IGJ o registro provincial). */
+  personeria: z.string().trim().max(160).default(""),
+  /** REPS: inscripción provincial en el registro de cannabis. */
+  reps: z.string().trim().max(160).default(""),
+  domicilioLegal: z.string().trim().max(200).default(""),
   limiteDiarioG: z.number().positive().max(100000),
   limiteMensualG: z.number().positive().max(100000),
   limiteMenorG: z.number().positive().max(100000),

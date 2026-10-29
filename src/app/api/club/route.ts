@@ -28,6 +28,8 @@ export async function PATCH(req: Request) {
         limiteDiarioG: Number(current.limiteDiarioG), limiteMensualG: Number(current.limiteMensualG),
         limiteMenorG: Number(current.limiteMenorG), thcMaxMenor: current.thcMaxMenor == null ? null : Number(current.thcMaxMenor),
         cuit: current.cuit ?? "", directorMedico: current.directorMedico ?? "", responsableTecnico: current.responsableTecnico ?? "",
+        directorMedicoMatricula: current.directorMedicoMatricula ?? "", responsableTecnicoTitulo: current.responsableTecnicoTitulo ?? "",
+        personeria: current.personeria ?? "", reps: current.reps ?? "", domicilioLegal: current.domicilioLegal ?? "",
         aportePorGramo: current.aportePorGramo == null ? null : Number(current.aportePorGramo),
         cuotaSocialArs: current.cuotaSocialArs == null ? null : Number(current.cuotaSocialArs),
         cuotaIngresoArs: current.cuotaIngresoArs == null ? null : Number(current.cuotaIngresoArs),

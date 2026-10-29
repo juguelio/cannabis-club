@@ -108,13 +108,16 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
 
       <div className="grid-2">
         <div className="stack">
-          <Panel title="Cuenta corriente" subtitle="Cuota social y aporte de cultivo. Es un libro: corregir es un contra-asiento.">
-            <AccountPanel memberId={member.id} balance={account.balance} entries={account.entries.map((e) => ({
-              id: e.id, kind: e.kind, concept: e.concept, amountArs: Number(e.amountArs), period: e.period,
-              occurredAt: e.occurredAt.toISOString(), note: e.note, voided: Boolean(e.voidedAt), reversed: e.reversalOfId != null,
-              by: e.creator?.name ?? null,
-            }))} canVoid={session.role === "ADMIN"} />
-          </Panel>
+          {/* El mostrador entrega con el tope y el padrón; la cuenta corriente es de administración. */}
+          {session.role === "DISPENSADOR" ? null : (
+            <Panel title="Cuenta corriente" subtitle="Cuota social y aporte de cultivo. Es un libro: corregir es un contra-asiento.">
+              <AccountPanel memberId={member.id} balance={account.balance} entries={account.entries.map((e) => ({
+                id: e.id, kind: e.kind, concept: e.concept, amountArs: Number(e.amountArs), period: e.period,
+                occurredAt: e.occurredAt.toISOString(), note: e.note, voided: Boolean(e.voidedAt), reversed: e.reversalOfId != null,
+                by: e.creator?.name ?? null,
+              }))} canVoid={session.role === "ADMIN"} />
+            </Panel>
+          )}
 
           <Panel title="Este mes" subtitle={member.monthlyForecastG ? `Previsión declarada: ${fmtGrams(member.monthlyForecastG)} por mes.` : "Sin previsión declarada."}>
             <div className="panel-body stack" style={{ gap: 14 }}>

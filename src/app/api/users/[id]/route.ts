@@ -7,7 +7,7 @@ import { notFound, unprocessable } from "@/lib/errors";
 
 const Patch = z.object({
   name: z.string().trim().min(2).max(80).optional(),
-  role: z.enum(["ADMIN", "OPERADOR"]).optional(),
+  role: z.enum(["ADMIN", "OPERADOR", "DISPENSADOR"]).optional(),
   active: z.boolean().optional(),
   password: z.string().min(10, "La contraseña necesita al menos 10 caracteres").max(100).optional(),
 });

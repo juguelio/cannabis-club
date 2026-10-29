@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 import { apuntaAProduccion } from "@/lib/db-fingerprint";
+import { permite, seccionDeRuta } from "@/lib/roles";
 
 /**
  * Corta el paso antes de renderizar: un socio no debe ni entrar a la consola del club
@@ -18,13 +19,13 @@ const matches = (pathname: string, list: string[]) => list.some((p) => pathname 
 
 const secretKey = () => new TextEncoder().encode(process.env.AUTH_SECRET ?? "");
 
-async function roleFromRequest(req: NextRequest): Promise<"ADMIN" | "OPERADOR" | "SOCIO" | null> {
+async function roleFromRequest(req: NextRequest): Promise<"ADMIN" | "OPERADOR" | "DISPENSADOR" | "SOCIO" | null> {
   const token = req.cookies.get(COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey());
     const role = String(payload.role ?? "");
-    return role === "ADMIN" || role === "OPERADOR" || role === "SOCIO" ? role : null;
+    return role === "ADMIN" || role === "OPERADOR" || role === "DISPENSADOR" || role === "SOCIO" ? role : null;
   } catch {
     return null;
   }
@@ -82,6 +83,14 @@ export async function proxy(req: NextRequest) {
     return isApi
       ? NextResponse.json({ error: "FORBIDDEN", message: "Tu cuenta es de socio" }, { status: 403 })
       : NextResponse.redirect(new URL("/portal", req.url));
+  }
+
+  // El mostrador no abre lo que no le toca: se corta en el proxy, antes de renderizar la página.
+  if (!isApi && role !== "SOCIO") {
+    const seccion = seccionDeRuta(pathname);
+    if (seccion && !permite(role, seccion)) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
   }
 
   if (role !== "SOCIO" && isPortal) {

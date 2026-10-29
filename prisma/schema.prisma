@@ -13,6 +13,8 @@ datasource db {
 enum Role {
   ADMIN
   OPERADOR
+  /// Registra entregas en el mostrador: ve padrón y stock, no aprueba altas ni toca configuración.
+  DISPENSADOR
   SOCIO
 }
 
@@ -111,7 +113,16 @@ model Club {
   reprocannNumber    String?
   reprocannCode      String?
   directorMedico     String?
+  /// Matrícula del director médico: la exige la Res. 1780/2025 y va en el informe semestral.
+  directorMedicoMatricula    String?
   responsableTecnico String?
+  /// Título habilitante del responsable técnico (farmacéutico, bioquímico, etc.).
+  responsableTecnicoTitulo   String?
+  /// Personería jurídica: número y fecha de resolución (IGJ o registro provincial).
+  personeria         String?
+  /// REPS: inscripción provincial en el registro de cannabis.
+  reps               String?
+  domicilioLegal     String?
   limiteDiarioG      Decimal  @default(25) @db.Decimal(6, 2)
   limiteMensualG     Decimal  @default(50) @db.Decimal(6, 2)
   limiteMenorG       Decimal  @default(30) @db.Decimal(6, 2)

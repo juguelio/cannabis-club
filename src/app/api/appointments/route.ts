@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser(["ADMIN", "OPERADOR"]);
+    const user = await requireUser(["ADMIN", "OPERADOR", "DISPENSADOR"]);
     const body = Body.parse(await req.json());
     const appointment = await bookAppointment({
       memberId: body.memberId,

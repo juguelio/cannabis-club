@@ -10,14 +10,14 @@ const select = { id: true, email: true, name: true, role: true, active: true, la
 /** Equipo del club (staff). Las cuentas de socios se gestionan desde su legajo. */
 export const GET = route(async () => {
   await requireUser(["ADMIN"]);
-  const users = await prisma.user.findMany({ where: { role: { in: ["ADMIN", "OPERADOR"] } }, orderBy: [{ active: "desc" }, { name: "asc" }], select });
+  const users = await prisma.user.findMany({ where: { role: { in: ["ADMIN", "OPERADOR", "DISPENSADOR"] } }, orderBy: [{ active: "desc" }, { name: "asc" }], select });
   return { users };
 });
 
 const Create = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().toLowerCase().email("Email inválido"),
-  role: z.enum(["ADMIN", "OPERADOR"]),
+  role: z.enum(["ADMIN", "OPERADOR", "DISPENSADOR"]),
   password: z.string().min(10, "La contraseña necesita al menos 10 caracteres").max(100),
 });
 

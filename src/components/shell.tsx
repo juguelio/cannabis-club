@@ -9,6 +9,7 @@ import {
 import { CommandPalette, useOpenPalette } from "./command-palette";
 import { ToastProvider } from "./toast";
 import { BrandMark, type BrandMarkInfo } from "./brand-mark";
+import { permite, seccionDeRuta, type Seccion } from "@/lib/roles";
 
 type NavItem = { href: string; label: string; icon: React.ElementType; count?: number };
 
@@ -17,7 +18,7 @@ function isActive(path: string, href: string) {
 }
 
 
-const ROLE: Record<string, string> = { ADMIN: "Administración", OPERADOR: "Mostrador" };
+const ROLE: Record<string, string> = { ADMIN: "Administración", OPERADOR: "Operador", DISPENSADOR: "Dispensario" };
 
 export function Shell(props: {
   clubName: string;
@@ -52,29 +53,38 @@ function ShellInner({ clubName, mark, userName, userRole, clubConfigured, pendin
     () => true,
   );
 
-  const daily: NavItem[] = [
-    { href: "/", label: "Panel", icon: LayoutDashboard },
-    { href: "/dispensario", label: "Dispensario", icon: Scale, count: pendingPickups },
-    { href: "/turnos", label: "Turnos", icon: CalendarClock, count: todayAppointments },
-    { href: "/calendario", label: "Calendario", icon: CalendarClock },
-  ];
-  const club: NavItem[] = [
-    { href: "/socios", label: "Socios", icon: Users },
-    { href: "/stock", label: "Stock y lotes", icon: Sprout },
-    { href: "/traslados", label: "Traslados", icon: Truck },
-    { href: "/control", label: "Control", icon: Sprout },
-    { href: "/avisos", label: "Avisos", icon: BellRing },
-    { href: "/cierre-mensual", label: "Cierre mensual", icon: FileSpreadsheet },
-    { href: "/informe-semestral", label: "Informe semestral", icon: FileSpreadsheet },
-    { href: "/reportes", label: "Libros", icon: FileSpreadsheet },
-  ];
-  const admin: NavItem[] =
-    userRole === "ADMIN"
-      ? [
-          { href: "/inspeccion", label: "Modo inspección", icon: FileSpreadsheet },
-          { href: "/configuracion", label: "Configuración", icon: Settings },
-        ]
-      : [];
+  // El menú sale de la matriz de roles: lo que no puede abrir, no lo ve.
+  const visibles = (items: NavItem[], seccion: (i: NavItem) => string) => items.filter((i) => permite(userRole, seccion(i) as Seccion));
+
+  const daily: NavItem[] = visibles(
+    [
+      { href: "/", label: "Panel", icon: LayoutDashboard },
+      { href: "/dispensario", label: "Dispensario", icon: Scale, count: pendingPickups },
+      { href: "/turnos", label: "Turnos", icon: CalendarClock, count: todayAppointments },
+      { href: "/calendario", label: "Calendario", icon: CalendarClock },
+    ],
+    (i) => seccionDeRuta(i.href) ?? "panel",
+  );
+  const club: NavItem[] = visibles(
+    [
+      { href: "/socios", label: "Socios", icon: Users },
+      { href: "/stock", label: "Stock y lotes", icon: Sprout },
+      { href: "/traslados", label: "Traslados", icon: Truck },
+      { href: "/control", label: "Control", icon: Sprout },
+      { href: "/avisos", label: "Avisos", icon: BellRing },
+      { href: "/cierre-mensual", label: "Cierre mensual", icon: FileSpreadsheet },
+      { href: "/informe-semestral", label: "Informe semestral", icon: FileSpreadsheet },
+      { href: "/reportes", label: "Libros", icon: FileSpreadsheet },
+    ],
+    (i) => seccionDeRuta(i.href) ?? "panel",
+  );
+  const admin: NavItem[] = visibles(
+    [
+      { href: "/inspeccion", label: "Modo inspección", icon: FileSpreadsheet },
+      { href: "/configuracion", label: "Configuración", icon: Settings },
+    ],
+    (i) => seccionDeRuta(i.href) ?? "panel",
+  );
 
   const link = (item: NavItem) => {
     const Icon = item.icon;

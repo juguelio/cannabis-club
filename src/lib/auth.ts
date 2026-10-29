@@ -10,7 +10,7 @@ import { assertNotLocked, recordFailure } from "./login-guard";
 export const SESSION_COOKIE = "cc_session";
 const SESSION_HOURS = 8;
 
-export type Role = "ADMIN" | "OPERADOR" | "SOCIO";
+export type Role = "ADMIN" | "OPERADOR" | "DISPENSADOR" | "SOCIO";
 export type SessionUser = { id: string; email: string; name: string; role: Role; memberId?: string | null; mustChangePassword?: boolean };
 
 const secretKey = () => {
@@ -85,10 +85,10 @@ export async function getAnySession(): Promise<SessionUser | null> {
   };
 }
 
-/** Consola del club: sólo ADMIN y OPERADOR. Un socio no entra al backoffice. */
+/** Consola del club: ADMIN, OPERADOR y DISPENSADOR. Un socio no entra al backoffice. */
 export async function getSession(): Promise<SessionUser | null> {
   const user = await getAnySession();
-  if (!user || !["ADMIN", "OPERADOR"].includes(user.role)) return null;
+  if (!user || !["ADMIN", "OPERADOR", "DISPENSADOR"].includes(user.role)) return null;
   return user;
 }
 

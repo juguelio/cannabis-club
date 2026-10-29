@@ -1,0 +1,38 @@
+import { describe, expect, it } from "vitest";
+import { DATOS_LEGALES, faltantesLegales, recordatorioLegal } from "../datos-legales";
+
+const completo = {
+  nombre: "Asociación Civil República ONG",
+  cuit: "30-71234567-8",
+  personeria: "Res. IGJ 1234 del 12/03/2024",
+  reps: "REPS CABA 456",
+  domicilioLegal: "Defensa 1200, CABA",
+  reprocannNumber: "REP-0001",
+  directorMedico: "Dra. Ana Pérez",
+  directorMedicoMatricula: "MN 12345",
+  responsableTecnico: "Lic. Juan Gómez",
+  responsableTecnicoTitulo: "Farmacéutico",
+};
+
+describe("datos legales del club", () => {
+  it("con todo cargado no hay faltantes ni recordatorio", () => {
+    expect(faltantesLegales(completo)).toEqual([]);
+    expect(recordatorioLegal([])).toBe("");
+  });
+
+  it("cuenta los que faltan y los nombra", () => {
+    const faltan = faltantesLegales({ ...completo, cuit: "  ", reps: null });
+    expect(faltan.map((f) => f.campo)).toEqual(["cuit", "reps"]);
+    expect(recordatorioLegal(faltan)).toBe("Faltan 2 datos legales del club. Se completan una vez y quedan en los libros.");
+  });
+
+  it("un solo faltante se pide por su nombre", () => {
+    const faltan = faltantesLegales({ ...completo, directorMedicoMatricula: "" });
+    expect(recordatorioLegal(faltan)).toBe("Falta un dato legal: matrícula del director médico.");
+  });
+
+  it("cada dato declara para qué se usa", () => {
+    expect(DATOS_LEGALES.every((d) => d.para.length > 0)).toBe(true);
+    expect(DATOS_LEGALES).toHaveLength(10);
+  });
+});

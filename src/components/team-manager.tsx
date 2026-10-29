@@ -8,7 +8,7 @@ import { Dialog } from "./dialog";
 import { useToast } from "./toast";
 
 type User = { id: string; email: string; name: string; role: string; active: boolean; lastLoginAt: string | null };
-const ROLE: Record<string, string> = { ADMIN: "Administración", OPERADOR: "Mostrador" };
+const ROLE: Record<string, string> = { ADMIN: "Administración", OPERADOR: "Operador", DISPENSADOR: "Dispensario" };
 
 export function TeamManager({ users, meId }: { users: User[]; meId: string }) {
   const router = useRouter();
@@ -53,7 +53,8 @@ export function TeamManager({ users, meId }: { users: User[]; meId: string }) {
                     disabled={busy === u.id || u.id === meId || !u.active}
                     onChange={(e) => patch(u, { role: e.target.value }, `${u.name}: ${ROLE[e.target.value]}`)}
                   >
-                    <option value="OPERADOR">Mostrador</option>
+                    <option value="DISPENSADOR">Dispensario</option>
+                    <option value="OPERADOR">Operador</option>
                     <option value="ADMIN">Administración</option>
                   </select>
                 </td>
@@ -98,7 +99,7 @@ export function TeamManager({ users, meId }: { users: User[]; meId: string }) {
             <div><label className="label" htmlFor="t-email">Email</label><input className="input" id="t-email" name="email" type="email" required /></div>
             <div>
               <label className="label" htmlFor="t-role">Rol</label>
-              <select className="select" id="t-role" name="role" defaultValue="OPERADOR"><option value="OPERADOR">Mostrador</option><option value="ADMIN">Administración</option></select>
+              <select className="select" id="t-role" name="role" defaultValue="OPERADOR"><option value="DISPENSADOR">Dispensario</option><option value="OPERADOR">Operador</option><option value="ADMIN">Administración</option></select>
             </div>
             <div><label className="label" htmlFor="t-pass">Clave inicial</label><input className="input" id="t-pass" name="password" type="text" minLength={10} required autoComplete="new-password" /><span className="hint">Al menos 10 caracteres.</span></div>
             {error ? <div className="note note-danger">{error}</div> : null}

@@ -4,6 +4,8 @@ import { CalendarClock, CalendarPlus, CircleCheck, PackageOpen, Scale, ShieldAle
 import { getSession } from "@/lib/auth";
 import { dashboardData } from "@/lib/dashboard";
 import { prisma } from "@/lib/db";
+import { getClub } from "@/lib/club";
+import { faltantesLegales } from "@/lib/datos-legales";
 import { noticeBoard } from "@/lib/notices";
 import { Avatar, Chip, Empty, Meter, Note, Panel } from "@/components/ui";
 import { APPOINTMENT_STATUS, daysToExpiry, fmtGrams, fmtLongDay, fmtWhen, plural, reprocannIssue, STAGE } from "@/lib/labels";
@@ -19,11 +21,14 @@ export default async function Dashboard() {
   const session = await getSession();
   if (!session) redirect("/login");
   const now = new Date();
-  const [d, notices, altas] = await Promise.all([
+  const [d, notices, altas, club] = await Promise.all([
     dashboardData(now),
     noticeBoard(),
     session.role === "ADMIN" ? prisma.accessRequest.count({ where: { status: "PENDIENTE" } }) : Promise.resolve(0),
+    getClub(),
   ]);
+  // Recordatorio de llenado: los datos legales que sólo el club puede declarar y todavía faltan.
+  const legales = session.role === "ADMIN" ? faltantesLegales(club).length : 0;
 
   const attention = d.blocked.length + d.expiring.length;
   const maxBar = Math.max(1, ...d.series.map((p) => p.grams));
@@ -50,6 +55,13 @@ export default async function Dashboard() {
             <div className="fact-label">Altas por revisar</div>
             <div className="fact-value">{altas}</div>
             <div className="fact-hint">{plural(altas, "persona esperando", "personas esperando")}</div>
+          </Link>
+        ) : null}
+        {legales > 0 ? (
+          <Link className="fact" href="/configuracion?seccion=legales" data-tone="warn">
+            <div className="fact-label">Datos legales</div>
+            <div className="fact-value">{legales}</div>
+            <div className="fact-hint">{legales === 1 ? "dato sin completar" : "datos sin completar"}</div>
           </Link>
         ) : null}
         <Link className="fact" href="/dispensario">
