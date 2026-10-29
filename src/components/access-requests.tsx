@@ -149,17 +149,62 @@ export function AccessRequests() {
                       <td>
                         {s.documents.length === 0
                           ? "sin archivos"
-                          : s.documents.map((d) => (
-                              <a
-                                key={d.id}
-                                href={`/api/solicitud/documentos?id=${d.id}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{ marginRight: 12 }}
-                              >
-                                {DOC_LABEL[d.tipo] ?? d.tipo}
-                              </a>
-                            ))}
+                          : (
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 10 }}>
+                              {s.documents.map((d) => {
+                                const url = `/api/solicitudes/${s.id}/documentos/${d.id}`;
+                                const esImagen = d.mime.startsWith("image/");
+                                return (
+                                  <a
+                                    key={d.id}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{ display: "block", textDecoration: "none", color: "inherit" }}
+                                    title={`Abrir ${DOC_LABEL[d.tipo] ?? d.tipo}`}
+                                  >
+                                    {esImagen ? (
+                                      /* eslint-disable-next-line @next/next/no-img-element */
+                                      <img
+                                        src={url}
+                                        alt={DOC_LABEL[d.tipo] ?? d.tipo}
+                                        style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10, border: "1px solid var(--line)", display: "block" }}
+                                      />
+                                    ) : (
+                                      <div
+                                        style={{
+                                          height: 120, borderRadius: 10, border: "1px solid var(--line)",
+                                          display: "grid", placeItems: "center", fontFamily: "var(--font-display)", fontSize: 15, letterSpacing: ".04em",
+                                        }}
+                                      >
+                                        PDF
+                                      </div>
+                                    )}
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 6 }}>
+                                      <b style={{ fontSize: 13 }}>{DOC_LABEL[d.tipo] ?? d.tipo}</b>
+                                      <span style={{ fontSize: 11.5, fontWeight: 650, textDecoration: "underline", whiteSpace: "nowrap" }}>
+                                        Abrir ↗
+                                      </span>
+                                    </div>
+                                    <small className="muted" style={{ fontSize: 11.5 }}>
+                                      {Math.max(1, Math.round(d.size / 1024))} KB
+                                    </small>
+                                  </a>
+                                );
+                              })}
+                              {s.faltantes.map((f) => (
+                                <div
+                                  key={f}
+                                  style={{
+                                    height: 120, borderRadius: 10, border: "1px dashed var(--line)",
+                                    display: "grid", placeItems: "center", fontSize: 12.5, opacity: .7,
+                                  }}
+                                >
+                                  Falta {DOC_LABEL[f] ?? f}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                       </td>
                     </tr>
                   </tbody>

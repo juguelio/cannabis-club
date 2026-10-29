@@ -22,6 +22,18 @@ La sesión de onboarding **no es** `cc_session`: con `cc_solicitud` sólo se lle
 Así una cuenta sin aprobar no puede ni asomarse a la consola ni al portal, y no hay que relajar el guard de roles.
 Después de la aprobación, esa cookie deja de servir: el portal exige la sesión normal.
 
+## Revisar sin adivinar
+
+- El panel **Altas de socios** muestra los tres documentos como **miniaturas** (DNI frente, dorso y REPROCANN) con su
+  peso; al hacer clic se abren en una pestaña. Las que faltan aparecen con borde punteado y el texto «Falta…».
+- El servido es **`GET /api/solicitudes/[id]/documentos/[docId]`**, sólo ADMIN: descifra en memoria, responde con
+  `Content-Type` real, `Cache-Control: no-store` y CSP `sandbox`. **Cada apertura queda en auditoría** (`ACCESS_DOC_VIEW`,
+  con quién, de quién y qué tipo).
+- Sin sesión de staff la ruta responde **401** y con rol OPERADOR **403**: el legajo no se abre desde un enlace público.
+- Del lado de la persona, la pantalla de solicitud muestra el estado de cada archivo con su peso y un botón
+  **«Reemplazar archivo»** mientras la solicitud está en revisión; si sube uno nuevo, se reemplaza el anterior del mismo
+  tipo (no se acumulan).
+
 ## Archivos y cifrado
 
 - `AccessDocument.data` es **ciphertext AES-256-GCM**; `iv` y `tag` van en columnas propias. La base no guarda la

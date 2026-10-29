@@ -41,6 +41,7 @@ export function SolicitudForm({
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
+  const [previa, setPrevia] = useState<Record<string, string>>({});
   const [datos, setDatos] = useState({
     firstName: "",
     lastName: "",
@@ -80,6 +81,9 @@ export function SolicitudForm({
     setError(null);
     if (file.size > MAX) return setError("El archivo supera los 6 MB.");
     if (!MIMES.includes(file.type)) return setError("Sólo JPG, PNG, WEBP o PDF.");
+    if (file.type.startsWith("image/")) {
+      setPrevia((p) => ({ ...p, [tipo]: URL.createObjectURL(file) }));
+    }
     setSubiendo(tipo);
     try {
       const r = await fetch(`/api/solicitud/documentos?tipo=${tipo}`, {
@@ -117,34 +121,55 @@ export function SolicitudForm({
               <b>El club va a chequear tu documentación.</b> Cuando esté aprobada, tu cuenta se habilita y vas a poder
               entrar al portal del socio con el mismo botón de Google.
             </p>
-            <ul className="muted" style={{ margin: 0, paddingLeft: 18 }}>
-              {DOCS.map((d) => (
-                <li key={d.tipo}>
-                  {d.label}: {cargado(d.tipo) ? "recibido" : "falta"}
-                </li>
-              ))}
-            </ul>
-            {faltan.length > 0 && (
-              <div className="stack">
-                <p className="hint">Todavía falta subir {faltan.length === 1 ? "un archivo" : `${faltan.length} archivos`}:</p>
-                {faltan.map((d) => (
-                  <label key={d.tipo} className="label">
-                    {d.label} — {d.ayuda}
-                    <input
-                      className="input"
-                      type="file"
-                      accept={MIMES.join(",")}
-                      disabled={subiendo === d.tipo}
-                      onChange={(e) => subir(d.tipo, e.target.files?.[0])}
-                    />
-                  </label>
+            <div className="stack">
+              <p className="hint">
+                {faltan.length > 0
+                  ? `Todavía falta subir ${faltan.length === 1 ? "un archivo" : `${faltan.length} archivos`}.`
+                  : "Ya están los tres. Si alguno salió movido o ilegible, podés reemplazarlo ahora."}
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+                {DOCS.map((d) => (
+                  <div key={d.tipo} style={{ border: `1px ${cargado(d.tipo) ? "solid" : "dashed"} var(--line)`, borderRadius: 10, padding: 12 }}>
+                    {previa[d.tipo] ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={previa[d.tipo]}
+                        alt={d.label}
+                        style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 8, display: "block", marginBottom: 8 }}
+                      />
+                    ) : null}
+                    <b style={{ display: "block", fontSize: 13.5 }}>{d.label}</b>
+                    <small className="muted" style={{ fontSize: 12, display: "block", marginBottom: 6 }}>
+                      {(() => {
+                        const doc = estado.documents.find((x) => x.tipo === d.tipo);
+                        return doc ? `recibido · ${Math.max(1, Math.round(doc.size / 1024))} KB` : d.ayuda;
+                      })()}
+                    </small>
+                    <label
+                      className="btn btn-sm btn-quiet"
+                      style={{ cursor: subiendo === d.tipo ? "progress" : "pointer", display: "inline-flex", opacity: subiendo === d.tipo ? 0.7 : 1 }}
+                    >
+                      {subiendo === d.tipo ? "Subiendo…" : cargado(d.tipo) ? "Reemplazar archivo" : "Subir archivo"}
+                      <input
+                        type="file"
+                        accept={MIMES.join(",")}
+                        disabled={subiendo === d.tipo}
+                        onChange={(e) => subir(d.tipo, e.target.files?.[0])}
+                        style={{ position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden" }}
+                        aria-label={`${cargado(d.tipo) ? "Reemplazar" : "Subir"} ${d.label}`}
+                      />
+                    </label>
+                    <small className="muted" style={{ fontSize: 11.5, display: "block", marginTop: 4 }}>
+                      JPG, PNG o PDF · hasta 6 MB
+                    </small>
+                  </div>
                 ))}
               </div>
-            )}
+            </div>
             {error && <p className="note note-danger">{error}</p>}
             <p className="hint">
-              Si necesitás corregir algo, escribile al club. Las fotos quedan cifradas y sólo las abre la persona que
-              revisa tu legajo.
+              Podés reemplazar cualquier archivo mientras la solicitud está en revisión. Las fotos quedan cifradas y
+              sólo las abre la persona que revisa tu legajo.
             </p>
           </div>
         </div>
