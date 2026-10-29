@@ -135,7 +135,7 @@ export function SolicitudForm({
                       <img
                         src={previa[d.tipo]}
                         alt={d.label}
-                        style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 8, display: "block", marginBottom: 8 }}
+                        style={{ width: "100%", height: 120, objectFit: "contain", background: "var(--surface, #fff)", borderRadius: 8, border: "1px solid var(--line)", display: "block", marginBottom: 8 }}
                       />
                     ) : null}
                     <b style={{ display: "block", fontSize: 13.5 }}>{d.label}</b>
