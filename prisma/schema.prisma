@@ -365,13 +365,17 @@ model Member {
 }
 
 model Strain {
-  id       String   @id @default(cuid())
-  name     String   @unique
-  genetics String?
-  thcPct   Decimal? @db.Decimal(5, 2)
-  cbdPct   Decimal? @db.Decimal(5, 2)
-  active   Boolean  @default(true)
-  batches  Batch[]
+  id          String   @id @default(cuid())
+  name        String   @unique
+  genetics    String?
+  thcPct      Decimal? @db.Decimal(5, 2)
+  cbdPct      Decimal? @db.Decimal(5, 2)
+  active      Boolean  @default(true)
+  /// Foto del producto para el catálogo (JPEG/PNG/WEBP). Sin foto se muestra un recuadro provisorio.
+  fotoData    Bytes?
+  fotoMime    String?
+  fotoVersion Int      @default(0)
+  batches     Batch[]
 }
 
 model Batch {

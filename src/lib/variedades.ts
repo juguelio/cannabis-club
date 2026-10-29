@@ -7,7 +7,7 @@ export type { Variedad };
 export async function catalogoDelClub(): Promise<Variedad[]> {
   const [strains, saldos] = await Promise.all([
     prisma.strain.findMany({
-      select: { id: true, name: true, genetics: true, thcPct: true, cbdPct: true, active: true },
+      select: { id: true, name: true, genetics: true, thcPct: true, cbdPct: true, active: true, fotoVersion: true },
       orderBy: { name: "asc" },
     }),
     prisma.$queryRaw<{ strainId: string; grams: unknown }[]>`

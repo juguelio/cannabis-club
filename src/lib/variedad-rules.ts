@@ -9,6 +9,8 @@ export type Variedad = {
   thc: number | null;
   cbd: number | null;
   disponible: boolean;
+  /** URL de la foto del producto; sin foto el catálogo muestra un recuadro provisorio. */
+  foto: string | null;
 };
 
 export type CepaCruda = {
@@ -18,6 +20,8 @@ export type CepaCruda = {
   thcPct: unknown;
   cbdPct: unknown;
   active: boolean;
+  /** 0 = sin foto. Se usa para invalidar la caché cuando cambia. */
+  fotoVersion?: number;
 };
 
 const dosDecimales = (v: unknown) => (v == null ? null : Math.round(Number(v) * 100) / 100);
@@ -33,6 +37,7 @@ export function armarCatalogo(strains: CepaCruda[], gramosPorCepa: Map<string, n
       thc: dosDecimales(s.thcPct),
       cbd: dosDecimales(s.cbdPct),
       disponible: (gramosPorCepa.get(s.id) ?? 0) > 0,
+      foto: (s.fotoVersion ?? 0) > 0 ? `/api/variedades/${s.id}/foto?v=${s.fotoVersion}` : null,
     }))
     .sort((a, b) => Number(b.disponible) - Number(a.disponible) || a.nombre.localeCompare(b.nombre, "es"));
 }

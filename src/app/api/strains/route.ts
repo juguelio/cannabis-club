@@ -10,10 +10,16 @@ const Body = z.object({
   cbdPct: z.number().min(0).max(100).optional(),
 });
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    await requireUser();
-    const strains = await prisma.strain.findMany({ where: { active: true }, orderBy: { name: "asc" } });
+    const user = await requireUser();
+    // `?todos=1` es la vista de gestión: incluye las variedades apagadas para poder reactivarlas.
+    const todos = new URL(req.url).searchParams.get("todos") === "1" && ["ADMIN", "OPERADOR"].includes(user.role);
+    const strains = await prisma.strain.findMany({
+      where: todos ? {} : { active: true },
+      orderBy: [{ active: "desc" }, { name: "asc" }],
+      select: { id: true, name: true, genetics: true, thcPct: true, cbdPct: true, active: true, fotoVersion: true },
+    });
     return json({ strains });
   } catch (error) {
     return fail(error);

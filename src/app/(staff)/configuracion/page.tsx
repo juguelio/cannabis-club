@@ -10,6 +10,7 @@ import { getBrandView } from "@/lib/brand-db";
 import { TeamManager } from "@/components/team-manager";
 import { PendingAccess } from "@/components/pending-access";
 import { AccessRequests } from "@/components/access-requests";
+import { CatalogoManager } from "@/components/catalogo-manager";
 import { PadronImport } from "@/components/padron-import";
 import { AUDIT_ACTION, fmtWhen } from "@/lib/labels";
 
@@ -18,6 +19,7 @@ export const metadata = { title: "Configuración" };
 const TABS = [
   { key: "club", label: "Club y reglas" },
   { key: "altas", label: "Altas de socios" },
+  { key: "catalogo", label: "Catálogo" },
   { key: "marca", label: "Marca y sitio" },
   { key: "equipo", label: "Equipo" },
   { key: "importar", label: "Importar padrón" },
@@ -55,6 +57,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     body = <BrandEditor initial={view.brand} images={view.img} nombre={view.nombre} />;
   } else if (tab === "altas") {
     body = <AccessRequests />;
+  } else if (tab === "catalogo") {
+    body = <CatalogoManager />;
   } else if (tab === "equipo") {
     const users = await prisma.user.findMany({
       where: { role: { in: ["ADMIN", "OPERADOR"] } },

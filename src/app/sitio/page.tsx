@@ -2,13 +2,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Check, Clock, HeartHandshake, Leaf, Mail, MapPin, QrCode, ShieldCheck, Stethoscope, UserPlus } from "lucide-react";
+import { Check, Clock, HeartHandshake, Mail, MapPin, QrCode, ShieldCheck, Stethoscope, UserPlus } from "lucide-react";
 import { getAnySession } from "@/lib/auth";
 import { getBrandView } from "@/lib/brand-db";
 import { prisma } from "@/lib/db";
 import { CLUB_ID } from "@/lib/club";
 import { whatsappHref } from "@/lib/brand";
 import { catalogoDelClub } from "@/lib/variedades";
+import { VariedadCard } from "@/components/variedad-card";
 import { BrandMark } from "@/components/brand-mark";
 import { SiteJoinFloat } from "@/components/site-join-float";
 import "./sitio.css";
@@ -148,8 +149,8 @@ export default async function SitioPage() {
 
         {variedades.length ? (
           <section className="s-sec" id="variedades">
-            <div className="s-wrap s-two">
-              <div>
+            <div className="s-wrap">
+              <div style={{ maxWidth: 640 }}>
                 <h2 className="s-big"><small>Qué cultivamos</small>Las variedades del club</h2>
                 <p className="s-intro">
                   Esto es lo que el club tiene cultivado hoy. No hay venta al público: cada socio retira su parte según su indicación y
@@ -157,21 +158,11 @@ export default async function SitioPage() {
                 </p>
                 <p className="s-note">Si una variedad figura sin stock, vuelve cuando se cierra la próxima cosecha.</p>
               </div>
-              <ul className="s-pillars">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 16, marginTop: 28 }}>
                 {variedades.map((v) => (
-                  <li key={v.id} style={{ opacity: v.disponible ? 1 : 0.7 }}>
-                    <span><Leaf aria-hidden /></span>
-                    <div>
-                      <b>{v.nombre}</b>
-                      <p>
-                        {[v.genetica, v.thc != null ? `THC ${v.thc}%` : null, v.cbd != null ? `CBD ${v.cbd}%` : null].filter(Boolean).join(" · ")}
-                        {v.genetica || v.thc != null || v.cbd != null ? " — " : ""}
-                        <b>{v.disponible ? "Con stock" : "Sin stock"}</b>
-                      </p>
-                    </div>
-                  </li>
+                  <VariedadCard key={v.id} v={v} tone="site" />
                 ))}
-              </ul>
+              </div>
             </div>
           </section>
         ) : null}

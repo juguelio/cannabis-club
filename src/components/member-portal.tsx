@@ -7,6 +7,7 @@ import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
 import type { Variedad } from "@/lib/variedad-rules";
+import { VariedadCard } from "@/components/variedad-card";
 import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
 
@@ -379,29 +380,9 @@ export function MemberPortal({
               <div>Todavía no hay variedades publicadas. Cuando el club cierre una cosecha, aparecen acá.</div>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
               {variedades.map((v) => (
-                <div
-                  key={v.id}
-                  style={{
-                    border: `1px ${v.disponible ? "solid" : "dashed"} var(--line)`,
-                    borderRadius: 12,
-                    padding: "14px 16px",
-                    opacity: v.disponible ? 1 : 0.8,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <b style={{ fontFamily: "var(--font-display)", fontSize: 16 }}>{v.nombre}</b>
-                    <Chip tone={v.disponible ? "ok" : "mute"}>{v.disponible ? "Con stock" : "Sin stock"}</Chip>
-                  </div>
-                  {v.genetica ? <div className="panel-sub" style={{ marginTop: 4, marginBottom: 0 }}>{v.genetica}</div> : null}
-                  {v.thc != null || v.cbd != null ? (
-                    <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-                      {v.thc != null ? <Chip tone="mute">THC {v.thc}%</Chip> : null}
-                      {v.cbd != null ? <Chip tone="mute">CBD {v.cbd}%</Chip> : null}
-                    </div>
-                  ) : null}
-                </div>
+                <VariedadCard key={v.id} v={v} />
               ))}
             </div>
           )}

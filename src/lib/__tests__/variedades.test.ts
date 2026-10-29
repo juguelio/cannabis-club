@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { armarCatalogo } from "../variedad-rules";
 
-const cepa = (id: string, name: string, extra: Partial<{ genetics: string | null; thcPct: unknown; cbdPct: unknown; active: boolean }> = {}) => ({
+const cepa = (
+  id: string,
+  name: string,
+  extra: Partial<{ genetics: string | null; thcPct: unknown; cbdPct: unknown; active: boolean; fotoVersion: number }> = {},
+) => ({
   id,
   name,
   genetics: extra.genetics ?? null,
   thcPct: extra.thcPct ?? null,
   cbdPct: extra.cbdPct ?? null,
   active: extra.active ?? true,
+  fotoVersion: extra.fotoVersion ?? 0,
 });
 
 describe("catálogo de variedades del socio", () => {
@@ -41,6 +46,16 @@ describe("catálogo de variedades del socio", () => {
 
   it("no expone precios ni cantidades: sólo si hay stock", () => {
     const [v] = armarCatalogo([cepa("1", "Alfa", { thcPct: 20 })], new Map([["1", 999]])) as unknown as Record<string, unknown>[];
-    expect(Object.keys(v).sort()).toEqual(["cbd", "disponible", "genetica", "id", "nombre", "thc"]);
+    expect(Object.keys(v).sort()).toEqual(["cbd", "disponible", "foto", "genetica", "id", "nombre", "thc"]);
+  });
+
+  it("sin foto cargada el catálogo no inventa una imagen", () => {
+    const [v] = armarCatalogo([cepa("1", "Alfa")], new Map());
+    expect(v.foto).toBeNull();
+  });
+
+  it("con foto, la URL lleva la versión para invalidar la caché", () => {
+    const [v] = armarCatalogo([cepa("abc", "Alfa", { fotoVersion: 3 })], new Map());
+    expect(v.foto).toBe("/api/variedades/abc/foto?v=3");
   });
 });
