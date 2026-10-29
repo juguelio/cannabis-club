@@ -96,7 +96,7 @@ export default async function SitioPage() {
               </h1>
               <p className="s-lead">{parrafos[0] && parrafos[0].length <= 260 ? parrafos[0] : lead}</p>
               <div className="s-actions">
-                <Link className="s-btn s-btn-firma" href="/login?alta=1"><UserPlus aria-hidden style={{ width: 17, height: 17 }} />Quiero asociarme</Link>
+                <Link className="s-btn s-btn-firma" href="/login?alta=1"><UserPlus aria-hidden style={{ width: 17, height: 17 }} />Crear cuenta</Link>
                 <Link className="s-btn s-btn-ghost" href="/login">Ya soy socio</Link>
               </div>
               <div className="s-facts">
@@ -187,9 +187,21 @@ export default async function SitioPage() {
               {brand.sitio.pasos.map((p, i) => <li key={i} className="s-step">{p}</li>)}
             </ol>
             <div className="s-ready">
-              <p>El alta se hace online: entrás con Google y subís tu DNI y el REPROCANN.</p>
-              <Link className="s-btn s-btn-firma" href="/login?alta=1">Empezar mi alta</Link>
+              <p>El alta en el club se hace online: entrás con Google y subís tu DNI y el REPROCANN.</p>
+              <Link className="s-btn s-btn-firma" href="/login?alta=1">Crear cuenta</Link>
             </div>
+          </div>
+        </section>
+
+        <section className="s-sec s-on-tint" id="antes-de-empezar">
+          <div className="s-wrap">
+            <h2 className="s-big"><small>Antes de empezar</small>Algo de info para entender</h2>
+            <ul className="s-checks">
+              <li><Check aria-hidden />Sólo podés estar vinculado a una ONG.</li>
+              <li><Check aria-hidden />Podés dar de baja tu vinculación en cualquier momento.</li>
+              <li><Check aria-hidden />Con la autorización vinculada a una ONG no podés ejercer tu cultivo domiciliario.</li>
+              <li><Check aria-hidden />Podés transportar hasta 40 g de flores secas y 6 frascos de 30 ml de derivados.</li>
+            </ul>
           </div>
         </section>
 

@@ -61,7 +61,8 @@ export const brandSchema = z.object({
   /** Hasta 3 letras para el monograma cuando no hay logo. */
   sigla: z.string().trim().max(3).default(""),
   lema: optionalText(90),
-  presentacion: optionalText(700),
+  // El club escribe acá su presentación institucional completa (varios párrafos separados por línea en blanco).
+  presentacion: optionalText(2200),
   contacto: z
     .object({
       whatsapp: z.string().trim().regex(/^(\d{8,15})?$/, "WhatsApp: solo números, con código de país (ej. 5491100000000)").default(""),

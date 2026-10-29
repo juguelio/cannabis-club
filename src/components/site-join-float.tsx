@@ -26,7 +26,7 @@ export function SiteJoinFloat() {
   return (
     <Link className="s-join-float" href="/login?alta=1" aria-label="Quiero asociarme: el alta es online">
       <UserPlus aria-hidden />
-      Asociarme
+      Crear cuenta
     </Link>
   );
 }
