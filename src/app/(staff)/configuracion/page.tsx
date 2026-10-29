@@ -17,6 +17,7 @@ export const metadata = { title: "Configuración" };
 
 const TABS = [
   { key: "club", label: "Club y reglas" },
+  { key: "altas", label: "Altas de socios" },
   { key: "marca", label: "Marca y sitio" },
   { key: "equipo", label: "Equipo" },
   { key: "importar", label: "Importar padrón" },
@@ -52,6 +53,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   } else if (tab === "marca") {
     const view = await getBrandView();
     body = <BrandEditor initial={view.brand} images={view.img} nombre={view.nombre} />;
+  } else if (tab === "altas") {
+    body = <AccessRequests />;
   } else if (tab === "equipo") {
     const users = await prisma.user.findMany({
       where: { role: { in: ["ADMIN", "OPERADOR"] } },
@@ -80,7 +83,6 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     const nombre = (m: { legajo: number; firstName: string; lastName: string }) => `${m.lastName}, ${m.firstName}`;
     body = (
       <div className="stack" style={{ gap: 18 }}>
-        <AccessRequests />
         <PendingAccess
           pendientes={pendientes.map((p) => {
             const s = sugeridos.find((m) => String(m.email ?? "").toLowerCase() === p.email);

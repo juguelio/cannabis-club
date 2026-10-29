@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { CalendarClock, CalendarPlus, CircleCheck, PackageOpen, Scale, ShieldAlert } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { dashboardData } from "@/lib/dashboard";
+import { prisma } from "@/lib/db";
 import { noticeBoard } from "@/lib/notices";
 import { Avatar, Chip, Empty, Meter, Note, Panel } from "@/components/ui";
 import { APPOINTMENT_STATUS, daysToExpiry, fmtGrams, fmtLongDay, fmtWhen, plural, reprocannIssue, STAGE } from "@/lib/labels";
@@ -18,7 +19,11 @@ export default async function Dashboard() {
   const session = await getSession();
   if (!session) redirect("/login");
   const now = new Date();
-  const [d, notices] = await Promise.all([dashboardData(now), noticeBoard()]);
+  const [d, notices, altas] = await Promise.all([
+    dashboardData(now),
+    noticeBoard(),
+    session.role === "ADMIN" ? prisma.accessRequest.count({ where: { status: "PENDIENTE" } }) : Promise.resolve(0),
+  ]);
 
   const attention = d.blocked.length + d.expiring.length;
   const maxBar = Math.max(1, ...d.series.map((p) => p.grams));
@@ -40,6 +45,13 @@ export default async function Dashboard() {
       </div>
 
       <div className="facts" style={{ marginBottom: 16 }}>
+        {altas > 0 ? (
+          <Link className="fact" href="/configuracion?seccion=altas" data-tone="warn">
+            <div className="fact-label">Altas por revisar</div>
+            <div className="fact-value">{altas}</div>
+            <div className="fact-hint">{plural(altas, "persona esperando", "personas esperando")}</div>
+          </Link>
+        ) : null}
         <Link className="fact" href="/dispensario">
           <div className="fact-label">Entregado hoy</div>
           <div className="fact-value">{fmtGrams(d.todayPoint.grams).replace(" g", "")}<small>g</small></div>
