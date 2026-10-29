@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarClock, CalendarPlus, CircleCheck, PackageOpen, Scale, ShieldAlert } from "lucide-react";
+import { CalendarClock, CalendarPlus, CircleCheck, PackageOpen, Scale } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { dashboardData } from "@/lib/dashboard";
 import { prisma } from "@/lib/db";
 import { getClub } from "@/lib/club";
 import { faltantesLegales } from "@/lib/datos-legales";
+import { esEmailDePrueba, primerosPasos, progresoArranque } from "@/lib/primeros-pasos";
 import { noticeBoard } from "@/lib/notices";
-import { Avatar, Chip, Empty, Meter, Note, Panel } from "@/components/ui";
+import { Avatar, Chip, Empty, Meter, Panel } from "@/components/ui";
 import { APPOINTMENT_STATUS, daysToExpiry, fmtGrams, fmtLongDay, fmtWhen, plural, reprocannIssue, STAGE } from "@/lib/labels";
 
 export const metadata = { title: "Panel" };
@@ -21,21 +22,33 @@ export default async function Dashboard() {
   const session = await getSession();
   if (!session) redirect("/login");
   const now = new Date();
-  const [d, notices, altas, club] = await Promise.all([
+  const [d, notices, altas, club, variedades, lotes, equipo] = await Promise.all([
     dashboardData(now),
     noticeBoard(),
     session.role === "ADMIN" ? prisma.accessRequest.count({ where: { status: "PENDIENTE" } }) : Promise.resolve(0),
     getClub(),
+    session.role === "ADMIN" ? prisma.strain.count({ where: { active: true } }) : Promise.resolve(0),
+    session.role === "ADMIN" ? prisma.batch.count() : Promise.resolve(0),
+    session.role === "ADMIN"
+      ? prisma.user.findMany({ where: { role: { in: ["ADMIN", "OPERADOR", "DISPENSADOR"] }, active: true }, select: { email: true } })
+      : Promise.resolve([]),
   ]);
   // Recordatorio de llenado: los datos legales que sólo el club puede declarar y todavía faltan.
   const legales = session.role === "ADMIN" ? faltantesLegales(club).length : 0;
+  const arranque = primerosPasos({
+    legalesFaltantes: legales,
+    variedades,
+    lotes,
+    socios: d.members.total,
+    equipoReal: equipo.filter((u) => !esEmailDePrueba(u.email)).length,
+  });
+  const avance = progresoArranque(arranque);
 
   const attention = d.blocked.length + d.expiring.length;
   const maxBar = Math.max(1, ...d.series.map((p) => p.grams));
   const nextIndex = d.agenda.findIndex((a) => ["PENDIENTE", "CONFIRMADO"].includes(a.status) && new Date(a.at).getTime() >= now.getTime() - 20 * 60_000);
   const weekDelta = d.prevWeek > 0 ? Math.round(((d.week - d.prevWeek) / d.prevWeek) * 100) : null;
   const firstName = session.name.split(" ")[0];
-  const configured = Boolean(d.club.cuit && d.club.directorMedico && d.club.responsableTecnico);
 
   return (
     <>
@@ -95,12 +108,27 @@ export default async function Dashboard() {
         </Link>
       </div>
 
-      {!configured ? (
+      {session.role === "ADMIN" && !avance.completo ? (
         <div style={{ marginBottom: 16 }}>
-          <Note tone="warn" icon={ShieldAlert}>
-            <b>Faltan datos legales del club.</b> CUIT, director médico y responsable técnico deben figurar en los libros.{" "}
-            {session.role === "ADMIN" ? <Link href="/configuracion">Completar ahora</Link> : "Avisale a un administrador."}
-          </Note>
+          <Panel
+            title="Primeros pasos del club"
+            subtitle={`${avance.hechos} de ${avance.total} listos. Cuando estén los cinco, esta tarjeta no vuelve a aparecer.`}
+          >
+            <div className="panel-body">
+              <ul className="stack" style={{ listStyle: "none", margin: 0, padding: 0, gap: 10 }}>
+                {arranque.map((p) => (
+                  <li key={p.key} style={{ display: "flex", alignItems: "center", gap: 10, opacity: p.hecho ? 0.6 : 1 }}>
+                    <CircleCheck
+                      aria-hidden
+                      style={{ width: 18, height: 18, flex: "0 0 auto", color: p.hecho ? "var(--ok, #2f7d4f)" : "var(--line)" }}
+                    />
+                    <Link href={p.href} style={{ fontWeight: 600 }}>{p.label}</Link>
+                    <span className="cell-meta">{p.hecho ? "listo" : p.hint}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Panel>
         </div>
       ) : null}
 
