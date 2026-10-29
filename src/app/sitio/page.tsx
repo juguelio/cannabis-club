@@ -76,7 +76,7 @@ export default async function SitioPage() {
           </Link>
           <nav className="s-nav" aria-label="Secciones">
             <a href="#que-es">Qué es</a>
-            {variedades.length ? <a href="#variedades">Variedades</a> : null}
+            <a href="#variedades">Variedades</a>
             <a href="#asociarse">Asociarse</a>
             {brand.sitio.envios ? <a href="#envios">Envíos</a> : null}
             <a href="#preguntas">Preguntas</a>
@@ -147,8 +147,7 @@ export default async function SitioPage() {
           </div>
         </section>
 
-        {variedades.length ? (
-          <section className="s-sec" id="variedades">
+        <section className="s-sec" id="variedades">
             <div className="s-wrap">
               <div style={{ maxWidth: 640 }}>
                 <h2 className="s-big"><small>Qué cultivamos</small>Las variedades del club</h2>
@@ -159,13 +158,27 @@ export default async function SitioPage() {
                 <p className="s-note">Si una variedad figura sin stock, vuelve cuando se cierra la próxima cosecha.</p>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 16, marginTop: 28 }}>
-                {variedades.map((v) => (
-                  <VariedadCard key={v.id} v={v} tone="site" />
-                ))}
+                {variedades.length ? (
+                  variedades.map((v) => <VariedadCard key={v.id} v={v} tone="site" />)
+                ) : (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      border: "1px dashed color-mix(in srgb, currentColor 22%, transparent)",
+                      borderRadius: 14,
+                      padding: "26px 22px",
+                    }}
+                  >
+                    <b style={{ display: "block", fontSize: 17 }}>Estamos cargando las variedades de esta cosecha</b>
+                    <p className="s-note" style={{ marginBottom: 0 }}>
+                      El catálogo se publica con foto de cada variedad en cuanto el club cierra el lote. Mientras tanto,
+                      escribinos y te contamos qué hay disponible.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </section>
-        ) : null}
 
         {parrafos.length ? (
           <section className="s-sec s-on-tint" id="quienes-somos">
