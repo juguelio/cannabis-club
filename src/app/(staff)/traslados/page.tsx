@@ -15,7 +15,7 @@ const STATUS: Record<string, { label: string; tone: "ok" | "warn" | "danger" | "
   CANCELADO: { label: "Cancelado", tone: "mute" },
 };
 
-export const MODE: Record<string, string> = { AEREO: "Aéreo", TERRESTRE: "Terrestre" };
+const MODE: Record<string, string> = { AEREO: "Aéreo", TERRESTRE: "Terrestre" };
 
 /** Traslados: lo que sale del club hacia pacientes que no retiran en sede. */
 export default async function ShipmentsPage() {

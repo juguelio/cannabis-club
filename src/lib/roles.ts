@@ -30,7 +30,7 @@ export type Seccion = (typeof SECCIONES)[number];
 /** Lo mínimo para entregar: saber a quién y qué hay. */
 const MOSTRADOR: Seccion[] = ["panel", "dispensario", "turnos", "calendario", "socios", "stock", "avisos"];
 /** Operador: agrega movimientos de stock, traslados y libros, pero no la configuración del club. */
-const OPERADOR: Seccion[] = [...MOSTRADOR, "traslados", "control", "reportes", "inspeccion", "cierre"];
+const OPERADOR: Seccion[] = [...MOSTRADOR, "traslados", "control", "reportes", "cierre"];
 const ADMIN: Seccion[] = [...SECCIONES];
 
 const POR_ROL: Record<Exclude<Rol, "SOCIO">, Seccion[]> = { ADMIN, OPERADOR, DISPENSADOR: MOSTRADOR };

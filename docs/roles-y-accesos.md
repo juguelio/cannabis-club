@@ -26,8 +26,10 @@ Si abre una ruta que no le toca, el proxy lo devuelve al panel —no ve ni el es
 
 ## Cuentas
 
-Se crean desde Configuración › Equipo (sólo ADMIN). El club define el email institucional de cada persona; el alta manda
-una clave provisoria y la persona la cambia al entrar (`mustChangePassword`).
+Se crean desde Configuración › Equipo (sólo ADMIN). El club define el email institucional de cada persona; administración asigna
+una clave provisoria, con vigencia de 72 horas, y la persona la cambia al entrar (`mustChangePassword`). No se envía automáticamente por email desde esta ruta.
+
+Al restablecer la clave, cambiar el rol o activar/desactivar la cuenta se incrementa `tokenVersion`: las sesiones anteriores dejan de valer. El equipo cambia su clave en `/cuenta/clave`. Las APIs de staff y socio rechazan claves pendientes de cambio; la gestión de la propia contraseña y el cierre de sesión siguen disponibles. El cambio propio compara la versión de credenciales dentro de una transacción para no pisar un reset simultáneo.
 
 ## Datos legales
 

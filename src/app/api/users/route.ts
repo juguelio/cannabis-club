@@ -27,7 +27,7 @@ export const POST = route(async (req) => {
   if (await prisma.user.findUnique({ where: { email: input.email } })) throw conflict("EMAIL_TAKEN", "Ya existe una cuenta con ese email.");
   const user = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
-      data: { name: input.name, email: input.email, role: input.role, passwordHash: await hashPassword(input.password) },
+      data: { name: input.name, email: input.email, role: input.role, passwordHash: await hashPassword(input.password), mustChangePassword: true, passwordChangedAt: new Date() },
       select,
     });
     await tx.auditLog.create({ data: { actorId: actor.id, action: "USER_CREATE", entity: "User", entityId: user.id, ip: clientIp(req), payload: { email: user.email, role: user.role } } });

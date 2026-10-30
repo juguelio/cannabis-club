@@ -23,11 +23,12 @@ un deploy de prueba podía crear socios, dispensar o cerrar un mes sobre los dat
 `src/lib/db-fingerprint.ts` calcula una **huella** de la base (sha256 del host + nombre, 12 caracteres). No expone la
 cadena de conexión y no se puede revertir a la URL.
 
-- En producción está `PROD_DB_FINGERPRINT` (`f04e602c11be`).
-- `src/proxy.ts` corta con **409 `ENTORNO_COMPARTIDO`** cualquier `POST`/`PATCH`/`PUT`/`DELETE` que llegue a un entorno
-  `preview` o `development` cuya huella coincida con la de producción.
+- `PROD_DB_FINGERPRINT` debe estar configurada también en Preview y Development; contiene la huella de producción. El valor histórico documentado es `f04e602c11be`: revalidarlo con el entorno real.
+- `src/proxy.ts` corta con **409 `ENTORNO_COMPARTIDO`** las solicitudes a rutas de la app en `preview` o `development` cuya huella coincida con producción, incluidos GET/HEAD. GET también puede escribir: por ejemplo, el callback de Google crea cuentas.
+- Sin huella configurada, esos entornos responden **503 `ENTORNO_SIN_VERIFICAR`**. `/api/health` queda disponible para diagnosticar el aislamiento; los assets excluidos del matcher no pasan por este control.
+- Se reconocen los hosts directo y pooler de un mismo endpoint Neon sin cambiar las huellas históricas.
 
-Así, si alguien vuelve a apuntar un preview a la base real, el daño posible es leer, no escribir.
+Es una barrera de solicitudes web, no un permiso de base de datos: los scripts, migraciones, tareas y conexiones directas necesitan separación de credenciales. No protege por sí sola un desarrollo local sin `VERCEL_ENV`. No sustituye probar respaldo y restauración.
 
 ## Cómo se comprueba
 

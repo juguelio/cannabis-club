@@ -26,6 +26,13 @@ describe("permisos por rol", () => {
     expect(permite("ADMIN", "informe-semestral")).toBe(true);
   });
 
+  it("inspección es exclusiva de administración, como indica la matriz documentada", () => {
+    expect(permite("ADMIN", "inspeccion")).toBe(true);
+    expect(permite("OPERADOR", "inspeccion")).toBe(false);
+    expect(permite("DISPENSADOR", "inspeccion")).toBe(false);
+    expect(seccionesDe("OPERADOR")).not.toContain("inspeccion");
+  });
+
   it("un socio no entra a ninguna sección de la consola", () => {
     expect(esStaff("SOCIO")).toBe(false);
     expect(seccionesDe("SOCIO")).toEqual([]);

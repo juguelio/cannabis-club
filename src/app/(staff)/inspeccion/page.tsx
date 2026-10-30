@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function InspectionPage() {
   const session = await getSession();
   if (!session) redirect("/login");
+  if (session.role !== "ADMIN") redirect("/");
 
   const [club, members, batches, movements, closes, lasts, audit] = await Promise.all([
     getClub(),

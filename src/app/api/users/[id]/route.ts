@@ -34,7 +34,9 @@ export const PATCH = route<{ id: string }>(async (req, { id }) => {
         ...(input.name ? { name: input.name } : {}),
         ...(input.role ? { role: input.role } : {}),
         ...(input.active !== undefined ? { active: input.active } : {}),
-        ...(input.password ? { passwordHash: await hashPassword(input.password) } : {}),
+        ...(input.password ? { passwordHash: await hashPassword(input.password), mustChangePassword: true, passwordChangedAt: new Date() } : {}),
+        ...((input.password || (input.role && input.role !== target.role) || (input.active !== undefined && input.active !== target.active))
+          ? { tokenVersion: { increment: 1 } } : {}),
       },
       select: { id: true, email: true, name: true, role: true, active: true, lastLoginAt: true, createdAt: true },
     });

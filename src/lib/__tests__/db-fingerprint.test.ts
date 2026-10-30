@@ -37,4 +37,13 @@ describe("huella de la base", () => {
   it("sin huella de producción configurada no bloquea nada", () => {
     expect(apuntaAProduccion(PROD)).toBe(false);
   });
+
+  it("reconoce la misma base Neon por host directo o pooler sin cambiar huellas existentes", () => {
+    const directa = PROD.replace("-pooler.", ".");
+    process.env.PROD_DB_FINGERPRINT = huellaBase(PROD)!;
+    expect(apuntaAProduccion(directa)).toBe(true);
+    process.env.PROD_DB_FINGERPRINT = huellaBase(directa)!;
+    expect(apuntaAProduccion(PROD)).toBe(true);
+    expect(apuntaAProduccion(PREV)).toBe(false);
+  });
 });

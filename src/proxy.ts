@@ -40,24 +40,23 @@ function pass(req: NextRequest) {
 }
 
 export async function proxy(req: NextRequest) {
-  // Candado de entornos: un preview no puede escribir en la base de producción.
-  const metodo = req.method.toUpperCase();
-  if (
-    (process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "development") &&
-    metodo !== "GET" &&
-    metodo !== "HEAD" &&
-    apuntaAProduccion()
-  ) {
+  const { pathname } = req.nextUrl;
+  // GET no implica sólo lectura: OAuth crea cuentas y algunas lecturas registran auditoría.
+  // Health queda disponible para diagnosticar el aislamiento sin exponer datos personales.
+  const entornoDePrueba = process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "development";
+  if (entornoDePrueba && pathname !== "/api/health" && !process.env.PROD_DB_FINGERPRINT) {
+    return NextResponse.json({ error: "ENTORNO_SIN_VERIFICAR", message: "Falta configurar la huella de producción para verificar el aislamiento de este entorno." }, { status: 503 });
+  }
+  if (entornoDePrueba && pathname !== "/api/health" && apuntaAProduccion()) {
     return NextResponse.json(
       {
         error: "ENTORNO_COMPARTIDO",
-        message: "Este entorno está apuntando a la base de producción: no se permiten cambios.",
+        message: "Este entorno está apuntando a la base de producción: el acceso está bloqueado.",
       },
       { status: 409 },
     );
   }
 
-  const { pathname } = req.nextUrl;
   if (matches(pathname, BARE)) {
     const headers = new Headers(req.headers);
     headers.set("x-cc-bare", "1");

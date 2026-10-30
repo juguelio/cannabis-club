@@ -2,6 +2,7 @@ import "server-only";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { forbidden, unauthorized, unprocessable } from "./errors";
 import { tempPasswordExpired } from "./credentials";
@@ -11,7 +12,7 @@ export const SESSION_COOKIE = "cc_session";
 const SESSION_HOURS = 8;
 
 export type Role = "ADMIN" | "OPERADOR" | "DISPENSADOR" | "SOCIO";
-export type SessionUser = { id: string; email: string; name: string; role: Role; memberId?: string | null; mustChangePassword?: boolean };
+export type SessionUser = { id: string; email: string; name: string; role: Role; memberId?: string | null; mustChangePassword?: boolean; tokenVersion?: number };
 
 const secretKey = () => {
   const secret = process.env.AUTH_SECRET;
@@ -82,6 +83,7 @@ export async function getAnySession(): Promise<SessionUser | null> {
     role: user.role as Role,
     memberId: user.memberId ?? null,
     mustChangePassword: user.mustChangePassword,
+    tokenVersion: user.tokenVersion,
   };
 }
 
@@ -89,6 +91,7 @@ export async function getAnySession(): Promise<SessionUser | null> {
 export async function getSession(): Promise<SessionUser | null> {
   const user = await getAnySession();
   if (!user || !["ADMIN", "OPERADOR", "DISPENSADOR"].includes(user.role)) return null;
+  if (user.mustChangePassword) redirect("/cuenta/clave");
   return user;
 }
 
@@ -102,6 +105,7 @@ export async function getMemberSession(): Promise<(SessionUser & { memberId: str
 export async function requireMember(): Promise<SessionUser & { memberId: string }> {
   const user = await getMemberSession();
   if (!user) throw unauthorized("Ingresá con tu cuenta de socio");
+  assertPasswordChanged(user);
   return user;
 }
 
@@ -112,9 +116,14 @@ export async function requireAnyUser(): Promise<SessionUser> {
   return user;
 }
 
+function assertPasswordChanged(user: SessionUser) {
+  if (user.mustChangePassword) throw unprocessable("PASSWORD_CHANGE_REQUIRED", "Cambiá tu clave temporal antes de continuar.");
+}
+
 export async function requireUser(roles?: Role[]): Promise<SessionUser> {
-  const user = await getSession();
-  if (!user) throw unauthorized();
+  const user = await getAnySession();
+  if (!user || !["ADMIN", "OPERADOR", "DISPENSADOR"].includes(user.role)) throw unauthorized();
+  assertPasswordChanged(user);
   if (roles && !roles.includes(user.role)) throw forbidden("Tu rol no permite esta acción");
   return user;
 }

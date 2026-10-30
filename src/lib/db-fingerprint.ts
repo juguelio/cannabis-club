@@ -16,5 +16,16 @@ export function huellaBase(url = process.env.DATABASE_URL ?? "") {
 export function apuntaAProduccion(url = process.env.DATABASE_URL ?? "") {
   const prod = process.env.PROD_DB_FINGERPRINT;
   if (!prod) return false;
-  return huellaBase(url) === prod;
+  if (huellaBase(url) === prod) return true;
+  // Neon ofrece dos hosts para la misma base: directo y pooler. Conservamos las
+  // huellas ya configuradas, comparando también el alias del mismo endpoint.
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.endsWith(".neon.tech")) return false;
+    const [endpoint, ...domain] = parsed.hostname.split(".");
+    parsed.hostname = `${endpoint.endsWith("-pooler") ? endpoint.slice(0, -7) : `${endpoint}-pooler`}.${domain.join(".")}`;
+    return huellaBase(parsed.toString()) === prod;
+  } catch {
+    return false;
+  }
 }

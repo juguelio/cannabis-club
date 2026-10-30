@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getAnySession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { clientIp } from "@/lib/http";
 import { decryptDoc } from "@/lib/docs-crypto";
@@ -13,8 +13,9 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request, { params }: { params: Promise<{ id: string; docId: string }> }) {
   const { id, docId } = await params;
 
-  const session = await getSession();
+  const session = await getAnySession();
   if (!session) return new Response("No autorizado", { status: 401 });
+  if (session.mustChangePassword) return new Response("Cambiá tu clave temporal antes de continuar.", { status: 403 });
   if (session.role !== "ADMIN")
     return new Response("Solo un administrador puede abrir la documentación del legajo.", { status: 403 });
 

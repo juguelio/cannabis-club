@@ -49,6 +49,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     return html(<MemberShell clubName={view.nombre} mark={mark} userName={session.name}>{children}</MemberShell>);
   }
 
+  if (session.mustChangePassword) return html(children);
+
   const today = dayKeyOf(new Date());
   const [club, pendingPickups, todayAppointments] = await Promise.all([
     prisma.club.findUnique({ where: { id: "singleton" }, select: { cuit: true, directorMedico: true, responsableTecnico: true } }),

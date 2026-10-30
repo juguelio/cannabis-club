@@ -16,7 +16,7 @@ export default async function ChangePasswordPage() {
       <p className="panel-sub" style={{ margin: 0 }}>Primer ingreso</p>
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: 26, letterSpacing: "-.02em", margin: "6px 0 8px" }}>Elegí tu clave</h1>
       <p style={{ color: "var(--muted)", marginTop: 0 }}>
-        La clave que te dio el club es temporal: vence a los 3 días y sirve una sola vez. Elegí una que puedas recordar.
+        La clave que te dio el club es temporal: vence a los 3 días y tenés que reemplazarla antes de continuar. Elegí una que puedas recordar.
       </p>
       <ChangePasswordForm />
     </main>
