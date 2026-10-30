@@ -46,7 +46,10 @@
 
 .s-hero { position: relative; background: var(--s-dark); color: var(--on-dark); overflow: hidden; }
 .s-hero .s-wrap { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 44px; align-items: center; padding: 72px 0 96px; }
-.s-hero h1 { font-size: clamp(50px, 8vw, 116px); }
+/* La columna de texto tiene que poder encogerse: sin esto una palabra larga se derrama sobre la placa del logo. */
+.s-hero .s-wrap > * { min-width: 0; }
+/* El titular va por debajo del tamaño de la columna: una palabra que no entra se sale del bloque y tapa el logo. */
+.s-hero h1 { font-size: clamp(38px, 5.1vw, 86px); overflow-wrap: break-word; hyphens: auto; }
 .s-hero h1 small { color: var(--on-dark-2); }
 .s-lead { font-size: 19px; line-height: 1.55; color: var(--on-dark-2); max-width: 46ch; margin: 26px 0 30px; }
 .s-actions { display: flex; flex-wrap: wrap; gap: 12px; }
