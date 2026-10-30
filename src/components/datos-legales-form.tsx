@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, TriangleAlert } from "lucide-react";
 import { Panel } from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { DATOS_LEGALES, valorDeDemo, type DatoLegal } from "@/lib/datos-legales";
+import { DATOS_LEGALES, faltantesLegales, valorDeDemo, type DatoLegal } from "@/lib/datos-legales";
 
 type Valores = Record<DatoLegal["campo"], string>;
 
@@ -20,7 +20,8 @@ export function DatosLegalesForm({ initial }: { initial: Valores }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const faltan = DATOS_LEGALES.filter((d) => !valores[d.campo]?.trim());
+  // Mismo criterio que el recordatorio del panel: vacío o todavía con el valor de la demo.
+  const faltan = faltantesLegales(valores);
   const grupos: { titulo: string; campos: DatoLegal["campo"][] }[] = [
     { titulo: "Institución", campos: ["nombre", "cuit", "personeria", "reps", "domicilioLegal"] },
     { titulo: "Inscripción para cultivar", campos: ["reprocannNumber"] },
