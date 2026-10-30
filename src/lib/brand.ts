@@ -108,7 +108,7 @@ export const PALETAS: { key: string; label: string; colores: Brand["colores"] }[
 /** Lee lo guardado en la base sin romper nunca: lo inválido cae a los valores por defecto. */
 export function parseStoredBrand(raw: unknown): Brand {
   if (!raw || typeof raw !== "object") return DEFAULT_BRAND;
-  const obj = raw as Record<string, unknown>;
+  const obj = saneado(raw as Record<string, unknown>);
   const colores = { ...DEFAULT_COLORS, ...(typeof obj.colores === "object" && obj.colores ? obj.colores : {}) };
   const res = brandSchema.safeParse({ ...obj, colores });
   if (res.success) return res.data;
@@ -117,8 +117,51 @@ export function parseStoredBrand(raw: unknown): Brand {
   for (const key of Object.keys(brandSchema.shape) as (keyof Brand)[]) {
     const field = brandSchema.shape[key].safeParse(key === "colores" ? colores : obj[key]);
     if (field.success) out[key] = field.data;
+    else if (key === "sitio") out.sitio = rescatarSitio(obj.sitio);
   }
   return brandSchema.parse(out);
+}
+
+/**
+ * Un paso de la portada con 250 caracteres tumbaba la marca entera y con ella la portada pública
+ * (`sitio.publico` volvía al default apagado). Lo que se escribió de más se recorta; no se pierde
+ * lo demás.
+ */
+function saneado(obj: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...obj };
+  const recorta = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : v);
+  out.lema = recorta(out.lema, 90);
+  out.presentacion = recorta(out.presentacion, 2200);
+  if (out.sitio && typeof out.sitio === "object") {
+    const s = { ...(out.sitio as Record<string, unknown>) };
+    s.enviosTexto = recorta(s.enviosTexto, 500);
+    if (Array.isArray(s.pasos)) {
+      s.pasos = s.pasos
+        .filter((x): x is string => typeof x === "string" && x.trim().length >= 3)
+        .slice(0, 6)
+        .map((x) => x.trim().slice(0, 200));
+    }
+    out.sitio = s;
+  }
+  return out;
+}
+
+/** Rescate dentro de `sitio`: si un paso quedó mal, se conserva encendida la portada. */
+function rescatarSitio(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return undefined;
+  const s = raw as Record<string, unknown>;
+  const sitio: Record<string, unknown> = { ...DEFAULT_BRAND.sitio };
+  if (typeof s.publico === "boolean") sitio.publico = s.publico;
+  if (typeof s.envios === "boolean") sitio.envios = s.envios;
+  if (typeof s.enviosTexto === "string") sitio.enviosTexto = s.enviosTexto.slice(0, 500);
+  if (Array.isArray(s.pasos)) {
+    const pasos = s.pasos
+      .filter((x): x is string => typeof x === "string" && x.trim().length >= 3)
+      .slice(0, 6)
+      .map((x) => x.trim().slice(0, 200));
+    if (pasos.length) sitio.pasos = pasos;
+  }
+  return sitio;
 }
 
 const sameColors = (a: Brand["colores"], b: Brand["colores"]) =>

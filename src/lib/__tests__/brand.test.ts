@@ -33,6 +33,35 @@ describe("color", () => {
   });
 });
 
+describe("marca guardada: nada de esto puede apagar la portada", () => {
+  const base = { lema: "Cultivo solidario", sitio: { publico: true, envios: true, pasos: ["Uno", "Dos", "Tres"] } };
+
+  it("un paso demasiado largo se recorta y la portada sigue encendida", () => {
+    const largo = "a".repeat(260);
+    const b = parseStoredBrand({ ...base, sitio: { ...base.sitio, pasos: ["Uno", largo] } });
+    expect(b.sitio.publico).toBe(true);
+    expect(b.sitio.pasos[1].length).toBe(200);
+  });
+
+  it("una presentación eterna no se lleva puesto el resto", () => {
+    const b = parseStoredBrand({ ...base, presentacion: "p".repeat(3000) });
+    expect(b.sitio.publico).toBe(true);
+    expect(b.presentacion.length).toBe(2200);
+    expect(b.lema).toBe("Cultivo solidario");
+  });
+
+  it("un email inválido en contacto no apaga el sitio", () => {
+    const b = parseStoredBrand({ ...base, contacto: { email: "no-es-un-email" } });
+    expect(b.sitio.publico).toBe(true);
+    expect(b.contacto.email).toBe("");
+  });
+
+  it("si `sitio` entero está roto, se rescata el encendido", () => {
+    const b = parseStoredBrand({ ...base, sitio: { publico: true, pasos: ["", ""] } });
+    expect(b.sitio.publico).toBe(true);
+  });
+});
+
 describe("marca", () => {
   it("sin colores propios no emite paleta: rige la de globals.css", () => {
     const vars = themeVars(DEFAULT_BRAND);
