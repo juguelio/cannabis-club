@@ -21,11 +21,23 @@ export const DATOS_LEGALES: DatoLegal[] = [
   { campo: "responsableTecnicoTitulo", label: "Título del responsable técnico", para: "Res. 1780/2025" },
 ];
 
-/** Los que todavía están vacíos, con el motivo por el que hacen falta. */
+/**
+ * Valores que trajo la demo. Cuentan como faltantes: un CUIT `30-00000000-0` en un libro es peor que un campo vacío,
+ * porque parece completo y nadie lo revisa.
+ */
+const PLACEHOLDER = /(demo|0000|ejemplo|xxx|completar)/i;
+
+export function valorDeDemo(valor: string | null | undefined): boolean {
+  const v = (valor ?? "").trim();
+  if (!v) return false;
+  return PLACEHOLDER.test(v);
+}
+
+/** Los que todavía están vacíos o siguen con el valor de la demo, con el motivo por el que hacen falta. */
 export function faltantesLegales(club: Partial<Record<DatoLegal["campo"], string | null>>): DatoLegal[] {
   return DATOS_LEGALES.filter((d) => {
     const v = club[d.campo];
-    return v == null || String(v).trim() === "";
+    return v == null || String(v).trim() === "" || valorDeDemo(v);
   });
 }
 

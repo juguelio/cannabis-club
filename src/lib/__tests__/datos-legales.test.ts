@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DATOS_LEGALES, faltantesLegales, recordatorioLegal } from "../datos-legales";
+import { DATOS_LEGALES, faltantesLegales, recordatorioLegal, valorDeDemo } from "../datos-legales";
 
 const completo = {
   nombre: "Asociación Civil República ONG",
@@ -24,6 +24,31 @@ describe("datos legales del club", () => {
     const faltan = faltantesLegales({ ...completo, cuit: "  ", reps: null });
     expect(faltan.map((f) => f.campo)).toEqual(["cuit", "reps"]);
     expect(recordatorioLegal(faltan)).toBe("Faltan 2 datos legales del club. Se completan una vez y quedan en los libros.");
+  });
+
+  it("los valores de la demo cuentan como faltantes", () => {
+    const deDemo = {
+      ...completo,
+      cuit: "30-00000000-0",
+      reprocannNumber: "REPROCANN-DEMO-0001",
+      directorMedico: "Dra. Demo (mat. 0000)",
+      responsableTecnicoTitulo: "Ing. Agr. Demo",
+    };
+    expect(faltantesLegales(deDemo).map((f) => f.campo)).toEqual([
+      "cuit",
+      "reprocannNumber",
+      "directorMedico",
+      "responsableTecnicoTitulo",
+    ]);
+  });
+
+  it("reconoce un valor de demo sin confundirlo con uno real", () => {
+    expect(valorDeDemo("30-00000000-0")).toBe(true);
+    expect(valorDeDemo("Ing. Agr. Demo")).toBe(true);
+    expect(valorDeDemo("30-71234567-8")).toBe(false);
+    expect(valorDeDemo("Dra. Ana Perez")).toBe(false);
+    expect(valorDeDemo("")).toBe(false);
+    expect(valorDeDemo(null)).toBe(false);
   });
 
   it("un solo faltante se pide por su nombre", () => {

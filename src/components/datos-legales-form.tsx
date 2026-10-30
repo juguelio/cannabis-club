@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, TriangleAlert } from "lucide-react";
 import { Panel } from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { DATOS_LEGALES, type DatoLegal } from "@/lib/datos-legales";
+import { DATOS_LEGALES, valorDeDemo, type DatoLegal } from "@/lib/datos-legales";
 
 type Valores = Record<DatoLegal["campo"], string>;
 
@@ -82,15 +82,17 @@ export function DatosLegalesForm({ initial }: { initial: Valores }) {
                     onChange={(e) => setValores({ ...valores, [campo]: e.target.value })}
                     placeholder={dato.para}
                     autoComplete="off"
-                    aria-invalid={!valores[campo]?.trim() || undefined}
+                    aria-invalid={!valores[campo]?.trim() || valorDeDemo(valores[campo]) || undefined}
                     style={
-                      valores[campo]?.trim()
+                      valores[campo]?.trim() && !valorDeDemo(valores[campo])
                         ? undefined
                         : { borderColor: "var(--warn, #c98a00)", background: "color-mix(in srgb, var(--warn, #c98a00) 6%, transparent)" }
                     }
                   />
                   <small className="muted" style={{ fontSize: 11.5 }}>
-                    {valores[campo]?.trim() ? `Se usa para: ${dato.para.toLowerCase()}` : `Falta · se usa para ${dato.para.toLowerCase()}`}
+                    {valores[campo]?.trim() && !valorDeDemo(valores[campo])
+                      ? `Se usa para: ${dato.para.toLowerCase()}`
+                      : `${valorDeDemo(valores[campo]) ? "Sigue con el valor de la demo" : "Falta"} · se usa para ${dato.para.toLowerCase()}`}
                   </small>
                 </label>
               );
