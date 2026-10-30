@@ -142,6 +142,8 @@ model Club {
   requiereLiberacion Boolean  @default(true)
   /// Marca del club (colores, tipografías, textos del sitio). Validada por src/lib/brand.ts; null = aspecto por defecto.
   marca              Json?
+  /// Economía del club: gramos por membresía, aporte, máximo por envío, zonas y productos. Ver src/lib/precios.ts.
+  precios            Json?
   /// Imágenes de marca como data URL (png/jpeg/webp), servidas por /api/marca/<tipo>.
   marcaLogo          String?  @db.Text
   marcaEmblema       String?  @db.Text

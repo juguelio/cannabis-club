@@ -11,6 +11,8 @@ import { TeamManager } from "@/components/team-manager";
 import { PendingAccess } from "@/components/pending-access";
 import { CatalogoManager } from "@/components/catalogo-manager";
 import { DatosLegalesForm } from "@/components/datos-legales-form";
+import { PreciosForm } from "@/components/precios-form";
+import { preciosDeClub } from "@/lib/precios";
 import { PadronImport } from "@/components/padron-import";
 import { AUDIT_ACTION, fmtWhen } from "@/lib/labels";
 
@@ -19,6 +21,7 @@ export const metadata = { title: "Configuración" };
 const TABS = [
   { key: "club", label: "Club y reglas" },
   { key: "legales", label: "Datos legales" },
+  { key: "precios", label: "Precios y aportes" },
   { key: "catalogo", label: "Catálogo" },
   { key: "marca", label: "Marca y sitio" },
   { key: "equipo", label: "Equipo" },
@@ -54,6 +57,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         }}
       />
     );
+  } else if (tab === "precios") {
+    const club = await getClub();
+    body = <PreciosForm initial={preciosDeClub(club)} />;
   } else if (tab === "legales") {
     const club = await getClub();
     body = (
