@@ -53,7 +53,7 @@ describe("datos legales del club", () => {
 
   it("un solo faltante se pide por su nombre", () => {
     const faltan = faltantesLegales({ ...completo, directorMedicoMatricula: "" });
-    expect(recordatorioLegal(faltan)).toBe("Falta un dato legal: matrícula del director médico.");
+    expect(recordatorioLegal(faltan)).toBe("Falta un dato legal: Matrícula del director médico.");
   });
 
   it("cada dato declara para qué se usa", () => {

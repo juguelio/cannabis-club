@@ -2,12 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, TriangleAlert } from "lucide-react";
+import { CheckCircle2, CircleAlert, TriangleAlert } from "lucide-react";
 import { Panel } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { DATOS_LEGALES, faltantesLegales, valorDeDemo, type DatoLegal } from "@/lib/datos-legales";
 
 type Valores = Record<DatoLegal["campo"], string>;
+
+/** Se agrupa por responsable: la matrícula del director queda al lado de su nombre. */
+const GRUPOS: { titulo: string; campos: DatoLegal["campo"][] }[] = [
+  { titulo: "Institución", campos: ["nombre", "cuit", "personeria", "reps", "domicilioLegal"] },
+  { titulo: "Inscripción para cultivar", campos: ["reprocannNumber"] },
+  { titulo: "Director médico", campos: ["directorMedico", "directorMedicoMatricula"] },
+  { titulo: "Responsable técnico", campos: ["responsableTecnico", "responsableTecnicoTitulo"] },
+];
+
+/** Los datos largos usan dos columnas para que no queden apretados. */
+const ANCHOS: Partial<Record<DatoLegal["campo"], string>> = { domicilioLegal: "span 2", personeria: "span 2" };
 
 /**
  * Box de datos legales: lo que sólo el club puede declarar. Se completa una vez y alimenta
@@ -22,11 +33,7 @@ export function DatosLegalesForm({ initial }: { initial: Valores }) {
 
   // Mismo criterio que el recordatorio del panel: vacío o todavía con el valor de la demo.
   const faltan = faltantesLegales(valores);
-  const grupos: { titulo: string; campos: DatoLegal["campo"][] }[] = [
-    { titulo: "Institución", campos: ["nombre", "cuit", "personeria", "reps", "domicilioLegal"] },
-    { titulo: "Inscripción para cultivar", campos: ["reprocannNumber"] },
-    { titulo: "Responsables (Res. 1780/2025)", campos: ["directorMedico", "directorMedicoMatricula", "responsableTecnico", "responsableTecnicoTitulo"] },
-  ];
+  const completos = DATOS_LEGALES.length - faltan.length;
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
@@ -55,9 +62,11 @@ export function DatosLegalesForm({ initial }: { initial: Valores }) {
         <div className="note note-warn" role="status">
           <TriangleAlert aria-hidden />
           <div>
-            <b>{faltan.length === 1 ? "Falta un dato legal" : `Faltan ${faltan.length} datos legales`}.</b>{" "}
-            Sin esto, los libros y el informe semestral salen incompletos. Se completan una sola vez:{" "}
-            {faltan.map((f) => f.label.toLowerCase()).join(", ")}.
+            <b>
+              {completos} de {DATOS_LEGALES.length} datos legales completos.
+            </b>{" "}
+            {faltan.length === 1 ? "Falta uno" : `Faltan ${faltan.length}`}: {faltan.map((f) => f.label).join(", ")}.
+            Se completan una sola vez y quedan en los libros y en el informe semestral.
           </div>
         </div>
       ) : (
@@ -69,31 +78,41 @@ export function DatosLegalesForm({ initial }: { initial: Valores }) {
 
       {error && <p className="note note-danger">{error}</p>}
 
-      {grupos.map((g) => (
+      {GRUPOS.map((g) => (
         <Panel key={g.titulo} title={g.titulo}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
             {g.campos.map((campo) => {
               const dato = DATOS_LEGALES.find((d) => d.campo === campo)!;
+              const valor = valores[campo] ?? "";
+              const esDemo = valorDeDemo(valor);
+              const pendiente = !valor.trim() || esDemo;
               return (
-                <label key={campo} className="label">
+                <label key={campo} className="label" style={{ gridColumn: ANCHOS[campo] }}>
                   {dato.label}
                   <input
                     className="input"
-                    value={valores[campo] ?? ""}
+                    value={valor}
                     onChange={(e) => setValores({ ...valores, [campo]: e.target.value })}
-                    placeholder={dato.para}
+                    placeholder={dato.ejemplo}
                     autoComplete="off"
-                    aria-invalid={!valores[campo]?.trim() || valorDeDemo(valores[campo]) || undefined}
+                    aria-invalid={pendiente || undefined}
                     style={
-                      valores[campo]?.trim() && !valorDeDemo(valores[campo])
-                        ? undefined
-                        : { borderColor: "var(--warn, #c98a00)", background: "color-mix(in srgb, var(--warn, #c98a00) 6%, transparent)" }
+                      pendiente
+                        ? { borderColor: "var(--warn, #c98a00)", background: "color-mix(in srgb, var(--warn, #c98a00) 6%, transparent)" }
+                        : undefined
                     }
                   />
                   <small className="muted" style={{ fontSize: 11.5 }}>
-                    {valores[campo]?.trim() && !valorDeDemo(valores[campo])
-                      ? `Se usa para: ${dato.para.toLowerCase()}`
-                      : `${valorDeDemo(valores[campo]) ? "Sigue con el valor de la demo" : "Falta"} · se usa para ${dato.para.toLowerCase()}`}
+                    {esDemo ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--warn, #c98a00)" }}>
+                        <CircleAlert aria-hidden style={{ width: 12, height: 12 }} />
+                        Valor de ejemplo: reemplazalo por el del club
+                      </span>
+                    ) : !valor.trim() ? (
+                      `Falta · se usa para ${dato.para.toLowerCase()}`
+                    ) : (
+                      `Se usa para: ${dato.para.toLowerCase()}`
+                    )}
                   </small>
                 </label>
               );
