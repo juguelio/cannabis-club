@@ -59,7 +59,7 @@ export function primerosPasos(e: EstadoArranque): Paso[] {
       key: "socio",
       label: "Tener el primer socio aprobado",
       hint: e.socios > 0 ? "Listo" : "Se aprueba desde Altas",
-      href: "/configuracion?seccion=altas",
+      href: "/socios?ver=altas",
       hecho: e.socios > 0,
     },
   ];

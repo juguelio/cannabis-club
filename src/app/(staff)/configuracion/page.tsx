@@ -9,7 +9,6 @@ import { BrandEditor } from "@/components/brand-editor";
 import { getBrandView } from "@/lib/brand-db";
 import { TeamManager } from "@/components/team-manager";
 import { PendingAccess } from "@/components/pending-access";
-import { AccessRequests } from "@/components/access-requests";
 import { CatalogoManager } from "@/components/catalogo-manager";
 import { DatosLegalesForm } from "@/components/datos-legales-form";
 import { PadronImport } from "@/components/padron-import";
@@ -20,7 +19,6 @@ export const metadata = { title: "Configuración" };
 const TABS = [
   { key: "club", label: "Club y reglas" },
   { key: "legales", label: "Datos legales" },
-  { key: "altas", label: "Altas de socios" },
   { key: "catalogo", label: "Catálogo" },
   { key: "marca", label: "Marca y sitio" },
   { key: "equipo", label: "Equipo" },
@@ -77,8 +75,6 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   } else if (tab === "marca") {
     const view = await getBrandView();
     body = <BrandEditor initial={view.brand} images={view.img} nombre={view.nombre} />;
-  } else if (tab === "altas") {
-    body = <AccessRequests />;
   } else if (tab === "catalogo") {
     body = <CatalogoManager />;
   } else if (tab === "equipo") {

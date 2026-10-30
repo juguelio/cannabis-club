@@ -64,7 +64,7 @@ export default async function Dashboard() {
 
       <div className="facts" style={{ marginBottom: 16 }}>
         {altas > 0 ? (
-          <Link className="fact" href="/configuracion?seccion=altas" data-tone="warn">
+          <Link className="fact" href="/socios?ver=altas" data-tone="warn">
             <div className="fact-label">Altas por revisar</div>
             <div className="fact-value">{altas}</div>
             <div className="fact-hint">{plural(altas, "persona esperando", "personas esperando")}</div>

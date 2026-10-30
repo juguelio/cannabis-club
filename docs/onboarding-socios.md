@@ -24,7 +24,7 @@ Después de la aprobación, esa cookie deja de servir: el portal exige la sesió
 
 ## Revisar sin adivinar
 
-- El panel **Altas de socios** muestra los tres documentos como **miniaturas** (DNI frente, dorso y REPROCANN) con su
+- Las altas viven en **Socios › Altas** (solapa con el número de pendientes). El panel muestra los tres documentos como **miniaturas** (DNI frente, dorso y REPROCANN) con su
   peso; al hacer clic se abren en una pestaña. Las que faltan aparecen con borde punteado y el texto «Falta…».
 - El servido es **`GET /api/solicitudes/[id]/documentos/[docId]`**, sólo ADMIN: descifra en memoria, responde con
   `Content-Type` real, `Cache-Control: no-store` y CSP `sandbox`. **Cada apertura queda en auditoría** (`ACCESS_DOC_VIEW`,

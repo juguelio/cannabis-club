@@ -9,18 +9,43 @@ import { getClub, limitsFromClub } from "@/lib/club";
 import { monthUsageByMember } from "@/lib/usage";
 import { memberIdsByName } from "@/lib/member-search";
 import { Avatar, Chip, Empty, Meter, PageHead, Panel } from "@/components/ui";
+import { AccessRequests } from "@/components/access-requests";
 import { age, fmtGrams, MEMBER_STATUS, reprocannIssue } from "@/lib/labels";
 
 export const metadata = { title: "Socios" };
 const PAGE = 50;
 
-export default async function SociosPage({ searchParams }: { searchParams: Promise<{ q?: string; estado?: string; filtro?: string; p?: string }> }) {
+export default async function SociosPage({ searchParams }: { searchParams: Promise<{ q?: string; estado?: string; filtro?: string; p?: string; ver?: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const { q, estado, filtro, p } = await searchParams;
+  const { q, estado, filtro, p, ver } = await searchParams;
   const page = Math.max(1, Number(p) || 1);
   const now = new Date();
   const in30 = new Date(now.getTime() + 30 * 86_400_000);
+
+  // Las altas viven en Socios, no en Configuración: se aprueban donde se ve el padrón que van a engrosar.
+  const altas = session.role === "ADMIN" ? await prisma.accessRequest.count({ where: { status: "PENDIENTE" } }) : 0;
+  const tabAltas = (
+    <Link href="/socios?ver=altas" aria-current={ver === "altas" ? "true" : undefined}>
+      Altas <span className="count">{altas}</span>
+    </Link>
+  );
+  if (ver === "altas" && session.role === "ADMIN") {
+    return (
+      <>
+        <PageHead
+          title="Socios"
+          subtitle="Altas: la persona ya se registró con Google y subió su documentación. Aprobar crea el legajo."
+          actions={<Link className="btn btn-quiet" href="/socios">Volver al padrón</Link>}
+        />
+        <nav className="seg" aria-label="Socios" style={{ marginBottom: 14 }}>
+          <Link href="/socios">Padrón</Link>
+          {tabAltas}
+        </nav>
+        <AccessRequests />
+      </>
+    );
+  }
 
   const reprocannWhere: Prisma.MemberWhereInput = {
     status: "ACTIVO",
@@ -95,6 +120,7 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
 
       <div className="flex flex-wrap items-center gap-3" style={{ marginBottom: 14 }}>
         <nav className="seg" aria-label="Filtrar padrón">
+          {session.role === "ADMIN" ? tabAltas : null}
           {filters.map((f) => (
             <Link key={f.key || "todos"} href={href(f.key)} aria-current={activeKey === f.key ? "true" : undefined}>
               {f.label} <span className="count">{f.n}</span>
