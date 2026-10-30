@@ -5,7 +5,10 @@
 - **Dominio**: `republicacannabis.com.ar`, registrado en **nic.ar** (creado 27-oct-2026).
 - **Hoy no está delegado**: la consulta DNS devuelve `NXDOMAIN`, así que no tiene nameservers ni registros. No hay sitio,
   correo ni servicios colgados: **no hay nada que migrar ni riesgo de cortar el correo de nadie**.
-- Ya está agregado al proyecto de Vercel `cannabis-club`, con el dominio raíz y `www`.
+- **`republicacannabis.org.ar`** también está registrado (mismo CUIT, 29-oct-2026) y también sin delegar.
+- Los dos están agregados al proyecto de Vercel `cannabis-club`, con el dominio raíz y `www` de cada uno.
+- **Los nameservers son los mismos para los dos**: son de la cuenta de Vercel, no del dominio. Se pega el mismo par en
+  nic.ar dos veces, una por dominio.
 
 ## Lo que tiene que hacer el club en nic.ar (5 minutos)
 
@@ -19,6 +22,16 @@ Ingresar con **CUIT/CUIL + Clave Fiscal** (nivel 3 para una asociación) → *Tr
 
 Guardar cada uno y después **Ejecutar cambios** (sin ese último paso no se aplica). nic.ar no tiene zona DNS propia: no
 se pueden pegar registros A o MX, sólo nameservers. La delegación figura activa en el transcurso del día.
+
+## Qué dominio queda como principal
+
+Recomendado: **`republicacannabis.com.ar`** como canónico (es el que la gente escribe y el que va en el logo y la firma), y
+`republicacannabis.org.ar` **redirigido 301** a él. La asociación civil gana en el `.org.ar`, pero partir el sitio en dos
+dominios duplica el SEO y las estadísticas; con una redirección se conserva la identidad sin partir nada.
+
+Lo mismo con `cannabis-club-mauve.vercel.app`: queda redirigido al dominio propio para que no haya dos URLs vivas.
+
+El correo institucional (`admin@`, `hola@`) se crea en el `.com.ar`; el `.org.ar` sólo redirige el sitio.
 
 ## Lo que hago yo después (en este orden)
 
