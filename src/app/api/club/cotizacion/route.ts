@@ -4,10 +4,50 @@ import { body, route } from "@/lib/api";
 import { clientIp } from "@/lib/http";
 import { badRequest } from "@/lib/errors";
 import { z } from "zod";
-import { cotizacionDeLista, type FuenteCotizacion } from "@/lib/cotizacion";
+import { esCron, NO_AUTORIZADO } from "@/lib/cron";
+import { traerCotizacion } from "@/lib/cotizacion-server";
 import { aportePorGramoDe, preciosDeClub } from "@/lib/precios";
+import type { Cotizacion } from "@/lib/cotizacion";
 
 const Body = z.object({ fuente: z.enum(["oficial", "blue", "bolsa", "manual"]), valor: z.number().positive().optional() });
+
+/** Guarda la cotización y recalcula el aporte por gramo que usa la cuenta corriente. */
+async function guardar(cotizacion: Cotizacion, actorId: string | null, ip: string | null) {
+  const club = await prisma.club.findUnique({ where: { id: "singleton" }, select: { precios: true } });
+  const precios = { ...preciosDeClub(club ?? {}), cotizacion };
+  const aporte = aportePorGramoDe(precios);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.club.update({ where: { id: "singleton" }, data: { precios, aportePorGramo: aporte } });
+    await tx.auditLog.create({
+      data: {
+        actorId, action: "CLUB_UPDATE", entity: "Club", entityId: "singleton", ip,
+        payload: { cotizacion, aportePorGramo: aporte, origen: actorId ? "pantalla" : "cron" },
+      },
+    });
+  });
+  return { ok: true, cotizacion, aportePorGramo: aporte };
+}
+
+/** Cron diario: refresca con la fuente que el club ya eligió. La carga a mano no se toca. */
+export const GET = route(async (req) => {
+  if (!esCron(req)) {
+    return new Response(JSON.stringify(NO_AUTORIZADO), { status: 401, headers: { "Content-Type": "application/json" } });
+  }
+  const club = await prisma.club.findUnique({ where: { id: "singleton" }, select: { precios: true } });
+  const precios = preciosDeClub(club ?? {});
+  const actual = precios.cotizacion;
+  if (precios.moneda !== "USD") {
+    // Cobrando en pesos la cotización no se usa: no se escribe nada ni se ensucia la auditoría todos los días.
+    return { ok: true, saltado: "El club cobra en pesos: la cotización no cambia nada.", cotizacion: actual };
+  }
+  if (actual.fuente === "manual") {
+    return { ok: true, saltado: "La cotización está cargada a mano: el cron no la toca.", cotizacion: actual };
+  }
+  const nueva = await traerCotizacion(actual.fuente);
+  if (!(nueva.valor > 0)) return { ok: false, error: "COTIZACION_SIN_DATO", cotizacion: actual };
+  return guardar(nueva, null, null);
+});
 
 /**
  * Trae la cotización del día y la guarda en `Club.precios`, recalculando el aporte por gramo.
@@ -16,38 +56,9 @@ const Body = z.object({ fuente: z.enum(["oficial", "blue", "bolsa", "manual"]), 
 export const POST = route(async (req) => {
   const actor = await requireUser(["ADMIN"]);
   const input = await body(req, Body);
-
-  let cotizacion;
-  if (input.fuente === "manual") {
-    if (!input.valor) throw badRequest("COTIZACION_INVALIDA", "Escribí el valor del dólar para guardarlo a mano.");
-    cotizacion = { fuente: "manual" as FuenteCotizacion, valor: input.valor, actualizadaAt: new Date().toISOString() };
-  } else {
-    let filas: unknown = null;
-    try {
-      const res = await fetch("https://dolarapi.com/v1/dolares", { signal: AbortSignal.timeout(8000), cache: "no-store" });
-      if (res.ok) filas = await res.json();
-    } catch {
-      filas = null;
-    }
-    cotizacion = cotizacionDeLista(filas, input.fuente);
-    if (!(cotizacion.valor > 0)) {
-      throw badRequest("COTIZACION_SIN_DATO", "No pudimos traer la cotización ahora. Cargala a mano y se guarda igual.");
-    }
+  const cotizacion = await traerCotizacion(input.fuente, input.valor);
+  if (!(cotizacion.valor > 0)) {
+    throw badRequest("COTIZACION_SIN_DATO", "No pudimos traer la cotización ahora. Cargala a mano y se guarda igual.");
   }
-
-  const club = await prisma.club.findUnique({ where: { id: "singleton" }, select: { precios: true, aportePorGramo: true } });
-  const precios = { ...preciosDeClub(club ?? {}), cotizacion };
-  const aporte = aportePorGramoDe(precios);
-
-  await prisma.$transaction(async (tx) => {
-    await tx.club.update({ where: { id: "singleton" }, data: { precios, aportePorGramo: aporte } });
-    await tx.auditLog.create({
-      data: {
-        actorId: actor.id, action: "CLUB_UPDATE", entity: "Club", entityId: "singleton", ip: clientIp(req),
-        payload: { cotizacion, aportePorGramo: aporte },
-      },
-    });
-  });
-
-  return { ok: true, cotizacion, aportePorGramo: aporte };
+  return guardar(cotizacion, actor.id, clientIp(req));
 });
