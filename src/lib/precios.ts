@@ -5,14 +5,23 @@
  * Nunca se llaman "precios de venta": en un club de cultivo es prorrateo de costos. La app los usa
  * para calcular el aporte por gramo que carga en la cuenta corriente y para mostrar el catálogo.
  */
+import { COTIZACION_VACIA, type Cotizacion } from "./cotizacion";
+
+export type Moneda = "ARS" | "USD";
 export type Envio = { zona: string; precioArs: number; demora: string; transportista?: string };
 export type Producto = { nombre: string; precioArs: number; detalle?: string; activo: boolean };
 
 export type Precios = {
+  /** Moneda en la que el club fija el aporte: si es USD, se convierte con la cotización del día. */
+  moneda: Moneda;
   /** Gramos que trae una membresía (la cuota social mínima de retiro). */
   membresiaGramos: number;
-  /** Aporte por membresía, en pesos. El aporte por gramo sale de dividir por `membresiaGramos`. */
+  /** Aporte por membresía en pesos (cuando `moneda` es ARS). */
   aporteMembresiaArs: number;
+  /** Aporte por membresía en dólares (cuando `moneda` es USD). */
+  aporteMembresiaUsd: number;
+  /** Cotización vigente para pasar el aporte en USD a pesos. */
+  cotizacion: Cotizacion;
   /** Tope de membresías por envío o retiro. */
   maxMembresiasPorEnvio: number;
   envios: Envio[];
@@ -20,8 +29,11 @@ export type Precios = {
 };
 
 export const PRECIOS_POR_DEFECTO: Precios = {
+  moneda: "ARS",
   membresiaGramos: 10,
   aporteMembresiaArs: 0,
+  aporteMembresiaUsd: 0,
+  cotizacion: COTIZACION_VACIA,
   maxMembresiasPorEnvio: 4,
   envios: [],
   productos: [],
@@ -38,9 +50,19 @@ export function preciosDeClub(club: { precios?: unknown; aportePorGramo?: unknow
   const porGramo = num(club.aportePorGramo, 0);
   const aporte = aporteGuardado > 0 ? aporteGuardado : porGramo > 0 ? porGramo * gramos : 0;
 
+  const moneda: Moneda = crudo.moneda === "USD" ? "USD" : "ARS";
+  const cotizacionCruda = (crudo.cotizacion ?? {}) as Partial<Cotizacion>;
+
   return {
+    moneda,
     membresiaGramos: gramos,
     aporteMembresiaArs: aporte,
+    aporteMembresiaUsd: num(crudo.aporteMembresiaUsd, 0),
+    cotizacion: {
+      fuente: cotizacionCruda.fuente ?? COTIZACION_VACIA.fuente,
+      valor: num(cotizacionCruda.valor, 0),
+      actualizadaAt: cotizacionCruda.actualizadaAt ?? null,
+    },
     maxMembresiasPorEnvio: maxEnv,
     envios: Array.isArray(crudo.envios) ? crudo.envios.map((e) => ({
       zona: String(e?.zona ?? "").trim(),
@@ -57,10 +79,23 @@ export function preciosDeClub(club: { precios?: unknown; aportePorGramo?: unknow
   };
 }
 
+/**
+ * Aporte de la membresía en pesos. Si el club fija el aporte en dólares, se convierte con la
+ * cotización guardada: el socio siempre paga en pesos y la cuenta corriente guarda el peso del día.
+ */
+export function aporteMembresiaEnPesos(p: Precios): number {
+  if (p.moneda === "USD") {
+    if (!(p.aporteMembresiaUsd > 0) || !(p.cotizacion.valor > 0)) return 0;
+    return Math.round(p.aporteMembresiaUsd * p.cotizacion.valor);
+  }
+  return p.aporteMembresiaArs;
+}
+
 /** Aporte por gramo: lo que la cuenta corriente cobra en cada entrega. */
 export function aportePorGramoDe(p: Precios): number | null {
-  if (!(p.aporteMembresiaArs > 0) || !(p.membresiaGramos > 0)) return null;
-  return Math.round((p.aporteMembresiaArs / p.membresiaGramos) * 100) / 100;
+  const aporte = aporteMembresiaEnPesos(p);
+  if (!(aporte > 0) || !(p.membresiaGramos > 0)) return null;
+  return Math.round((aporte / p.membresiaGramos) * 100) / 100;
 }
 
 /** Gramos totales que entran en un envío, según el máximo de membresías. */
@@ -76,7 +111,10 @@ export function validarPrecios(input: unknown): PreciosValidados {
   const p = preciosDeClub({ precios: input });
 
   if (!(p.membresiaGramos > 0) || p.membresiaGramos > 40) return { ok: false, error: "Una membresía tiene que estar entre 1 y 40 gramos." };
-  if (p.aporteMembresiaArs < 0) return { ok: false, error: "El aporte por membresía no puede ser negativo." };
+  if (p.aporteMembresiaArs < 0 || p.aporteMembresiaUsd < 0) return { ok: false, error: "El aporte por membresía no puede ser negativo." };
+  if (p.moneda === "USD" && p.aporteMembresiaUsd > 0 && !(p.cotizacion.valor > 0)) {
+    return { ok: false, error: "El aporte está en dólares: actualizá la cotización del día para poder cobrar en pesos." };
+  }
   if (!Number.isInteger(p.maxMembresiasPorEnvio) || p.maxMembresiasPorEnvio < 1 || p.maxMembresiasPorEnvio > 10) {
     return { ok: false, error: "El máximo por envío tiene que ser un número entero entre 1 y 10." };
   }

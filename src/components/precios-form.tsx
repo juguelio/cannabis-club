@@ -7,6 +7,7 @@ import { Panel } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { api } from "@/lib/client";
 import { aportePorGramoDe, gramosPorEnvio, type Precios } from "@/lib/precios";
+import { cotizacionLegible, FUENTES, type FuenteCotizacion } from "@/lib/cotizacion";
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 
@@ -23,6 +24,21 @@ export function PreciosForm({ initial }: { initial: Precios }) {
 
   const porGramo = aportePorGramoDe(p);
   const porEnvio = gramosPorEnvio(p);
+  const [trayendo, setTrayendo] = useState(false);
+
+  async function traerCotizacion() {
+    setTrayendo(true);
+    setError(null);
+    try {
+      const r = await api<{ cotizacion: Precios["cotizacion"] }>("/api/club/cotizacion", { method: "POST", body: { fuente: p.cotizacion.fuente } });
+      set("cotizacion", r.cotizacion);
+      toast({ tone: "ok", title: "Cotización actualizada", text: cotizacionLegible(r.cotizacion) });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No pudimos traer la cotización.");
+    } finally {
+      setTrayendo(false);
+    }
+  }
 
   const set = <K extends keyof Precios>(k: K, v: Precios[K]) => setP((prev) => ({ ...prev, [k]: v }));
 
@@ -46,6 +62,13 @@ export function PreciosForm({ initial }: { initial: Precios }) {
       {error && <p className="note note-danger">{error}</p>}
 
       <Panel title="Membresía" subtitle="La membresía es la unidad de retiro: su aporte se divide por los gramos que trae.">
+        <div className="seg" style={{ marginBottom: 14, display: "inline-flex" }}>
+          {(["ARS", "USD"] as const).map((m) => (
+            <button key={m} type="button" aria-current={p.moneda === m ? "true" : undefined} onClick={() => set("moneda", m)}>
+              {m === "ARS" ? "En pesos" : "En dólares"}
+            </button>
+          ))}
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
           <label className="label">
             Gramos por membresía
@@ -60,18 +83,33 @@ export function PreciosForm({ initial }: { initial: Precios }) {
             />
             <small className="muted" style={{ fontSize: 11.5 }}>Retiro mínimo mensual</small>
           </label>
-          <label className="label">
-            Aporte por membresía ($)
-            <input
-              className="input"
-              type="number"
-              min={0}
-              step="1000"
-              value={p.aporteMembresiaArs}
-              onChange={(e) => set("aporteMembresiaArs", Number(e.target.value))}
-            />
-            <small className="muted" style={{ fontSize: 11.5 }}>Prorrateo de costos, no precio de venta</small>
-          </label>
+          {p.moneda === "ARS" ? (
+            <label className="label">
+              Aporte por membresía ($)
+              <input
+                className="input"
+                type="number"
+                min={0}
+                step="1000"
+                value={p.aporteMembresiaArs}
+                onChange={(e) => set("aporteMembresiaArs", Number(e.target.value))}
+              />
+              <small className="muted" style={{ fontSize: 11.5 }}>Prorrateo de costos, no precio de venta</small>
+            </label>
+          ) : (
+            <label className="label">
+              Aporte por membresía (USD)
+              <input
+                className="input"
+                type="number"
+                min={0}
+                step="1"
+                value={p.aporteMembresiaUsd}
+                onChange={(e) => set("aporteMembresiaUsd", Number(e.target.value))}
+              />
+              <small className="muted" style={{ fontSize: 11.5 }}>Se cobra en pesos con la cotización del día</small>
+            </label>
+          )}
           <label className="label">
             Máximo de membresías por envío
             <input
@@ -85,6 +123,30 @@ export function PreciosForm({ initial }: { initial: Precios }) {
             <small className="muted" style={{ fontSize: 11.5 }}>Tope por envío o retiro</small>
           </label>
         </div>
+        {p.moneda === "USD" && (
+          <div style={{ marginTop: 12, padding: 12, border: "1px solid var(--line)", borderRadius: 10, display: "grid",
+                        gridTemplateColumns: "auto auto auto", gap: 10, alignItems: "end", justifyItems: "start" }}>
+            <label className="label" style={{ minWidth: 170 }}>
+              Cotización
+              <select className="input" value={p.cotizacion.fuente} onChange={(e) => set("cotizacion", { ...p.cotizacion, fuente: e.target.value as FuenteCotizacion })}>
+                {FUENTES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+              </select>
+            </label>
+            {p.cotizacion.fuente === "manual" ? (
+              <label className="label" style={{ minWidth: 130 }}>
+                Pesos por dólar
+                <input className="input" type="number" min={0} step="0.01" value={p.cotizacion.valor}
+                       onChange={(e) => set("cotizacion", { ...p.cotizacion, valor: Number(e.target.value), actualizadaAt: new Date().toISOString() })} />
+              </label>
+            ) : (
+              <button type="button" className="btn btn-quiet" onClick={traerCotizacion} disabled={trayendo}>
+                {trayendo ? "Trayendo…" : "Traer cotización de hoy"}
+              </button>
+            )}
+            <small className="muted" style={{ fontSize: 11.5 }}>{cotizacionLegible(p.cotizacion)}</small>
+          </div>
+        )}
+
         <p className="note" style={{ marginTop: 4 }}>
           {porGramo != null
             ? `Queda en ${MONEY.format(porGramo)} por gramo y ${MONEY.format(porGramo * porEnvio)} por envío de ${porEnvio} g. Es lo que la cuenta corriente carga en cada entrega.`
