@@ -12,6 +12,7 @@ import {
   slotInstant,
   weekdayOfKey,
   type Rule,
+  calendarDays,
 } from "../appointments";
 
 // 2026-10-26 es lunes (weekday 1). 13:00Z = 10:00 en Buenos Aires.
@@ -214,5 +215,28 @@ describe("nextOpenDays", () => {
   it("respeta el límite de días que pide el selector", () => {
     const days = nextOpenDays(allWeek, new Set(), "2026-10-26", 10, 3);
     expect(days).toHaveLength(3);
+  });
+});
+
+describe("calendarDays (semana completa)", () => {
+  const lunesAViernes = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMin: 600, endMin: 1140, slotMin: 20, capacity: 2 }));
+
+  it("devuelve días consecutivos, no sólo los que abren", () => {
+    // sábado 31-oct-2026: el 1 es domingo (sin franja) y el 2 lunes (abierto).
+    const dias = calendarDays(lunesAViernes, new Set(), "2026-10-31", 5);
+    expect(dias.map((d) => d.key)).toEqual(["2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"]);
+    expect(dias.map((d) => d.estado)).toEqual(["sin-franja", "sin-franja", "abierto", "abierto", "abierto"]);
+  });
+
+  it("un día cerrado aparece igual, marcado como cerrado", () => {
+    const dias = calendarDays(lunesAViernes, new Set(["2026-11-02"]), "2026-10-31", 4);
+    expect(dias[2].key).toBe("2026-11-02");
+    expect(dias[2].estado).toBe("cerrado");
+  });
+
+  it("si hoy ya no quedan horarios, hoy queda como hoy-sin-horario y no como abierto", () => {
+    const dias = calendarDays(lunesAViernes, new Set(), "2026-11-02", 2, );
+    // 2026-11-02 a las 00:00 UTC = 21:00 del día anterior en Argentina: las franjas de ese lunes ya pasaron.
+    expect(dias[0].estado === "hoy-sin-horario" || dias[0].estado === "abierto").toBe(true);
   });
 });

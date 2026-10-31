@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getMemberSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { portalOverview } from "@/lib/pickups";
-import { addDaysKey, buildSlots, dayKeyOf, nextOpenDays, slotInstant, type Rule } from "@/lib/appointments";
+import { addDaysKey, buildSlots, calendarDays, dayKeyOf, slotInstant, type Rule } from "@/lib/appointments";
 import { closedDayKeys } from "@/lib/closed-days";
 import { recalledBatchesForMember } from "@/lib/batch-quality";
 import { CONSENT_TEXTS, memberConsents } from "@/lib/privacy";
@@ -39,7 +39,7 @@ export default async function PortalPage() {
   let day = today;
   let slots: { startMin: number; label: string; free: number; past: boolean; full: boolean }[] = [];
   const closed = await closedDayKeys(today, 10);
-  for (const key of nextOpenDays(rules, closed, today, 10, 5).map((d) => d.key)) {
+  for (const key of calendarDays(rules, closed, today, 10).filter((d) => d.estado === "abierto").map((d) => d.key)) {
     const appointments = await prisma.appointment.findMany({
       where: { scheduledAt: { gte: slotInstant(key, 0), lt: slotInstant(addDaysKey(key, 1), 0) } },
       select: { id: true, memberId: true, scheduledAt: true, status: true },

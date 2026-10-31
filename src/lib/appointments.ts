@@ -144,6 +144,36 @@ export function buildSlots(
  * Próximos días que el club atiende: con franja activa, sin estar cerrado por el club
  * y (si es hoy) con algún horario todavía por delante.
  */
+export type EstadoDia = "abierto" | "cerrado" | "sin-franja" | "hoy-sin-horario";
+export type DiaCalendario = { key: string; weekday: number; estado: EstadoDia; label: string };
+
+/**
+ * Los próximos días **consecutivos**, tengan o no atención. El socio ve la semana completa: un día
+ * cerrado o sin franja aparece igual, atenuado y con el motivo, en vez de desaparecer sin explicación
+ * (el club cerró un feriado y el lunes se esfumó del selector).
+ */
+export function calendarDays(
+  rules: Rule[],
+  closedKeys: Set<string>,
+  todayKey: string,
+  count = 7,
+): DiaCalendario[] {
+  const out: DiaCalendario[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const key = addDaysKey(todayKey, i);
+    const weekday = weekdayOfKey(key);
+    const tieneFranja = rules.some((r) => r.weekday === weekday && (r.active ?? true));
+    let estado: EstadoDia = "abierto";
+    if (closedKeys.has(key)) estado = "cerrado";
+    else if (!tieneFranja) estado = "sin-franja";
+    else if (i === 0 && !buildSlots(rules, key, []).some((s) => !s.past)) estado = "hoy-sin-horario";
+    out.push({ key, weekday, estado, label: WEEKDAY_SHORT[weekday] });
+  }
+  return out;
+}
+
+const WEEKDAY_SHORT = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+
 export function nextOpenDays(
   rules: Rule[],
   closedKeys: Set<string>,

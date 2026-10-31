@@ -37,6 +37,24 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
     }
   }
 
+  async function addRule(weekday: number) {
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch("/api/schedule-rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weekday, startMin: 600, endMin: 1140, slotMin: 20, capacity: 2 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "No se pudo abrir el día");
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function addClosedDay(e: React.FormEvent) {
     e.preventDefault();
     if (!nuevoDia) return;
@@ -85,7 +103,24 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
               <tr><th>Día</th><th>Horario</th><th>Cada</th><th>Cupo</th><th>Estado</th></tr>
             </thead>
             <tbody>
-              {rules.map((r) => (
+              {WEEKDAYS.map((nombre, weekday) => {
+                const r = rules.find((x) => x.weekday === weekday);
+                if (!r) {
+                  return (
+                    <tr key={`sin-${weekday}`}>
+                      <td>{nombre}</td>
+                      <td className="cell-meta">Sin franja</td>
+                      <td className="cell-meta">—</td>
+                      <td className="cell-meta">—</td>
+                      <td>
+                        <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => addRule(weekday)}>
+                          Abrir 10:00–19:00
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                }
+                return (
                 <tr key={r.id}>
                   <td>{WEEKDAYS[r.weekday]}</td>
                   <td className="cell-meta tnum">{hhmm(r.startMin)}–{hhmm(r.endMin)}</td>
@@ -116,7 +151,8 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

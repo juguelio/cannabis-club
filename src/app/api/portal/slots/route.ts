@@ -1,7 +1,7 @@
 import { requireMember } from "@/lib/auth";
 import { fail, json } from "@/lib/http";
 import { prisma } from "@/lib/db";
-import { addDaysKey, buildSlots, dayKeyOf, nextOpenDays, slotInstant, type Rule } from "@/lib/appointments";
+import { addDaysKey, buildSlots, calendarDays, dayKeyOf, slotInstant, type Rule } from "@/lib/appointments";
 import { closedDayKeys } from "@/lib/closed-days";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -31,8 +31,8 @@ export async function GET(req: Request) {
     const slots = isClosed ? [] : buildSlots(rules as Rule[], day, appointments);
     const mine = appointments.filter((a) => a.memberId === member.memberId && a.status !== "CANCELADO");
 
-    // próximos días abiertos, para el selector (los cerrados no aparecen)
-    const days = nextOpenDays(rules as Rule[], closed, today, OPEN_DAYS, 5);
+    // El selector muestra la semana completa: los días sin atención van atenuados, no escondidos.
+    const days = calendarDays(rules as Rule[], closed, today, 7);
 
     return json({
       day,

@@ -38,7 +38,15 @@ type Overview = {
 };
 
 type Slot = { startMin: number; label: string; free: number; past: boolean; full: boolean };
-type Day = { key: string; weekday: number };
+type EstadoDia = "abierto" | "cerrado" | "sin-franja" | "hoy-sin-horario";
+type Day = { key: string; weekday: number; estado?: EstadoDia; label?: string };
+
+const MOTIVO_DIA: Record<EstadoDia, string> = {
+  abierto: "",
+  cerrado: "El club no atiende ese día",
+  "sin-franja": "Ese día el club no atiende",
+  "hoy-sin-horario": "Hoy ya no quedan horarios",
+};
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const g = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")} g`;
@@ -298,10 +306,20 @@ export function MemberPortal({
               <div>
                 <span className="label">¿Qué día?</span>
                 <div className="days" role="radiogroup" aria-label="Día del retiro">
-                  {(days.length ? days : [{ key: initialDay, weekday: 0 }]).map((d) => {
+                  {(days.length ? days : [{ key: initialDay, weekday: 0, estado: "abierto" as EstadoDia }]).map((d) => {
                     const p = dayParts(d.key);
+                    const cerrado = (d.estado ?? "abierto") !== "abierto";
                     return (
-                      <button key={d.key} type="button" className="day" aria-pressed={d.key === day} onClick={() => setDay(d.key)}>
+                      <button
+                        key={d.key}
+                        type="button"
+                        className="day"
+                        aria-pressed={d.key === day}
+                        aria-disabled={cerrado}
+                        title={cerrado ? MOTIVO_DIA[d.estado ?? "abierto"] : undefined}
+                        style={cerrado ? { opacity: 0.45 } : undefined}
+                        onClick={() => setDay(d.key)}
+                      >
                         <small>{p.wd}</small><b className="tnum">{p.d}</b>
                       </button>
                     );
@@ -313,7 +331,9 @@ export function MemberPortal({
                 <span className="label">¿A qué hora?</span>
                 {slots.length === 0 ? (
                   <p className="muted" style={{ margin: 0 }}>
-                    {closedDay ? "El club cerró ese día. Elegí otra fecha." : "Ese día el club no atiende."}
+                    {closedDay
+                      ? "El club cerró ese día. Elegí otra fecha."
+                      : MOTIVO_DIA[days.find((d) => d.key === day)?.estado ?? "sin-franja"] || "Ese día el club no atiende."}
                   </p>
                 ) : (
                   <div className="slot-grid" role="radiogroup" aria-label="Horario del retiro">
