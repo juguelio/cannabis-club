@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { permite, seccionDeRuta, seccionesDe, esStaff } from "../roles";
+import { permite, seccionDeRuta, seccionesDe, esStaff, ROLES_EQUIPO } from "../roles";
 
 describe("permisos por rol", () => {
   it("el dispensador ve el mostrador y nada de gestión", () => {
@@ -57,5 +57,14 @@ describe("permisos por rol", () => {
     expect(s).toContain("dispensario");
     expect(s).not.toContain("configuracion");
     expect(s).not.toContain("cierre");
+  });
+});
+
+describe("roles del equipo", () => {
+  it("todo rol de staff se lista en Equipo (y el socio no)", () => {
+    const staff = (["ADMIN", "OPERADOR", "DISPENSADOR", "SOCIO"] as const).filter((r) => ROLES_EQUIPO.includes(r));
+    // Si mañana se agrega un rol de staff y no se suma a ROLES_EQUIPO, una cuenta creada no se ve en Equipo.
+    expect(staff).toEqual(["ADMIN", "OPERADOR", "DISPENSADOR"]);
+    expect(ROLES_EQUIPO).not.toContain("SOCIO");
   });
 });

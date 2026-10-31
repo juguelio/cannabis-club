@@ -13,6 +13,7 @@ import { CatalogoManager } from "@/components/catalogo-manager";
 import { DatosLegalesForm } from "@/components/datos-legales-form";
 import { PreciosForm } from "@/components/precios-form";
 import { preciosDeClub } from "@/lib/precios";
+import { ROLES_EQUIPO } from "@/lib/roles";
 import { PadronImport } from "@/components/padron-import";
 import { AUDIT_ACTION, fmtWhen } from "@/lib/labels";
 
@@ -85,7 +86,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     body = <CatalogoManager />;
   } else if (tab === "equipo") {
     const users = await prisma.user.findMany({
-      where: { role: { in: ["ADMIN", "OPERADOR"] } },
+      where: { role: { in: ROLES_EQUIPO } },
       orderBy: [{ active: "desc" }, { name: "asc" }],
       select: { id: true, email: true, name: true, role: true, active: true, lastLoginAt: true },
     });

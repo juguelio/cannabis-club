@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { hashPassword, requireUser } from "@/lib/auth";
+import { ROLES_EQUIPO } from "@/lib/roles";
 import { body, created, route } from "@/lib/api";
 import { clientIp } from "@/lib/http";
 import { conflict } from "@/lib/errors";
@@ -10,7 +11,7 @@ const select = { id: true, email: true, name: true, role: true, active: true, la
 /** Equipo del club (staff). Las cuentas de socios se gestionan desde su legajo. */
 export const GET = route(async () => {
   await requireUser(["ADMIN"]);
-  const users = await prisma.user.findMany({ where: { role: { in: ["ADMIN", "OPERADOR", "DISPENSADOR"] } }, orderBy: [{ active: "desc" }, { name: "asc" }], select });
+  const users = await prisma.user.findMany({ where: { role: { in: ROLES_EQUIPO } }, orderBy: [{ active: "desc" }, { name: "asc" }], select });
   return { users };
 });
 

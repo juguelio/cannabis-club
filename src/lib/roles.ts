@@ -7,6 +7,14 @@
  */
 export type Rol = "ADMIN" | "OPERADOR" | "DISPENSADOR" | "SOCIO";
 
+/**
+ * Roles que son «equipo» y por lo tanto se listan y se crean en Configuración › Equipo.
+ * Una sola lista: cuando se agregó DISPENSADOR quedó afuera de la consulta de la pantalla y una cuenta
+ * creada no aparecía en ningún lado (el cliente la creó y no la encontró). El test de abajo falla si se
+ * agrega un rol y no se suma acá.
+ */
+export const ROLES_EQUIPO: Rol[] = ["ADMIN", "OPERADOR", "DISPENSADOR"];
+
 export const SECCIONES = [
   "panel",
   "dispensario",
