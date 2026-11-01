@@ -154,7 +154,64 @@ export const AUDIT_ACTION: Record<string, string> = {
   PICKUP_PARTIAL: "Entregó distinto de lo reservado",
   USER_CREATE: "Creó una cuenta del equipo",
   USER_UPDATE: "Editó una cuenta del equipo",
+  ACCESS_DOC_VIEW: "Abrió un documento del alta",
+  ACCESS_DOC_UPLOAD: "Subió un documento del alta",
+  ACCESS_DOC_RETENTION: "Purgó documentación vencida",
+  ACCESS_REQUEST_APPROVE: "Aprobó un alta",
+  ACCESS_REQUEST_REJECT: "Rechazó un alta",
+  ACCESS_APPROVED_NOTICE: "Avisó que el alta fue aprobada",
+  ACCESS_REJECTED_NOTICE: "Avisó que el alta fue rechazada",
+  BATCH_RELEASE: "Liberó un lote",
+  BATCH_RECALL: "Retiró un lote del circuito",
+  CLOSED_DAY_ADD: "Cerró un día",
+  CLOSED_DAY_REMOVE: "Reabrió un día cerrado",
+  CONSENT_GRANT: "Registró un consentimiento",
+  CONSENT_REVOKE: "Revocó un consentimiento",
+  LOGIN_GOOGLE: "Ingresó con Google",
+  MONTHLY_CLOSE: "Firmó el cierre mensual",
+  SEMESTER_REPORT: "Firmó el informe semestral",
+  NOTICE_SENT: "Registró un aviso al socio",
+  SCHEDULE_RULE_ADD: "Abrió una franja de atención",
+  SCHEDULE_RULE_UPDATE: "Editó una franja de atención",
+  SHIPMENT_DISPATCH: "Despachó un envío",
+  SHIPMENT_DELIVER: "Entregó un envío",
+  SHIPMENT_CANCEL: "Canceló un envío",
+  STRAIN_EDIT: "Editó una variedad",
+  STRAIN_PHOTO: "Cambió la foto de una variedad",
+  STRAIN_PHOTO_DELETE: "Quitó la foto de una variedad",
+  USER_APPROVE: "Habilitó una cuenta del equipo",
+  USER_PENDING: "Dejó una cuenta pendiente de aprobación",
+  USER_REJECT: "Rechazó una cuenta del equipo",
 };
+
+/** Cómo se nombra la entidad sobre la que se actuó. */
+export const AUDIT_ENTITY: Record<string, string> = {
+  Member: "Socio",
+  Batch: "Lote",
+  Strain: "Variedad",
+  Dispensation: "Entrega",
+  PickupRequest: "Reserva",
+  Appointment: "Turno",
+  Club: "Club",
+  User: "Cuenta del equipo",
+  ClosedDay: "Día cerrado",
+  MonthlyClose: "Cierre mensual",
+  SemesterReport: "Informe semestral",
+  Shipment: "Envío",
+  AccessRequest: "Solicitud de alta",
+  AccessDocument: "Documento del alta",
+  Consent: "Consentimiento",
+  StockMovement: "Movimiento de stock",
+  ScheduleRule: "Franja de atención",
+};
+
+/** Código de auditoría en lenguaje de club; si falta la etiqueta, se humaniza en vez de mostrar el código. */
+export const auditAction = (code: string) => AUDIT_ACTION[code] ?? code.replace(/_/g, " ").toLowerCase();
+export const auditEntity = (code: string | null | undefined) => (code ? AUDIT_ENTITY[code] ?? code : "—");
+
+/** Ingresos y salidas: no son actividad del club, van contados aparte para no tapar lo demás. */
+export const AUDIT_SESSION = ["LOGIN", "LOGIN_GOOGLE", "LOGOUT"] as const;
+
 
 export const FIELD_LABEL: Record<string, string> = {
   status: "estado", firstName: "nombre", lastName: "apellido", birthDate: "nacimiento", phone: "teléfono", email: "email",

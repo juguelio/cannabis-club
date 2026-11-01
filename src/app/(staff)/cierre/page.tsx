@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { Chip, Empty, Field, PageHead, Section } from "@/components/ui";
-import { fmtGrams } from "@/lib/labels";
+import { auditAction, fmtGrams } from "@/lib/labels";
 
 const TZ = "America/Argentina/Buenos_Aires";
 const dayKey = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
@@ -141,7 +141,7 @@ export default async function CierrePage({ searchParams }: { searchParams: Promi
                 {auditoria.map((a) => (
                   <tr key={a.id}>
                     <td className="cell-meta">{new Intl.DateTimeFormat("es-AR", { timeStyle: "short", timeZone: TZ }).format(a.createdAt)}</td>
-                    <td>{a.action}</td>
+                    <td>{auditAction(a.action)}</td>
                     <td className="cell-meta">{a.entity}</td>
                     <td className="cell-meta">{a.actor?.name ?? "—"}</td>
                   </tr>

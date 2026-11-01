@@ -15,7 +15,7 @@ import { PreciosForm } from "@/components/precios-form";
 import { preciosDeClub } from "@/lib/precios";
 import { ROLES_EQUIPO } from "@/lib/roles";
 import { PadronImport } from "@/components/padron-import";
-import { AUDIT_ACTION, fmtWhen } from "@/lib/labels";
+import { auditAction, fmtWhen } from "@/lib/labels";
 
 export const metadata = { title: "Configuración" };
 
@@ -165,7 +165,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               <li key={a.id}>
                 <div className="grow">
                   <div style={{ fontWeight: 550, color: a.action === "LOGIN_FAILED" ? "var(--danger)" : undefined }}>
-                    {AUDIT_ACTION[a.action] ?? a.action}
+                    {auditAction(a.action)}
                     {href ? <> · <Link href={href}>ver</Link></> : null}
                   </div>
                   <div className="cell-meta">{a.actor?.name ?? "Sistema o socio"} · {fmtWhen(a.createdAt)}{a.ip ? ` · ${a.ip}` : ""}{detail ? ` · ${detail}` : ""}</div>

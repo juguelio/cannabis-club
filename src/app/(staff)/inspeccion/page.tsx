@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getClub } from "@/lib/club";
 import { Chip, PageHead, Panel } from "@/components/ui";
-import { fmtDate, fmtGrams, fmtWhen } from "@/lib/labels";
+import { auditAction, auditEntity, fmtDate, fmtGrams, fmtWhen } from "@/lib/labels";
+import { actividadReciente } from "@/lib/actividad";
 import { listCloses } from "@/lib/monthly-close";
 import { balanceFromMovements } from "@/lib/limits";
 
@@ -16,7 +17,7 @@ export default async function InspectionPage() {
   if (!session) redirect("/login");
   if (session.role !== "ADMIN") redirect("/");
 
-  const [club, members, batches, movements, closes, lasts, audit] = await Promise.all([
+  const [club, members, batches, movements, closes, lasts, actividad] = await Promise.all([
     getClub(),
     prisma.member.groupBy({ by: ["status"], _count: { _all: true } }),
     prisma.batch.findMany({
@@ -26,12 +27,13 @@ export default async function InspectionPage() {
     prisma.stockMovement.findMany({ select: { type: true, grams: true } }),
     listCloses(6),
     prisma.dispensation.findMany({ orderBy: { occurredAt: "desc" }, take: 8, select: { occurredAt: true, grams: true, voidedAt: true, member: { select: { legajo: true } }, batch: { select: { code: true } } } }),
-    prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 10, include: { actor: { select: { name: true } } } }),
+    actividadReciente(),
   ]);
 
   const stock = balanceFromMovements(movements);
   const socios: Record<string, number> = {};
   for (const m of members) socios[m.status] = m._count._all;
+  const { acciones: audit, ingresos } = actividad;
   const sinLiberar = batches.filter((b) => !b.releasedAt && !b.recalledAt);
   const retirados = batches.filter((b) => b.recalledAt);
 
@@ -140,20 +142,49 @@ export default async function InspectionPage() {
         </div>
       </div>
 
-      <Panel title="Actividad reciente" subtitle="Quién hizo qué, con fecha y hora.">
+      <Panel
+        title="Actividad reciente"
+        subtitle="Quién hizo qué, con fecha y hora. Los ingresos al panel no se listan: se cuentan aparte."
+        action={<Link className="btn btn-sm btn-quiet" href="/configuracion?seccion=actividad">Ver todo</Link>}
+      >
         <div className="panel-body">
-          <table className="table">
+          <table className="data">
+            <thead>
+              <tr>
+                <th scope="col" style={{ width: 130 }}>Cuándo</th>
+                <th scope="col" style={{ width: 170 }}>Quién</th>
+                <th scope="col">Qué pasó</th>
+                <th scope="col" style={{ width: 190 }}>Sobre qué</th>
+              </tr>
+            </thead>
             <tbody>
-              {audit.map((a) => (
-                <tr key={a.id}>
-                  <td className="cell-meta">{fmtWhen(a.createdAt)}</td>
-                  <td className="cell-meta">{a.actor?.name ?? "—"}</td>
-                  <td>{a.action}</td>
-                  <td className="cell-meta">{a.entity}</td>
-                </tr>
-              ))}
+              {audit.length === 0 ? (
+                <tr><td colSpan={4} className="cell-meta">Todavía no hay acciones registradas.</td></tr>
+              ) : (
+                audit.map((a) => {
+                  const href = a.entityId && a.entity === "Member" ? `/socios/${a.entityId}` : a.entityId && a.entity === "Batch" ? `/stock/${a.entityId}` : null;
+                  const malo = a.action === "LOGIN_FAILED" || a.action === "DISPENSATION_VOID" || a.action === "CONSENT_REVOKE";
+                  return (
+                    <tr key={a.id}>
+                      <td className="cell-meta tnum" style={{ whiteSpace: "nowrap" }}>{fmtWhen(a.createdAt)}</td>
+                      <td className="cell-meta">{a.actor?.name ?? "Sistema o socio"}</td>
+                      <td style={malo ? { color: "var(--danger)" } : undefined}>{auditAction(a.action)}</td>
+                      <td className="cell-meta">
+                        {auditEntity(a.entity)}
+                        {href ? <> · <Link href={href}>ver</Link></> : null}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
+          {ingresos > 0 ? (
+            <p className="cell-meta" style={{ margin: "10px 0 0" }}>
+              Además, {ingresos} {ingresos === 1 ? "ingreso al panel" : "ingresos al panel"} en las últimas 24 h
+              (no se listan acá para que no tapen las acciones del club).
+            </p>
+          ) : null}
         </div>
       </Panel>
     </>
