@@ -13,6 +13,8 @@ import {
   weekdayOfKey,
   type Rule,
   calendarDays,
+  gridDays,
+  mesLargo,
 } from "../appointments";
 
 // 2026-10-26 es lunes (weekday 1). 13:00Z = 10:00 en Buenos Aires.
@@ -238,5 +240,29 @@ describe("calendarDays (semana completa)", () => {
     const dias = calendarDays(lunesAViernes, new Set(), "2026-11-02", 2, );
     // 2026-11-02 a las 00:00 UTC = 21:00 del día anterior en Argentina: las franjas de ese lunes ya pasaron.
     expect(dias[0].estado === "hoy-sin-horario" || dias[0].estado === "abierto").toBe(true);
+  });
+});
+
+describe("grilla del calendario", () => {
+  it("la semana arranca el lunes y trae siete días", () => {
+    // sábado 31-oct-2026 → la semana va del lunes 26 al domingo 1 de noviembre.
+    expect(gridDays("2026-10-31", "semana")).toEqual([
+      "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01",
+    ]);
+  });
+
+  it("el mes trae semanas completas y nunca menos de 28 ni más de 42 días", () => {
+    const dias = gridDays("2026-10-15", "mes");
+    expect(dias[0]).toBe("2026-09-28"); // lunes de la semana del 1 de octubre
+    expect(dias[dias.length - 1]).toBe("2026-11-01");
+    expect(dias.length % 7).toBe(0);
+    expect(dias.length).toBeGreaterThanOrEqual(28);
+    expect(dias.length).toBeLessThanOrEqual(42);
+    expect(dias).toContain("2026-10-31");
+  });
+
+  it("el título del mes sale en castellano", () => {
+    expect(mesLargo("2026-10-31")).toBe("octubre de 2026");
+    expect(mesLargo("2026-01-01")).toBe("enero de 2026");
   });
 });

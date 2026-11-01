@@ -174,6 +174,40 @@ export function calendarDays(
 
 const WEEKDAY_SHORT = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 
+/** Lunes primero, como se lee un calendario de trabajo. */
+export const SEMANA_LARGA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+function lunesDe(key: string): string {
+  const wd = weekdayOfKey(key); // 0 = domingo
+  return addDaysKey(key, wd === 0 ? -6 : 1 - wd);
+}
+
+/**
+ * Días visibles de la grilla: `semana` = 7 desde el lunes de la semana del ancla;
+ * `mes` = las semanas completas que cubren el mes del ancla (de 28 a 42 días).
+ */
+export function gridDays(anchorKey: string, vista: "semana" | "mes"): string[] {
+  if (vista === "semana") {
+    const desde = lunesDe(anchorKey);
+    return Array.from({ length: 7 }, (_, i) => addDaysKey(desde, i));
+  }
+  const primero = `${anchorKey.slice(0, 7)}-01`;
+  const desde = lunesDe(primero);
+  const [y, m] = anchorKey.split("-").map(Number);
+  const finDeMes = addDaysKey(new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10), -1);
+  const wdFin = weekdayOfKey(finDeMes);
+  const hasta = addDaysKey(finDeMes, wdFin === 0 ? 0 : 7 - wdFin);
+  const total = Math.round((new Date(`${hasta}T00:00:00Z`).getTime() - new Date(`${desde}T00:00:00Z`).getTime()) / 86_400_000) + 1;
+  return Array.from({ length: total }, (_, i) => addDaysKey(desde, i));
+}
+
+/** "octubre de 2026" para el título de la grilla. */
+export function mesLargo(anchorKey: string): string {
+  const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const [y, m] = anchorKey.split("-");
+  return `${meses[Number(m) - 1]} de ${y}`;
+}
+
 export function nextOpenDays(
   rules: Rule[],
   closedKeys: Set<string>,

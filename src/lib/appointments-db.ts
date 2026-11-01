@@ -118,6 +118,71 @@ export async function dayBoard(dayKey: string, now: Date = new Date()): Promise<
   return { day: dayKey, slots, appointments, summary: daySummary(likes, now), openingHours };
 }
 
+export type RangeDay = {
+  key: string;
+  estado: "abierto" | "cerrado" | "sin-franja";
+  franjas: string[];
+  total: number;
+  porLlegar: number;
+  gramos: number;
+  turnos: {
+    id: string;
+    hora: string;
+    socio: string;
+    legajo: number;
+    estado: string;
+    gramos: number | null;
+  }[];
+};
+
+/**
+ * Resumen por día para la grilla del calendario: qué hay cada día, cuánto ocupa y quién viene.
+ * Una sola consulta al rango, armada en memoria; el rango lo acota quien llama (máx. 42 días).
+ */
+export async function rangeBoard(fromKey: string, toKey: string): Promise<RangeDay[]> {
+  const [rules, closed, rows] = await Promise.all([
+    rulesFor(prisma),
+    prisma.closedDay.findMany({ where: { date: { gte: new Date(`${fromKey}T00:00:00.000Z`), lt: new Date(`${addDaysKey(toKey, 1)}T00:00:00.000Z`) } } }),
+    prisma.appointment.findMany({
+      where: { scheduledAt: { gte: slotInstant(fromKey, 0), lt: slotInstant(addDaysKey(toKey, 1), 0) } },
+      include: { member: { select: { legajo: true, firstName: true, lastName: true } }, pickup: { select: { grams: true, status: true } } },
+      orderBy: { scheduledAt: "asc" },
+    }),
+  ]);
+
+  const cerrados = new Set(closed.map((c) => c.date.toISOString().slice(0, 10)));
+  const porDia = new Map<string, typeof rows>();
+  for (const r of rows) {
+    const key = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(r.scheduledAt);
+    porDia.set(key, [...(porDia.get(key) ?? []), r]);
+  }
+
+  const dias: RangeDay[] = [];
+  for (let key = fromKey; key <= toKey; key = addDaysKey(key, 1)) {
+    const weekday = weekdayOfKey(key);
+    const franjas = rules.filter((r) => r.weekday === weekday && (r.active ?? true)).map((r) => `${labelOf(new Date(slotInstant(key, r.startMin)))}–${labelOf(new Date(slotInstant(key, r.endMin)))}`);
+    const estado: RangeDay["estado"] = cerrados.has(key) ? "cerrado" : franjas.length === 0 ? "sin-franja" : "abierto";
+    const delDia = (porDia.get(key) ?? []).filter((a) => a.status !== "CANCELADO");
+    dias.push({
+      key,
+      estado,
+      franjas,
+      total: delDia.length,
+      porLlegar: delDia.filter((a) => a.status === "PENDIENTE" || a.status === "CONFIRMADO").length,
+      gramos: delDia.reduce((acc, a) => acc + (a.pickup ? Number(a.pickup.grams) : 0), 0),
+      turnos: delDia.map((a) => ({
+        id: a.id,
+        hora: labelOf(a.scheduledAt),
+        socio: `${a.member.lastName}, ${a.member.firstName}`,
+        legajo: a.member.legajo,
+        estado: a.status,
+        gramos: a.pickup ? Number(a.pickup.grams) : null,
+      })),
+    });
+  }
+  return dias;
+}
+
 export async function bookAppointment(input: {
   memberId: string;
   dayKey: string;

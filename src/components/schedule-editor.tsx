@@ -94,7 +94,7 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <div className="card card-pad">
+      <div className="card card-pad" style={{ minWidth: 0 }}>
         <div className="section-title mb-2">Franjas de atención</div>
         <p className="cell-meta mb-3">El cupo es por franja, no por día. Pausar una franja la saca de la reserva sin borrar los turnos ya tomados.</p>
         <div className="overflow-x-auto">
@@ -158,7 +158,7 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
         </div>
       </div>
 
-      <div className="card card-pad">
+      <div className="card card-pad" style={{ minWidth: 0 }}>
         <div className="section-title mb-2">Días cerrados</div>
         <p className="cell-meta mb-3">Un día cerrado no acepta turnos ni reservas, aunque tenga franjas.</p>
         <form className="flex flex-wrap items-end gap-2 mb-3" onSubmit={addClosedDay}>
