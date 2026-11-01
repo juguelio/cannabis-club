@@ -69,6 +69,8 @@ export async function addShipmentItem(input: {
   batchId: string;
   grams: number;
   note?: string | null;
+  /** Pedido de envío del portal que este ítem cierra al entregarse. */
+  pickupRequestId?: string | null;
 }) {
   const shipment = await prisma.shipment.findUnique({ where: { id: input.shipmentId }, include: { items: true } });
   if (!shipment) throw notFound("Traslado inexistente");
@@ -81,8 +83,33 @@ export async function addShipmentItem(input: {
   if (shipment.items.some((i) => i.memberId === input.memberId && i.batchId === input.batchId)) {
     throw conflict("ITEM_EXISTS", "Ese paciente ya tiene ese lote en este traslado.");
   }
+
+  // Si el ítem viene de un pedido de envío del portal, se verifica que sea del mismo socio,
+  // que siga abierto y que los gramos coincidan: el envío cierra esa reserva, no otra.
+  let pickupRequestId: string | null = null;
+  if (input.pickupRequestId) {
+    const pedido = await prisma.pickupRequest.findUnique({ where: { id: input.pickupRequestId } });
+    if (!pedido) throw notFound("Pedido de envío inexistente");
+    if (pedido.memberId !== input.memberId) throw conflict("PICKUP_OTRO_SOCIO", "Ese pedido es de otro socio.");
+    if (!["SOLICITADA", "CONFIRMADA"].includes(pedido.status))
+      throw conflict("PICKUP_CERRADO", "Ese pedido ya está cerrado.");
+    if (Number(pedido.grams) !== Number(input.grams))
+      throw conflict(
+        "PICKUP_GRAMOS",
+        `El pedido es de ${Number(pedido.grams)} g y el ítem de ${input.grams} g: tienen que coincidir.`,
+      );
+    pickupRequestId = pedido.id;
+  }
+
   return prisma.shipmentItem.create({
-    data: { shipmentId: input.shipmentId, memberId: input.memberId, batchId: input.batchId, grams: input.grams, note: input.note ?? null },
+    data: {
+      shipmentId: input.shipmentId,
+      memberId: input.memberId,
+      batchId: input.batchId,
+      grams: input.grams,
+      note: input.note ?? null,
+      pickupRequestId,
+    },
   });
 }
 
@@ -168,6 +195,9 @@ export async function deliverShipment(input: { id: string; actorId: string; ip?:
         operatorId: input.actorId,
         ip: input.ip ?? null,
         idempotencyKey: `ship-${item.id}-${attempt}`,
+        // Entregar el envío cierra el pedido del portal, igual que en el mostrador:
+        // un pedido no pasa a RETIRADA si no nació de una entrega real.
+        pickupId: item.pickupRequestId ?? undefined,
       });
       await prisma.shipmentItem.update({ where: { id: item.id }, data: { dispensationId: result.dispensation.id, attempt } });
       delivery.push({ itemId: item.id, ok: true, dispensationId: result.dispensation.id });

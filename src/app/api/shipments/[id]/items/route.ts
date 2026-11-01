@@ -9,6 +9,8 @@ const Body = z.object({
   batchId: z.string().min(1),
   grams: gramsAmount,
   note: z.string().trim().max(200).optional(),
+  /** Pedido de envío del portal que cierra este ítem al entregarse. */
+  pickupRequestId: z.string().min(1).optional(),
 });
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {

@@ -12,7 +12,8 @@ import { isClosedDay } from "./closed-days";
 import { getClub, limitsFromClub } from "./club";
 import { balanceOf, periodOf } from "./account";
 import { memberUsage, memberUsageAt } from "./dispensary";
-import { evaluatePickup, round2 } from "./pickup-rules";
+import { evaluateEnvio, evaluatePickup, round2 } from "./pickup-rules";
+import { gramosPorEnvio, preciosDeClub } from "./precios";
 import { addDaysKey, dayKeyOf, evaluateBooking, labelOf, slotInstant, type Rule } from "./appointments";
 import { daysToExpiry } from "./labels";
 import { availableStock } from "./stock";
@@ -58,6 +59,7 @@ export async function portalOverview(memberId: string) {
 
   const config = limitsFromClub(club);
   const limits = limitsForMember(member, config);
+  const precios = preciosDeClub(club);
   const [usage, pending, stockFisico, reservadoGlobal, pickups] = await Promise.all([
     memberUsage(prisma, member.id, club.timezone),
     prisma.pickupRequest.findMany({
@@ -112,8 +114,16 @@ export async function portalOverview(memberId: string) {
       reprocannDays: limits.reprocannDays,
       consumptionType: member.consumptionType,
       monthlyForecastG: member.monthlyForecastG == null ? null : Number(member.monthlyForecastG),
+      address: member.address,
     },
-    club: { nombre: club.nombre, timezone: club.timezone, aportePorGramo },
+    club: {
+      nombre: club.nombre,
+      timezone: club.timezone,
+      aportePorGramo,
+      // Envío: zonas con su costo y demora, y cuántos gramos entran en una caja.
+      envios: precios.envios,
+      topeEnvioG: gramosPorEnvio(precios),
+    },
     cuenta: { saldo, periodo: periodoActual, aportesDelMes: Math.round(aporteMes * 100) / 100 },
     limits: {
       monthLimitG: limits.monthLimitG,
@@ -143,6 +153,9 @@ export async function portalOverview(memberId: string) {
         : null,
       aporteEstimado: p.aporteEstimado == null ? null : Number(p.aporteEstimado),
       cancelReason: p.cancelReason,
+      deliveryMode: p.deliveryMode,
+      deliveryZona: p.deliveryZona,
+      deliveryCostoArs: p.deliveryCostoArs == null ? null : Number(p.deliveryCostoArs),
     })),
   };
 }
@@ -151,12 +164,19 @@ export async function portalOverview(memberId: string) {
 export async function createPickup(input: {
   memberId: string;
   grams: number;
-  dayKey: string;
-  startMin: number;
+  /** RETIRO (default) trae turno; ENVIO no, viaja al domicilio. */
+  mode?: "RETIRO" | "ENVIO";
+  dayKey?: string;
+  startMin?: number;
+  zona?: string;
+  direccion?: string;
   notes?: string;
 }) {
   const club = await getClub();
   const config = limitsFromClub(club);
+  const modo = input.mode ?? "RETIRO";
+  const esEnvio = modo === "ENVIO";
+  const precios = preciosDeClub(club);
 
   return prisma.$transaction(
     async (tx) => {
@@ -165,18 +185,25 @@ export async function createPickup(input: {
 
       const limits = limitsForMember(member, config);
       // El cupo se mide en la fecha del retiro, no con el consumo de hoy (R04 del REA).
-      if (await isClosedDay(tx, input.dayKey))
-        throw unprocessable("DAY_CLOSED", "Ese día el dispensario no atiende: elegí otra fecha.");
-      const at = slotInstant(input.dayKey, input.startMin);
+      // Un envío no tiene fecha de retiro: se mide con el consumo de ahora.
+      if (!esEnvio) {
+        if (!input.dayKey || input.startMin == null)
+          throw unprocessable("SLOT_REQUIRED", "Elegí día y horario para retirar en el club.");
+        if (await isClosedDay(tx, input.dayKey))
+          throw unprocessable("DAY_CLOSED", "Ese día el dispensario no atiende: elegí otra fecha.");
+      }
+      const at = esEnvio ? new Date() : slotInstant(input.dayKey!, input.startMin!);
       const [usage, pendingRows, stockFisico, reservadoGlobal, dayRows] = await Promise.all([
         memberUsageAt(tx, member.id, club.timezone, at),
         tx.pickupRequest.findMany({ where: { memberId: member.id, status: { in: [...OPEN_STATUSES] } }, select: { grams: true } }),
         stockTotal(tx),
         tx.pickupRequest.aggregate({ where: { status: { in: [...OPEN_STATUSES] } }, _sum: { grams: true } }),
-        tx.appointment.findMany({
-          where: { scheduledAt: { gte: slotInstant(input.dayKey, 0), lt: slotInstant(addDaysKey(input.dayKey, 1), 0) } },
-          select: { id: true, memberId: true, scheduledAt: true, status: true },
-        }),
+        esEnvio
+          ? Promise.resolve([] as { id: string; memberId: string; scheduledAt: Date; status: string }[])
+          : tx.appointment.findMany({
+              where: { scheduledAt: { gte: slotInstant(input.dayKey!, 0), lt: slotInstant(addDaysKey(input.dayKey!, 1), 0) } },
+              select: { id: true, memberId: true, scheduledAt: true, status: true },
+            }),
       ]);
 
       const pendingGrams = round2(pendingRows.reduce((a, p) => a + Number(p.grams), 0));
@@ -197,18 +224,32 @@ export async function createPickup(input: {
       });
       if (!decision.ok) throw unprocessable(decision.code, decision.message);
 
+      // El envío tiene sus propias condiciones: zona del club, dirección y tope por caja.
+      let envio: { costoArs: number; demora: string; transportista?: string } | null = null;
+      if (esEnvio) {
+        const decisionEnvio = evaluateEnvio({
+          grams: input.grams,
+          direccion: input.direccion ?? "",
+          zona: input.zona ?? "",
+          zonas: precios.envios,
+          topeEnvioG: gramosPorEnvio(precios),
+        });
+        if (!decisionEnvio.ok) throw unprocessable(decisionEnvio.code, decisionEnvio.message);
+        envio = decisionEnvio;
+      }
+
       // Si ya tiene un turno abierto ese día, la reserva se cuelga de él:
       // no tiene sentido mandar al socio a sacar dos turnos para el mismo retiro.
-      const existing = dayRows.find(
-        (r) => r.memberId === member.id && ["PENDIENTE", "CONFIRMADO"].includes(r.status),
-      );
+      const existing = esEnvio
+        ? undefined
+        : dayRows.find((r) => r.memberId === member.id && ["PENDIENTE", "CONFIRMADO"].includes(r.status));
 
-      let appointment = existing ?? null;
-      if (!appointment) {
+      let appointment: { id: string } | null = existing ?? null;
+      if (!esEnvio && !appointment) {
         const rules = (await tx.scheduleRule.findMany({ orderBy: [{ weekday: "asc" }, { startMin: "asc" }] })) as Rule[];
         const slot = evaluateBooking({
-          dayKey: input.dayKey,
-          startMin: input.startMin,
+          dayKey: input.dayKey!,
+          startMin: input.startMin!,
           rules,
           appointments: dayRows,
           memberAppointments: dayRows.filter((r) => r.memberId === member.id),
@@ -233,11 +274,19 @@ export async function createPickup(input: {
           memberId: member.id,
           grams: new Prisma.Decimal(input.grams.toFixed(2)),
           status: "SOLICITADA",
-          appointmentId: appointment.id,
+          appointmentId: appointment?.id ?? null,
+          deliveryMode: modo,
+          deliveryAddress: esEnvio ? (input.direccion ?? "").trim() : null,
+          deliveryZona: esEnvio ? (input.zona ?? null) : null,
+          deliveryDemora: envio?.demora ?? null,
+          deliveryTransportista: envio?.transportista ?? null,
+          deliveryCostoArs: envio ? new Prisma.Decimal(envio.costoArs.toFixed(2)) : null,
           aportePorGramo,
           aporteEstimado: aportePorGramo == null ? null : new Prisma.Decimal(round2(Number(aportePorGramo) * input.grams).toFixed(2)),
           limitSnapshot: {
             checkedAt: new Date().toISOString(),
+            mode: modo,
+            ...(envio ? { envio: { zona: input.zona, costoArs: envio.costoArs, demora: envio.demora } } : {}),
             grams: input.grams,
             monthLimitG: limits.monthLimitG,
             monthUsedG: usage.monthGrams,
@@ -332,6 +381,10 @@ export async function listPickups() {
       : null,
     pickupAt: p.appointment?.scheduledAt.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
+    deliveryMode: p.deliveryMode,
+    deliveryZona: p.deliveryZona,
+    deliveryAddress: p.deliveryAddress,
+    deliveryCostoArs: p.deliveryCostoArs == null ? null : Number(p.deliveryCostoArs),
   }));
 }
 

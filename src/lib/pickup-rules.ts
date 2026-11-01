@@ -77,6 +77,61 @@ export function evaluatePickup(input: PickupRulesInput): PickupRuleOk | PickupRu
   return { ok: true, remainingAfterG: round2(disponibleMes - input.grams) };
 }
 
+/**
+ * Envío a domicilio: lo que hay que verificar ANTES de aceptar el pedido.
+ *
+ * Un envío no ocupa turno (el socio no viene), pero sí tiene dos condiciones propias: viaja a una
+ * dirección concreta y por una zona que el club cobra. Y el tope por envío no es un capricho: es
+ * cuántas membresías entran en una caja (`maxMembresiasPorEnvio`), para que el despacho sea uno.
+ */
+export type EnvioZona = { zona: string; precioArs: number; demora: string; transportista?: string };
+
+export type EnvioRulesInput = {
+  grams: number;
+  direccion: string;
+  zona: string;
+  zonas: EnvioZona[];
+  topeEnvioG: number;
+};
+
+export type EnvioRuleError = {
+  ok: false;
+  code: "ENVIO_SIN_ZONAS" | "ENVIO_SIN_ZONA" | "ENVIO_SIN_DIRECCION" | "ENVIO_TOPE";
+  message: string;
+};
+
+export type EnvioRuleOk = { ok: true; costoArs: number; demora: string; transportista?: string };
+
+export function evaluateEnvio(input: EnvioRulesInput): EnvioRuleOk | EnvioRuleError {
+  if (input.zonas.length === 0) {
+    return {
+      ok: false,
+      code: "ENVIO_SIN_ZONAS",
+      message: "El club todavía no cargó las zonas de envío. Elegí retirar en el club.",
+    };
+  }
+  const elegida = input.zonas.find((z) => z.zona === input.zona);
+  if (!elegida) {
+    return { ok: false, code: "ENVIO_SIN_ZONA", message: "Elegí la zona de envío." };
+  }
+  // La dirección es lo único que hace que el envío exista: sin calle y número no se despacha.
+  if (input.direccion.trim().length < 8) {
+    return {
+      ok: false,
+      code: "ENVIO_SIN_DIRECCION",
+      message: "Escribí la dirección completa: calle, número, localidad y código postal.",
+    };
+  }
+  if (input.grams > input.topeEnvioG + 1e-9) {
+    return {
+      ok: false,
+      code: "ENVIO_TOPE",
+      message: `Por envío salen hasta ${fmt(input.topeEnvioG)}. Si necesitás más, dividilo en dos pedidos.`,
+    };
+  }
+  return { ok: true, costoArs: elegida.precioArs, demora: elegida.demora, transportista: elegida.transportista };
+}
+
 export const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export const fmt = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")} g`;

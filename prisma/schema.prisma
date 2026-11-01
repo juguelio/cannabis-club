@@ -70,6 +70,12 @@ enum MovementType {
   TRANSFERENCIA
 }
 
+/// Cómo llega el producto al socio. Un envío no ocupa turno: no viene al club.
+enum DeliveryMode {
+  RETIRO
+  ENVIO
+}
+
 enum PickupStatus {
   SOLICITADA
   CONFIRMADA
@@ -550,6 +556,9 @@ model ShipmentItem {
   /// Intento de entrega: si la anterior se anula, la nueva usa otra clave de idempotencia.
   attempt        Int           @default(1)
   note           String?
+  /// Si el ítem viene de un pedido de envío del portal, entregarlo cierra esa reserva.
+  pickupRequestId String?      @unique
+  pickupRequest   PickupRequest? @relation(fields: [pickupRequestId], references: [id])
   createdAt      DateTime      @default(now())
 
   @@index([memberId])
@@ -647,6 +656,15 @@ model PickupRequest {
   aporteEstimado Decimal?      @db.Decimal(12, 2)
   /// Foto del cálculo de topes al reservar, para poder explicar después.
   limitSnapshot  Json?
+  /// RETIRO: viene al club con turno. ENVIO: se despacha a su domicilio, sin turno.
+  deliveryMode   DeliveryMode @default(RETIRO)
+  /// Copia de la dirección al momento de pedir: el envío tiene que conservar la que se usó.
+  deliveryAddress String?
+  deliveryZona   String?
+  deliveryDemora String?
+  deliveryTransportista String?
+  deliveryCostoArs Decimal?    @db.Decimal(10, 2)
+  shipmentItem   ShipmentItem?
   notes          String?
   confirmedAt    DateTime?
   fulfilledAt    DateTime?

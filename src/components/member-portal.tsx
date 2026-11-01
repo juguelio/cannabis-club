@@ -23,8 +23,16 @@ type Overview = {
     reprocannExpiresAt: string | null;
     reprocannOk: boolean;
     reprocannDays: number | null;
+    address: string | null;
   };
-  club: { nombre: string; aportePorGramo: number | null };
+  club: {
+    nombre: string;
+    aportePorGramo: number | null;
+    /** Zonas de envío con costo y demora; vacío = el club sólo entrega en sede. */
+    envios: { zona: string; precioArs: number; demora: string; transportista?: string }[];
+    /** Cuántos gramos entran en un envío (membresías por caja × gramos de la membresía). */
+    topeEnvioG: number;
+  };
   limits: { monthLimitG: number; dayLimitG: number; isMinor: boolean; thcMaxPct: number | null };
   usage: { dayGrams: number; monthGrams: number };
   pendingGrams: number;
@@ -34,7 +42,18 @@ type Overview = {
   tope: number;
   topeMotivo: "mes" | "dia" | "stock";
   aporteEstimadoTope: number | null;
-  pickups: { id: string; grams: number; status: string; createdAt: string; pickupLabel: string | null; aporteEstimado: number | null; cancelReason: string | null }[];
+  pickups: {
+    id: string;
+    grams: number;
+    status: string;
+    createdAt: string;
+    pickupLabel: string | null;
+    aporteEstimado: number | null;
+    cancelReason: string | null;
+    deliveryMode?: "RETIRO" | "ENVIO";
+    deliveryZona?: string | null;
+    deliveryCostoArs?: number | null;
+  }[];
 };
 
 type Slot = { startMin: number; label: string; free: number; past: boolean; full: boolean };
@@ -107,6 +126,10 @@ export function MemberPortal({
   const [showCard, setShowCard] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("all");
   const [closedDay, setClosedDay] = useState(false);
+  // Cómo llega el producto: al club con turno, o a la casa del socio por envío.
+  const [modo, setModo] = useState<"RETIRO" | "ENVIO">("RETIRO");
+  const [zona, setZona] = useState<string>(data.club.envios[0]?.zona ?? "");
+  const [direccion, setDireccion] = useState<string>(data.member.address ?? "");
   const documentStatus = memberDocumentStatus(data.member);
   const visibleHistory = history.filter((item) => historyFilter === "all" || (historyFilter === "voided" ? item.voided : !item.voided));
 
@@ -130,18 +153,31 @@ export function MemberPortal({
   const estimated = data.club.aportePorGramo != null && validGrams ? data.club.aportePorGramo * gramsNum : null;
   const chosen = slots.find((s) => s.startMin === slot);
   const openPickup = data.pickups.find((p) => ["SOLICITADA", "CONFIRMADA"].includes(p.status));
+  const zonaElegida = data.club.envios.find((z) => z.zona === zona);
+  const envioValido =
+    modo === "ENVIO" && validGrams && zonaElegida != null && direccion.trim().length >= 8 && gramsNum <= data.club.topeEnvioG + 1e-9;
+  const puedePedir = validGrams && (modo === "RETIRO" ? slot != null : envioValido);
 
   async function reserve(event: React.FormEvent) {
     event.preventDefault();
-    if (slot == null || !validGrams) return;
+    if (!puedePedir) return;
     setBusy(true);
     setError(null);
     try {
-      const json = await api<{ overview: Overview }>("/api/portal/pickups", { body: { grams: gramsNum, date: day, startMin: slot } });
+      const json = await api<{ overview: Overview }>("/api/portal/pickups", {
+        body:
+          modo === "ENVIO"
+            ? { mode: "ENVIO", grams: gramsNum, zona, direccion: direccion.trim() }
+            : { mode: "RETIRO", grams: gramsNum, date: day, startMin: slot },
+      });
       setData(json.overview);
       setGrams("");
       setSlot(null);
-      toast({ tone: "ok", title: "Reserva tomada", text: "El club la confirma y te espera en el horario elegido." });
+      toast(
+        modo === "ENVIO"
+          ? { tone: "ok", title: "Pedido de envío tomado", text: "El club lo prepara y lo despacha a tu domicilio. Te avisa cuando sale." }
+          : { tone: "ok", title: "Reserva tomada", text: "El club la confirma y te espera en el horario elegido." },
+      );
     } catch (err) {
       setError(errMsg(err));
     } finally {
@@ -264,8 +300,8 @@ export function MemberPortal({
 
       <section className="panel">
         <div className="panel-head"><div>
-          <h2 className="panel-title" style={{ fontSize: 19 }}>Reservar un retiro</h2>
-          <p className="panel-sub">Reservás gramos de la producción del club y los retirás vos, en el club. El aporte de cultivo se abona al retirar y es un prorrateo de costos, no una venta.</p>
+          <h2 className="panel-title" style={{ fontSize: 19 }}>Pedir tu producción</h2>
+          <p className="panel-sub">Reservás gramos de la producción del club y elegís cómo los recibís: retirás en el club con turno, o te los enviamos a tu domicilio. El aporte de cultivo se prorratea al entregar: no es una venta.</p>
         </div></div>
         <div className="panel-body">
           {!open ? (
@@ -303,6 +339,36 @@ export function MemberPortal({
                 <span className="cell-meta">El saldo del mes se renueva el día 1 y el tope diario a las 00:00.</span>
               </div>
 
+              <div>
+                <span className="label">¿Cómo lo recibís?</span>
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Forma de entrega">
+                  {([
+                    { id: "RETIRO" as const, t: "Retiro en el club", d: "Con turno, el día que elijas" },
+                    { id: "ENVIO" as const, t: "Envío a domicilio", d: "A tu casa, por transporte" },
+                  ]).map((op) => (
+                    <button
+                      key={op.id}
+                      type="button"
+                      className={modo === op.id ? "btn btn-quiet" : "btn btn-quiet"}
+                      aria-pressed={modo === op.id}
+                      onClick={() => setModo(op.id)}
+                      style={
+                        modo === op.id
+                          ? { borderColor: "var(--ink)", boxShadow: "inset 0 0 0 1px var(--ink)", textAlign: "left" }
+                          : { textAlign: "left", opacity: 0.75 }
+                      }
+                    >
+                      <span style={{ display: "block", fontWeight: 650 }}>{op.t}</span>
+                      <span className="cell-meta">{op.d}</span>
+                    </button>
+                  ))}
+                </div>
+                {data.club.envios.length === 0 ? (
+                  <span className="hint">El club todavía no cargó zonas de envío: por ahora sólo retiro en el club.</span>
+                ) : null}
+              </div>
+
+              {modo === "RETIRO" ? (<>
               <div>
                 <span className="label">¿Qué día?</span>
                 <div className="days" role="radiogroup" aria-label="Día del retiro">
@@ -346,9 +412,56 @@ export function MemberPortal({
                 )}
               </div>
 
+              </>) : (<>
+                <div>
+                  <label className="label" htmlFor="p-zona">¿A qué zona?</label>
+                  <select id="p-zona" className="input" value={zona} onChange={(e) => setZona(e.target.value)}>
+                    {data.club.envios.map((z) => (
+                      <option key={z.zona} value={z.zona}>
+                        {z.zona} · {MONEY.format(z.precioArs)} · {z.demora}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="hint">
+                    El envío lo paga el socio y se cobra aparte del aporte de cultivo.{" "}
+                    {zonaElegida ? `Sale por ${zonaElegida.transportista ?? "el transporte del club"}, ${zonaElegida.demora.toLowerCase()}.` : ""}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="label" htmlFor="p-dir">¿A qué dirección lo mandamos?</label>
+                  <textarea
+                    id="p-dir"
+                    className="input"
+                    rows={2}
+                    value={direccion}
+                    onChange={(e) => setDireccion(e.target.value)}
+                    placeholder="Calle y número, localidad, provincia, código postal"
+                  />
+                  <span className="hint">Tiene que ser una dirección donde haya alguien para recibir. Lo despachamos en un solo envío.</span>
+                </div>
+
+                {validGrams && gramsNum > data.club.topeEnvioG + 1e-9 ? (
+                  <div className="note note-warn">
+                    <CircleAlert aria-hidden />
+                    <div>Por envío salen hasta {g(data.club.topeEnvioG)}. Si querés más, dividilo en dos pedidos.</div>
+                  </div>
+                ) : null}
+              </>)}
+
               {error ? <div className="note note-danger" role="alert">{error}</div> : null}
-              <button className="btn btn-lg btn-block" disabled={busy || !validGrams || slot == null}>
-                {busy ? "Reservando…" : validGrams && chosen ? `Reservar ${g(gramsNum)} el ${dayParts(day).long} a las ${chosen.label}` : "Reservar retiro"}
+              <button className="btn btn-lg btn-block" disabled={busy || !puedePedir}>
+                {busy
+                  ? "Enviando…"
+                  : modo === "ENVIO"
+                    ? envioValido
+                      ? `Pedir envío de ${g(gramsNum)} a ${zona}`
+                      : direccion.trim().length < 8
+                        ? "Completá la dirección"
+                        : "Pedir envío"
+                    : validGrams && chosen
+                      ? `Reservar ${g(gramsNum)} el ${dayParts(day).long} a las ${chosen.label}`
+                      : "Reservar retiro"}
               </button>
             </form>
           )}
@@ -358,7 +471,7 @@ export function MemberPortal({
       <section className="panel">
         <div className="panel-head"><div>
           <h2 className="panel-title">Tus reservas</h2>
-          <p className="panel-sub">Al retirar, el club vuelve a verificar tu REPROCANN y tus topes.</p>
+          <p className="panel-sub">Al entregar —en el club o por envío— el club vuelve a verificar tu REPROCANN y tus topes.</p>
         </div></div>
         {data.pickups.length === 0 ? (
           <div className="empty">Todavía no reservaste ningún retiro.</div>
@@ -375,7 +488,9 @@ export function MemberPortal({
                       <span className={st.tone === "mute" ? "chip" : `chip chip-${st.tone}`}>{st.label}</span>
                     </div>
                     <div className="cell-meta">
-                      {p.pickupLabel ?? "sin horario"}
+                      {p.deliveryMode === "ENVIO"
+                        ? `Envío a ${p.deliveryZona ?? "tu domicilio"}${p.deliveryCostoArs != null ? ` · envío ${MONEY.format(p.deliveryCostoArs)}` : ""}`
+                        : p.pickupLabel ?? "sin horario"}
                       {p.aporteEstimado != null ? ` · aporte ${p.status === "RETIRADA" ? "" : "estimado "}${MONEY.format(p.aporteEstimado)}` : ""}
                       {p.cancelReason ? ` · ${p.cancelReason}` : ""}
                     </div>
