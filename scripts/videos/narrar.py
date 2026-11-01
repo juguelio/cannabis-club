@@ -1,5 +1,6 @@
 import json, os, subprocess, sys, time
 
+DIR_GUIONES = os.path.dirname(os.path.abspath(__file__))
 W = os.environ.get("VIDEO_WORK") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".videos-work")
 VENV = os.environ.get("EDGE_TTS") or os.path.expanduser("~/.hermes/cache/scratch/walkthrough/ttsvenv/bin/edge-tts")
 CUALES = sys.argv[1:] or ["socio", "admin", "dispensario"]
@@ -37,7 +38,7 @@ def tts(sec, intento=1):
 
 
 for nombre in CUALES:
-    secs = json.load(open(f"{W}/guion-{nombre}.json"))
+    secs = json.load(open(f"{DIR_GUIONES}/guion-{nombre}.json"))
     total, faltan = 0.0, 0
     print(f"== {nombre} ==")
     for s in secs:
@@ -53,11 +54,18 @@ for nombre in CUALES:
     print(f"  total voz: {total:.1f}s | faltan: {faltan}")
 
 # duraciones.json: lo que el grabador usa para saber cuánto tiene que durar cada sección
-durs = {}
+previas = {}
+_ruta_dur = f"{W}/duraciones.json"
+if os.path.exists(_ruta_dur):
+    try:
+        previas = json.load(open(_ruta_dur))
+    except Exception:
+        previas = {}
+durs = dict(previas)
 for nombre in CUALES:
-    for s in json.load(open(f"{W}/guion-{nombre}.json")):
+    for s in json.load(open(f"{DIR_GUIONES}/guion-{nombre}.json")):
         p = f"{W}/audio/{s['id']}.mp3"
         if os.path.exists(p):
             durs[s["id"]] = round(dur(p), 2)
-json.dump(durs, open(f"{W}/duraciones.json", "w"), indent=1)
+json.dump(durs, open(_ruta_dur, "w"), indent=1)
 print(f"\nduraciones.json: {len(durs)} secciones")

@@ -4,6 +4,7 @@ import json, os, subprocess
 W = 1920
 H_APP = 980
 H_BAND = 100
+DIR_GUIONES = os.path.dirname(os.path.abspath(__file__))
 W2 = os.environ.get("VIDEO_WORK") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".videos-work")
 MAGICK = "/opt/homebrew/bin/magick"
 LOGO = "/Users/altostake/Dev/cannabis-club/public/logo-republica.png"
@@ -72,7 +73,7 @@ def banda(nombre, titulo, sub):
 CUALES = ["socio", "admin", "dispensario"]
 
 for cual in CUALES:
-    for s in json.load(open(f"{W2}/guion-{cual}.json")):
+    for s in json.load(open(f"{DIR_GUIONES}/guion-{cual}.json")):
         if s["tipo"] == "nav":
             banda(s["id"], s["titulo"], s["sub"])
 

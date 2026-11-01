@@ -1,0 +1,155 @@
+[
+ {
+  "id": "a2p",
+  "tipo": "nav",
+  "ruta": "/sitio",
+  "titulo": "La portada del club",
+  "sub": "La cara pública: qué es y cómo se ingresa",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Esta es la cara pública del club: cualquiera puede leer qué es, cómo se asocia y cómo contactarse. El botón Ingresar es el que lleva al equipo al panel."
+ },
+ {
+  "id": "a201",
+  "tipo": "placa",
+  "ruta": null,
+  "titulo": "Gestión del club",
+  "sub": "República ONG · recorrido del lado del que administra",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Esta es la gestión del club, del lado del que administra. Recorremos las pantallas que se usan todos los días."
+ },
+ {
+  "id": "a202",
+  "tipo": "nav",
+  "ruta": "/",
+  "titulo": "1 · El panel del día",
+  "sub": "Entregado, stock, socios y avisos",
+  "voz": "es-AR-TomasNeural",
+  "texto": "El panel abre con el día: cuántos gramos se entregaron, cuánto stock queda para entregar, cuántos socios están activos y qué avisos hay pendientes. Cada tarjeta es un acceso directo al listado que corresponde."
+ },
+ {
+  "id": "a203",
+  "tipo": "nav",
+  "ruta": "/socios",
+  "titulo": "2 · El padrón",
+  "sub": "Buscar por legajo, apellido o documento",
+  "voz": "es-AR-TomasNeural",
+  "texto": "En Socios está el padrón, con los filtros arriba. Buscás por legajo, apellido o documento, y ves el estado del REPROCANN de cada uno y lo que retiró en el mes. Los que están por vencer aparecen acá antes de convertirse en un problema en el mostrador."
+ },
+ {
+  "id": "a204",
+  "tipo": "nav",
+  "ruta": "/socios",
+  "titulo": "3 · Las altas",
+  "sub": "Revisar documentos y aprobar",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Las altas que llegan por la web caen en esta solapa. El club ve los datos declarados y abre cada documento; cada vez que se abre uno queda registrado quién lo miró. Si está todo en orden, se aprueba y el sistema crea el legajo y habilita la cuenta."
+ },
+ {
+  "id": "a205",
+  "tipo": "nav",
+  "ruta": "/socios",
+  "titulo": "4 · La ficha del socio",
+  "sub": "Todo lo necesario para atenderlo",
+  "voz": "es-AR-TomasNeural",
+  "texto": "La ficha tiene lo que hace falta para atender: REPROCANN, topes, lo que retiró este mes, su cuenta corriente, los consentimientos firmados y el acceso al portal."
+ },
+ {
+  "id": "a206",
+  "tipo": "nav",
+  "ruta": "/calendario",
+  "titulo": "5 · El calendario",
+  "sub": "Qué hay cada día y quién viene",
+  "voz": "es-AR-TomasNeural",
+  "texto": "El calendario es nuevo y es lo que el club mira a la mañana: la semana con cada día y su estado, cuántos turnos hay y cuántos gramos están reservados. Con el mes a un clic, y abriendo un día se ve quién viene y a qué hora."
+ },
+ {
+  "id": "a207",
+  "tipo": "nav",
+  "ruta": "/dispensario",
+  "titulo": "6 · El dispensario",
+  "sub": "El servidor valida antes y después de confirmar",
+  "voz": "es-AR-TomasNeural",
+  "texto": "El dispensario es el corazón. Buscás al socio, elegís el lote y ponés los gramos. El panel de la derecha te dice, antes de confirmar, si hay algo que lo impide: REPROCANN vencido, tope diario o mensual, lote en cuarentena o sin liberar."
+ },
+ {
+  "id": "a208",
+  "tipo": "nav",
+  "ruta": "/dispensario",
+  "titulo": "El comprobante",
+  "sub": "Queda registrada, y sin duplicados",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Confirmás y la entrega queda registrada: el socio, el lote, los gramos y quién la registró. Si se corta internet y el operador repite, el sistema reconoce la misma entrega y no la duplica."
+ },
+ {
+  "id": "a209",
+  "tipo": "nav",
+  "ruta": "/stock",
+  "titulo": "8 · Stock y lotes",
+  "sub": "Trazabilidad: del lote al socio",
+  "voz": "es-AR-TomasNeural",
+  "texto": "En Stock y lotes está la trazabilidad: cada lote con su variedad, su THC y el saldo real, que sale del libro y no de un campo editable. Un lote no se entrega hasta que calidad lo libera."
+ },
+ {
+  "id": "a210",
+  "tipo": "nav",
+  "ruta": "/traslados",
+  "titulo": "9 · Traslados",
+  "sub": "Cuando la entrega sale del club",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Traslados es para cuando la entrega sale del club: se arma el viaje, se firma la declaración jurada de cada paciente y recién ahí se despacha. Al llegar, se entrega paciente por paciente."
+ },
+ {
+  "id": "a211",
+  "tipo": "nav",
+  "ruta": "/avisos",
+  "titulo": "10 · Avisos",
+  "sub": "A quién hay que llamar, y por qué",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Avisos es la lista de a quién hay que llamar, con los que no pueden retirar primero. La app prepara el mensaje y abre WhatsApp: lo manda una persona y queda registrado que se avisó."
+ },
+ {
+  "id": "a212",
+  "tipo": "nav",
+  "ruta": "/cierre-mensual",
+  "titulo": "11 · Cierre mensual",
+  "sub": "Se firma, se congela, no se edita",
+  "voz": "es-AR-TomasNeural",
+  "texto": "El cierre mensual congela los totales con firma y con huella. Un mes cerrado no se edita: si hubo un error, se firma un cierre nuevo que reemplaza al anterior."
+ },
+ {
+  "id": "a213",
+  "tipo": "nav",
+  "ruta": "/informe-semestral",
+  "titulo": "12 · Informe semestral",
+  "sub": "Declaración jurada de plantas y variedades",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Y el informe semestral, que es declaración jurada: plantas totales y en floración, variedades, y lo que se cosechó y se dispensó. Se firma, queda con huella y se baja en CSV o se imprime para presentar."
+ },
+ {
+  "id": "a214",
+  "tipo": "nav",
+  "ruta": "/configuracion?seccion=precios",
+  "titulo": "13 · Los aportes",
+  "sub": "En pesos o en dólares, con la cotización del día",
+  "voz": "es-AR-TomasNeural",
+  "texto": "La economía del club es configuración, no código. Los aportes se cargan en pesos o en dólares, y si se eligen dólares la app trae la cotización del día: el socio paga siempre en pesos, al valor de ese día."
+ },
+ {
+  "id": "a215",
+  "tipo": "nav",
+  "ruta": "/configuracion?seccion=catalogo",
+  "titulo": "14 · Las variedades",
+  "sub": "El catálogo que ve el socio",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Y el catálogo: cada variedad con su foto, su porcentaje y su descripción. Las fotos las sube el club, y una variedad no se borra: se apaga."
+ },
+ {
+  "id": "a216",
+  "tipo": "placa",
+  "ruta": null,
+  "titulo": "Un solo registro",
+  "sub": "Quién, qué, cuándo y por qué",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Eso es la app completa. De dónde salió cada gramo, quién lo entregó y cuándo: todo queda en el mismo registro."
+ }
+]

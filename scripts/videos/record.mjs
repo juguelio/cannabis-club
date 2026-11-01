@@ -15,7 +15,7 @@ const W = 1920, H = 980;                       // área de la app; la banda de s
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const WORK = process.env.VIDEO_WORK ?? join(RAIZ, '.videos-work');
 const OUT = join(WORK, `grab-${CUAL}`);
-const SCRIPT = join(WORK, `guion-${CUAL}.json`);
+const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), `guion-${CUAL}.json`);
 const CLAVES = JSON.parse(readFileSync(join(WORK, 'claves.json'), 'utf8'));
 const CRED = CLAVES[CUAL];
 

@@ -29,9 +29,13 @@ node record.mjs dispensario
 python3 montar.py socio && python3 montar.py admin && python3 montar.py dispensario
 ```
 
-Los archivos intermedios viven en `.videos-work/` (ignorado por git): `audio/`, `audio-master/`,
-`bandas/`, `placas/`, `grab-<cual>/`, `seg-<cual>/`. Los `.mp4` y `.srt` finales se copian a
-`.shots/videos/` para entregar.
+Los **guiones** (`guion-*.json`) viven acá, en el repo: son el contenido y lo que se revisa.
+Los intermedios van a `.videos-work/` (ignorado por git): `audio/`, `audio-master/`, `bandas/`,
+`placas/`, `grab-<cual>/`, `seg-<cual>/`, más `claves.json`, `duraciones.json` y `token-solicitud.txt`.
+Los `.mp4` y `.srt` finales se copian a `.shots/videos/` para entregar.
+
+`duraciones.json` se **mezcla**, no se pisa: correr `narrar.py socio` no debe borrar las duraciones
+de los otros dos guiones (pasó, y el grabador se quedó sin tiempos).
 
 ## Reglas
 

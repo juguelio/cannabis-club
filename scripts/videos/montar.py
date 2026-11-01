@@ -6,6 +6,7 @@ import json, os, subprocess, sys
 
 FFMPEG = "/opt/homebrew/bin/ffmpeg"
 FFPROBE = "/opt/homebrew/bin/ffprobe"
+DIR_GUIONES = os.path.dirname(os.path.abspath(__file__))
 W2 = os.environ.get("VIDEO_WORK") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".videos-work")
 CUAL = sys.argv[1] if len(sys.argv) > 1 else "socio"
 OUT = f"{W2}/grab-{CUAL}"
@@ -27,8 +28,8 @@ def sh(args):
     return r
 
 
-guion = {s["id"]: s for s in json.load(open(f"{W2}/guion-{CUAL}.json"))}
-orden = [s["id"] for s in json.load(open(f"{W2}/guion-{CUAL}.json"))]
+guion = {s["id"]: s for s in json.load(open(f"{DIR_GUIONES}/guion-{CUAL}.json"))}
+orden = [s["id"] for s in json.load(open(f"{DIR_GUIONES}/guion-{CUAL}.json"))]
 grab = json.load(open(f"{OUT}/grabacion.json"))
 secciones = {s["id"]: s for s in grab["secciones"]}
 frames = grab["frames"]

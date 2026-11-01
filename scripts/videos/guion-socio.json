@@ -1,0 +1,101 @@
+[
+ {
+  "id": "s2p",
+  "tipo": "nav",
+  "ruta": "/sitio",
+  "titulo": "La portada del club",
+  "sub": "Lo que ve alguien que llega por primera vez",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "Antes de entrar, esto es lo que ve alguien que llega por primera vez: qué es el club, cómo se asocia y a quién escribirle. Para entrar, «Ya soy socio». Y si todavía no lo es, «Crear cuenta»."
+ },
+ {
+  "id": "s201",
+  "tipo": "placa",
+  "ruta": null,
+  "titulo": "Cómo se usa",
+  "sub": "República ONG · portal del socio",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "Este es el portal del socio de República ONG. Te muestro en dos minutos cómo se usa, desde el celular o desde la computadora."
+ },
+ {
+  "id": "s202",
+  "tipo": "nav",
+  "ruta": "/login",
+  "titulo": "1 · Entrar",
+  "sub": "El email que diste al asociarte y la clave del club",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "Entrás con el email que diste al asociarte y la clave que te entregó el club. Si es la primera vez, el sistema te va a pedir que la cambies."
+ },
+ {
+  "id": "s203",
+  "tipo": "nav",
+  "ruta": "/solicitud",
+  "titulo": "Si todavía no sos socio",
+  "sub": "Alta con Google, datos y documentación",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "Y si todavía no sos socio, el camino es este: entrás con Google y completás la solicitud. Tus datos, el número de REPROCANN con su vencimiento, y las fotos del DNI y de la credencial. El club revisa, aprueba, y recién ahí tu cuenta queda habilitada."
+ },
+ {
+  "id": "s204",
+  "tipo": "nav",
+  "ruta": "/portal",
+  "titulo": "2 · Tu carnet",
+  "sub": "Legajo, REPROCANN y lo que te queda del mes",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "Apenas entrás ves tu carnet: el legajo, si el REPROCANN está vigente y cuántos días le quedan. Y arriba, lo que más importa: cuántos gramos te quedan este mes, sobre el tope que fija el club."
+ },
+ {
+  "id": "s205",
+  "tipo": "nav",
+  "ruta": "/portal",
+  "titulo": "3 · Reservar un retiro",
+  "sub": "Gramos, día y horario, con el tope a la vista",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "Para retirar, reservás: elegís los gramos, el día y el horario. Los siete días están a la vista, y si el club no atiende uno te lo dice en el momento en lugar de esconderlo. El portal no te deja pasarte del tope diario ni del mensual, y te muestra el aporte antes de confirmar. No es una compra: es un prorrateo de los costos del cultivo."
+ },
+ {
+  "id": "s206",
+  "tipo": "nav",
+  "ruta": "/portal",
+  "titulo": "4 · Queda agendado",
+  "sub": "El día del retiro el club verifica de nuevo",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "Confirmás y la reserva queda agendada, con el día y la hora. El día del retiro, el club vuelve a verificar tu REPROCANN en el mostrador y te entrega dentro de tus topes."
+ },
+ {
+  "id": "s207",
+  "tipo": "nav",
+  "ruta": "/portal",
+  "titulo": "5 · Tu historial",
+  "sub": "Qué retiraste, cuándo y quién te lo entregó",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "En tu historial está cada entrega: qué variedad, cuántos gramos, qué día y quién te la registró. Si alguna figura anulada, queda el contra-asiento: nada se borra."
+ },
+ {
+  "id": "s208",
+  "tipo": "nav",
+  "ruta": "/portal",
+  "titulo": "6 · Privacidad y permisos",
+  "sub": "Qué autorizaste, con fecha y con el texto",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "Acá ves lo que autorizaste: datos, salud, imagen y comunicaciones. Cada permiso con su fecha y con el texto exacto que aceptaste. Si querés revocar alguno, se pide en secretaría y queda registrado."
+ },
+ {
+  "id": "s209",
+  "tipo": "nav",
+  "ruta": "/portal",
+  "titulo": "7 · Tu documentación",
+  "sub": "Lo que el club tiene cargado de tu legajo",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "Y tu documentación: lo que el club tiene cargado de tu legajo. El número de documento no se guarda, sólo la verificación. Si algo no coincide con tus papeles, avisás en secretaría."
+ },
+ {
+  "id": "s210",
+  "tipo": "placa",
+  "ruta": null,
+  "titulo": "¿Dudas?",
+  "sub": "Escribile al club por WhatsApp",
+  "voz": "es-AR-ElenaNeural",
+  "texto": "Eso es todo. Cualquier duda, escribile al club por WhatsApp: del otro lado hay una persona."
+ }
+]

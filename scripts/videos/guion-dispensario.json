@@ -1,0 +1,119 @@
+[
+ {
+  "id": "d2p",
+  "tipo": "nav",
+  "ruta": "/sitio",
+  "titulo": "La puerta del equipo",
+  "sub": "Por dónde entra el que está en el mostrador",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Así entra el equipo: la portada pública es la misma que ve el socio, y por «Ingresar» se llega al panel."
+ },
+ {
+  "id": "d201",
+  "tipo": "placa",
+  "ruta": null,
+  "titulo": "Cómo se dispensa",
+  "sub": "República ONG · el mostrador",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Este es el recorrido del mostrador: lo que ve y lo que hace la persona que atiende el dispensario, de principio a fin."
+ },
+ {
+  "id": "d202",
+  "tipo": "nav",
+  "ruta": "/",
+  "titulo": "1 · Tu panel",
+  "sub": "Sólo lo que el mostrador necesita",
+  "voz": "es-AR-TomasNeural",
+  "texto": "El panel del dispensario es más corto a propósito: el día, el stock para entregar, los socios activos y los avisos. No hay libros, ni cuenta corriente, ni configuración: cada rol ve sólo lo suyo."
+ },
+ {
+  "id": "d203",
+  "tipo": "nav",
+  "ruta": "/turnos",
+  "titulo": "2 · La agenda del día",
+  "sub": "Horarios, cupo por turno y quién vino",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Turnos es la agenda del día: los horarios, el cupo de cada uno, quién ya vino y quién está por llegar. Los socios también reservan desde el portal y esas reservas caen acá."
+ },
+ {
+  "id": "d204",
+  "tipo": "nav",
+  "ruta": "/calendario",
+  "titulo": "3 · La semana completa",
+  "sub": "Qué hay cada día, sin adivinar",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Y el calendario muestra la semana entera de un vistazo: cada día con su estado, los turnos y los gramos reservados. Si el club no atiende, se ve, y se puede abrir un día para ver el detalle."
+ },
+ {
+  "id": "d205",
+  "tipo": "nav",
+  "ruta": "/dispensario",
+  "titulo": "4 · Buscar al socio",
+  "sub": "Legajo, apellido o documento",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Cuando llega alguien, lo primero es buscarlo: por legajo, por apellido o por documento. A la izquierda están los que tienen turno o reserva para hoy."
+ },
+ {
+  "id": "d206",
+  "tipo": "nav",
+  "ruta": "/dispensario",
+  "titulo": "5 · El control",
+  "sub": "Los topes y el REPROCANN antes de entregar",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Al elegirlo, el panel de la derecha hace el control: cuántos gramos le quedan del mes y del día, si el REPROCANN está vigente y si tiene una reserva del portal. Si algo impide la entrega, acá se ve antes de tocar la balanza."
+ },
+ {
+  "id": "d207",
+  "tipo": "nav",
+  "ruta": "/dispensario",
+  "titulo": "6 · Lote y gramos",
+  "sub": "Sólo lotes liberados, con saldo del libro",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Después elegís el lote, que viene con su variedad y su THC, y los gramos. Sólo aparecen lotes disponibles: los que están en cuarentena no se pueden entregar."
+ },
+ {
+  "id": "d208",
+  "tipo": "nav",
+  "ruta": "/dispensario",
+  "titulo": "El comprobante",
+  "sub": "Queda registrada, y la reserva se cierra sola",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Confirmás y la entrega queda registrada con el socio, el lote y los gramos. Si venía con reserva del portal, esta entrega la cierra sola. Y si se corta internet y se repite, el sistema no duplica."
+ },
+ {
+  "id": "d209",
+  "tipo": "nav",
+  "ruta": "/socios",
+  "titulo": "8 · Lo que ves del socio",
+  "sub": "Sin plata: sólo lo que hace falta para entregar",
+  "voz": "es-AR-TomasNeural",
+  "texto": "En Socios ves el padrón y la ficha de cada uno: REPROCANN, topes y lo que retiró. Del mostrador no se ve la cuenta corriente ni se abren los documentos del legajo: eso queda para administración."
+ },
+ {
+  "id": "d210",
+  "tipo": "nav",
+  "ruta": "/stock",
+  "titulo": "9 · El stock",
+  "sub": "El saldo que sale del libro",
+  "voz": "es-AR-TomasNeural",
+  "texto": "En Stock y lotes está el saldo real de cada lote, que sale del libro de movimientos. Si hay una diferencia, se corrige con un ajuste, no editando el número."
+ },
+ {
+  "id": "d211",
+  "tipo": "nav",
+  "ruta": "/avisos",
+  "titulo": "10 · Los avisos",
+  "sub": "A quién hay que escribirle",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Y Avisos es la lista de a quién hay que escribirle, con el motivo: REPROCANN vencido, consentimiento pendiente o una reserva sin retirar. La app prepara el mensaje y abre WhatsApp: lo manda una persona."
+ },
+ {
+  "id": "d212",
+  "tipo": "placa",
+  "ruta": null,
+  "titulo": "Nada se borra",
+  "sub": "Cada gramo queda con quién, cuándo y por qué",
+  "voz": "es-AR-TomasNeural",
+  "texto": "Eso es el mostrador. Cada entrega queda con quién, cuándo, qué lote y cuántos gramos. Nada se borra."
+ }
+]

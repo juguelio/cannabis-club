@@ -4,6 +4,7 @@ Uso: python3.12 masterizar.py [socio|admin]   (sin argumento: todos los audios d
 """
 import json, os, subprocess, sys
 
+DIR_GUIONES = os.path.dirname(os.path.abspath(__file__))
 W = os.environ.get("VIDEO_WORK") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".videos-work")
 FF, FP = "/opt/homebrew/bin/ffmpeg", "/opt/homebrew/bin/ffprobe"
 SAL = f"{W}/audio-master"
@@ -52,7 +53,7 @@ def master(entrada, salida):
 cuales = sys.argv[1:] or ["socio", "admin", "dispensario"]
 vistos = []
 for c in cuales:
-    for s in json.load(open(f"{W}/guion-{c}.json")):
+    for s in json.load(open(f"{DIR_GUIONES}/guion-{c}.json")):
         if s["id"] in vistos:
             continue
         vistos.append(s["id"])
