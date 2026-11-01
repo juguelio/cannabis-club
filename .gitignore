@@ -46,3 +46,7 @@ next-env.d.ts
 # secretos temporales de provisión
 *.tmp
 .supabase-db-password.tmp
+
+# pipeline de videos (frames, audio, renders)
+.videos-work/
+scripts/videos/node_modules/

@@ -1,0 +1,14 @@
+{
+  "name": "videos-club",
+  "private": true,
+  "type": "module",
+  "description": "Grabaci\u00f3n y montaje de los videos de recorrido del club",
+  "scripts": {
+    "grabar:socio": "node record.mjs socio",
+    "grabar:admin": "node record.mjs admin",
+    "grabar:dispensario": "node record.mjs dispensario"
+  },
+  "dependencies": {
+    "puppeteer-core": "^25.16.0"
+  }
+}
