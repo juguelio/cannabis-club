@@ -45,8 +45,8 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
     memberConsents(member.id),
   ]);
   const limits = limitsFromClub(club);
-  const years = age(member.birthDate);
-  const minor = years < limits.edadLimiteMenor;
+  const years = member.birthDate ? age(member.birthDate) : null;
+  const minor = years === null ? false : years < limits.edadLimiteMenor;
   const monthLimit = minor ? Math.min(limits.limiteMenorG, limits.limiteMensualG) : limits.limiteMensualG;
   const st = MEMBER_STATUS[member.status] ?? { label: member.status, tone: "mute" as const };
   const issue = reprocannIssue(member);

@@ -16,7 +16,8 @@ export type LimitConfig = {
 
 export type MemberForCheck = {
   status: string;
-  birthDate: Date | string;
+  /// Nulo mientras el socio no declaró su fecha de nacimiento (legajo importado sin validar).
+  birthDate: Date | string | null;
   reprocannStatus: string;
   reprocannExpiresAt: Date | string | null;
   monthlyForecastG?: number | null;
@@ -30,6 +31,7 @@ export type Decision = {
     | "OK"
     | "MEMBER_NOT_ACTIVE"
     | "UNDERAGE"
+    | "BIRTH_MISSING"
     | "REPROCANN_MISSING"
     | "REPROCANN_EXPIRED"
     | "REPROCANN_INCOMPLETE"
@@ -41,7 +43,7 @@ export type Decision = {
   message: string;
   snapshot: {
     checkedAt: string;
-    ageYears: number;
+    ageYears: number | null;
     grams: number;
     thcPct: number | null;
     usageBefore: Usage;
@@ -80,8 +82,9 @@ export function evaluateDispensation(input: {
 }): Decision {
   const { member, usage, config } = input;
   const at = input.at ?? new Date();
-  const age = ageYears(member.birthDate, at);
-  const isMinor = age < config.edadLimiteMenor;
+  // Sin fecha de nacimiento no se puede saber si es menor: se rechaza, no se asume adulto.
+  const age = member.birthDate ? ageYears(member.birthDate, at) : null;
+  const isMinor = age === null ? false : age < config.edadLimiteMenor;
   const monthlyLimit = isMinor ? Math.min(config.limiteMenorG, config.limiteMensualG) : config.limiteMensualG;
   const dailyLimit = Math.min(config.limiteDiarioG, monthlyLimit);
   const thcMax = isMinor ? config.thcMaxMenor : null;
@@ -110,6 +113,8 @@ export function evaluateDispensation(input: {
   if (!(grams > 0)) return deny("INVALID_AMOUNT", "La cantidad debe ser mayor a 0 g.");
   if (member.status !== "ACTIVO")
     return deny("MEMBER_NOT_ACTIVE", `El socio está en estado ${member.status} y no puede retirar.`);
+  if (age === null)
+    return deny("BIRTH_MISSING", "Falta la fecha de nacimiento del socio: no se puede verificar la edad.");
   if (age < config.edadMinima) return deny("UNDERAGE", `El socio tiene ${age} años; el mínimo es ${config.edadMinima}.`);
 
   if (config.requiereReprocann) {

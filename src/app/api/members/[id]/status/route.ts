@@ -22,6 +22,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     const reprocannDays = daysToExpiry(member.reprocannExpiresAt);
     const isMinor = (() => {
       const b = member.birthDate;
+      if (!b) return false; // sin fecha no hay edad: el mostrador ve «sin declarar», no un adulto supuesto
       const now = new Date();
       let a = now.getUTCFullYear() - b.getUTCFullYear();
       if (now.getUTCMonth() < b.getUTCMonth() || (now.getUTCMonth() === b.getUTCMonth() && now.getUTCDate() < b.getUTCDate())) a -= 1;

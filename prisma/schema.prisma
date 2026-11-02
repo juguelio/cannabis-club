@@ -111,55 +111,55 @@ model ClosedDay {
 /// Configuración del club. Los topes son configuración, no constantes:
 /// el default europeo es 25 g/día, 50 g/mes, 30 g y <=10% THC para menores de 21.
 model Club {
-  id                 String   @id @default("singleton")
-  nombre             String
+  id                       String   @id @default("singleton")
+  nombre                   String
   /// Nombre corto para el rail y el portal; el `nombre` largo va en libros y comprobantes.
-  nombreCorto        String?
-  cuit               String?
-  reprocannNumber    String?
-  reprocannCode      String?
-  directorMedico     String?
+  nombreCorto              String?
+  cuit                     String?
+  reprocannNumber          String?
+  reprocannCode            String?
+  directorMedico           String?
   /// Matrícula del director médico: la exige la Res. 1780/2025 y va en el informe semestral.
-  directorMedicoMatricula    String?
-  responsableTecnico String?
+  directorMedicoMatricula  String?
+  responsableTecnico       String?
   /// Título habilitante del responsable técnico (farmacéutico, bioquímico, etc.).
-  responsableTecnicoTitulo   String?
+  responsableTecnicoTitulo String?
   /// Personería jurídica: número y fecha de resolución (IGJ o registro provincial).
-  personeria         String?
+  personeria               String?
   /// REPS: inscripción provincial en el registro de cannabis.
-  reps               String?
-  domicilioLegal     String?
-  limiteDiarioG      Decimal  @default(25) @db.Decimal(6, 2)
-  limiteMensualG     Decimal  @default(50) @db.Decimal(6, 2)
+  reps                     String?
+  domicilioLegal           String?
+  limiteDiarioG            Decimal  @default(25) @db.Decimal(6, 2)
+  limiteMensualG           Decimal  @default(50) @db.Decimal(6, 2)
   /// Con cuántos días de anticipación se avisa que el REPROCANN vence.
-  avisoReprocannDias Int      @default(30)
-  limiteMenorG       Decimal  @default(30) @db.Decimal(6, 2)
-  edadMinima         Int      @default(18)
-  edadLimiteMenor    Int      @default(21)
-  thcMaxMenor        Decimal? @db.Decimal(5, 2)
-  maxSocios          Int      @default(500)
-  requiereReprocann  Boolean  @default(true)
-  timezone           String   @default("America/Argentina/Buenos_Aires")
+  avisoReprocannDias       Int      @default(30)
+  limiteMenorG             Decimal  @default(30) @db.Decimal(6, 2)
+  edadMinima               Int      @default(18)
+  edadLimiteMenor          Int      @default(21)
+  thcMaxMenor              Decimal? @db.Decimal(5, 2)
+  maxSocios                Int      @default(500)
+  requiereReprocann        Boolean  @default(true)
+  timezone                 String   @default("America/Argentina/Buenos_Aires")
   /// Aporte de cultivo por gramo (prorrateo de costos, NO precio de venta).
-  aportePorGramo     Decimal? @db.Decimal(10, 2)
+  aportePorGramo           Decimal? @db.Decimal(10, 2)
   /// Cuota social mensual (prorrateo de costos fijos, NO precio).
-  cuotaSocialArs     Decimal? @db.Decimal(12, 2)
+  cuotaSocialArs           Decimal? @db.Decimal(12, 2)
   /// Cuota de ingreso, si el club la cobra.
-  cuotaIngresoArs    Decimal? @db.Decimal(12, 2)
+  cuotaIngresoArs          Decimal? @db.Decimal(12, 2)
   /// Exigir liberación firmada del lote antes de entregar (REA 5.1).
-  requiereLiberacion Boolean  @default(true)
+  requiereLiberacion       Boolean  @default(true)
   /// Marca del club (colores, tipografías, textos del sitio). Validada por src/lib/brand.ts; null = aspecto por defecto.
-  marca              Json?
+  marca                    Json?
   /// Economía del club: gramos por membresía, aporte, máximo por envío, zonas y productos. Ver src/lib/precios.ts.
-  precios            Json?
+  precios                  Json?
   /// Imágenes de marca como data URL (png/jpeg/webp), servidas por /api/marca/<tipo>.
-  marcaLogo          String?  @db.Text
-  marcaEmblema       String?  @db.Text
-  marcaPortada       String?  @db.Text
+  marcaLogo                String?  @db.Text
+  marcaEmblema             String?  @db.Text
+  marcaPortada             String?  @db.Text
   /// Sube con cada cambio de marca: invalida la caché de las imágenes.
-  marcaVersion       Int      @default(0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  marcaVersion             Int      @default(0)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 enum AccountKind {
@@ -331,48 +331,54 @@ model User {
   lastLoginAt        DateTime?
   createdAt          DateTime         @default(now())
 
-  movements        StockMovement[] @relation("MovementActor")
-  appointments     Appointment[]   @relation("AppointmentOperator")
-  dispensations    Dispensation[]  @relation("DispensationOperator")
-  voided           Dispensation[]  @relation("DispensationVoider")
-  audits           AuditLog[]
-  transports       Transport[]
-  shipments        Shipment[]      @relation("ShipmentCreator")
-  accessRequest    AccessRequest?
-  reviewedRequests AccessRequest[] @relation("AccessReviewer")
+  movements           StockMovement[]      @relation("MovementActor")
+  appointments        Appointment[]        @relation("AppointmentOperator")
+  dispensations       Dispensation[]       @relation("DispensationOperator")
+  voided              Dispensation[]       @relation("DispensationVoider")
+  audits              AuditLog[]
+  transports          Transport[]
+  shipments           Shipment[]           @relation("ShipmentCreator")
+  accessRequest       AccessRequest?
+  reviewedRequests    AccessRequest[]      @relation("AccessReviewer")
+  verificationReviews MemberVerification[] @relation("VerificationReviewer")
 }
 
 model Member {
-  id                 String          @id @default(cuid())
+  id                 String               @id @default(cuid())
   account            AccountEntry[]
   shipmentItems      ShipmentItem[]
-  legajo             Int             @unique
+  legajo             Int                  @unique
   firstName          String
   lastName           String
-  docType            String          @default("DNI")
+  docType            String               @default("DNI")
   /// Huella HMAC-SHA256 del documento normalizado: el número no se archiva (REA 4).
-  docHash            String?         @unique
+  docHash            String?              @unique
   /// Últimos 4 dígitos, para verificar en el mostrador sin exponer el número.
   docLast4           String?
   docVerifiedAt      DateTime?
-  birthDate          DateTime        @db.Date
+  /// Nulo mientras el socio no declaró su fecha de nacimiento (socios importados del padrón en papel).
+  birthDate          DateTime?            @db.Date
   address            String?
   phone              String?
   email              String?
-  status             MemberStatus    @default(PENDIENTE)
+  status             MemberStatus         @default(PENDIENTE)
   statusReason       String?
-  admittedAt         DateTime?       @db.Date
-  leftAt             DateTime?       @db.Date
+  admittedAt         DateTime?            @db.Date
+  leftAt             DateTime?            @db.Date
   reprocannNumber    String?
-  reprocannStatus    ReprocannStatus @default(NO_APORTA)
-  reprocannExpiresAt DateTime?       @db.Date
-  consumptionType    ConsumptionType @default(LUDICO)
-  monthlyForecastG   Decimal?        @db.Decimal(6, 2)
+  reprocannStatus    ReprocannStatus      @default(NO_APORTA)
+  reprocannExpiresAt DateTime?            @db.Date
+  consumptionType    ConsumptionType      @default(LUDICO)
+  monthlyForecastG   Decimal?             @db.Decimal(6, 2)
   consentSignedAt    DateTime?
   consentVersion     String?
+  /// Estado de la re-validación de DNI + REPROCANN. Sólo VERIFICADO habilita reservar y retirar.
+  verificationStatus VerificationStatus   @default(PENDIENTE)
+  verificationAt     DateTime?
+  verifications      MemberVerification[]
   notes              String?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   user          User?
   appointments  Appointment[]
@@ -545,26 +551,26 @@ model Shipment {
 
 /// Un paciente dentro del traslado: qué lote, cuántos gramos, con qué DDJJ firmada.
 model ShipmentItem {
-  id             String        @id @default(cuid())
-  shipmentId     String
-  shipment       Shipment      @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  memberId       String
-  member         Member        @relation(fields: [memberId], references: [id])
-  batchId        String
-  batch          Batch         @relation(fields: [batchId], references: [id])
-  grams          Decimal       @db.Decimal(10, 2)
+  id              String         @id @default(cuid())
+  shipmentId      String
+  shipment        Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  memberId        String
+  member          Member         @relation(fields: [memberId], references: [id])
+  batchId         String
+  batch           Batch          @relation(fields: [batchId], references: [id])
+  grams           Decimal        @db.Decimal(10, 2)
   /// La DDJJ por paciente es lo que se muestra a la autoridad: sin fecha, el traslado no sale.
-  ddjjSignedAt   DateTime?
-  ddjjNote       String?
-  dispensationId String?       @unique
-  dispensation   Dispensation? @relation(fields: [dispensationId], references: [id])
+  ddjjSignedAt    DateTime?
+  ddjjNote        String?
+  dispensationId  String?        @unique
+  dispensation    Dispensation?  @relation(fields: [dispensationId], references: [id])
   /// Intento de entrega: si la anterior se anula, la nueva usa otra clave de idempotencia.
-  attempt        Int           @default(1)
-  note           String?
+  attempt         Int            @default(1)
+  note            String?
   /// Si el ítem viene de un pedido de envío del portal, entregarlo cierra esa reserva.
-  pickupRequestId String?      @unique
+  pickupRequestId String?        @unique
   pickupRequest   PickupRequest? @relation(fields: [pickupRequestId], references: [id])
-  createdAt      DateTime      @default(now())
+  createdAt       DateTime       @default(now())
 
   @@index([memberId])
   @@index([batchId])
@@ -649,36 +655,36 @@ model Appointment {
 /// No es una venta: el club prorratea su costo de cultivo y el retiro se hace en el club,
 /// con el mismo chequeo de REPROCANN y topes que una entrega de mostrador.
 model PickupRequest {
-  id             String        @id @default(cuid())
-  memberId       String
-  member         Member        @relation(fields: [memberId], references: [id])
-  grams          Decimal       @db.Decimal(10, 2)
-  status         PickupStatus  @default(SOLICITADA)
-  appointmentId  String?       @unique
-  appointment    Appointment?  @relation(fields: [appointmentId], references: [id])
+  id                    String        @id @default(cuid())
+  memberId              String
+  member                Member        @relation(fields: [memberId], references: [id])
+  grams                 Decimal       @db.Decimal(10, 2)
+  status                PickupStatus  @default(SOLICITADA)
+  appointmentId         String?       @unique
+  appointment           Appointment?  @relation(fields: [appointmentId], references: [id])
   /// Aporte estimado congelado al reservar (costo por gramo x gramos).
-  aportePorGramo Decimal?      @db.Decimal(10, 2)
-  aporteEstimado Decimal?      @db.Decimal(12, 2)
+  aportePorGramo        Decimal?      @db.Decimal(10, 2)
+  aporteEstimado        Decimal?      @db.Decimal(12, 2)
   /// Foto del cálculo de topes al reservar, para poder explicar después.
-  limitSnapshot  Json?
+  limitSnapshot         Json?
   /// RETIRO: viene al club con turno. ENVIO: se despacha a su domicilio, sin turno.
-  deliveryMode   DeliveryMode @default(RETIRO)
+  deliveryMode          DeliveryMode  @default(RETIRO)
   /// Copia de la dirección al momento de pedir: el envío tiene que conservar la que se usó.
-  deliveryAddress String?
-  deliveryZona   String?
-  deliveryDemora String?
+  deliveryAddress       String?
+  deliveryZona          String?
+  deliveryDemora        String?
   deliveryTransportista String?
-  deliveryCostoArs Decimal?    @db.Decimal(10, 2)
-  shipmentItem   ShipmentItem?
-  notes          String?
-  confirmedAt    DateTime?
-  fulfilledAt    DateTime?
-  canceledAt     DateTime?
-  cancelReason   String?
-  dispensationId String?       @unique
-  dispensation   Dispensation? @relation(fields: [dispensationId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  deliveryCostoArs      Decimal?      @db.Decimal(10, 2)
+  shipmentItem          ShipmentItem?
+  notes                 String?
+  confirmedAt           DateTime?
+  fulfilledAt           DateTime?
+  canceledAt            DateTime?
+  cancelReason          String?
+  dispensationId        String?       @unique
+  dispensation          Dispensation? @relation(fields: [dispensationId], references: [id])
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   @@index([memberId, createdAt])
   @@index([status, createdAt])
@@ -739,6 +745,61 @@ model AccessDocument {
   uploadedAt DateTime      @default(now())
 
   @@index([requestId])
+}
+
+/// Re-validación de un socio que ya existe en el padrón (importado en papel, o vencido el trámite).
+/// Es un expediente aparte del alta: no crea el legajo, lo actualiza. Rechazado no se edita: se
+/// presenta uno nuevo con `supersedesId`, igual que el resto de los libros.
+model MemberVerification {
+  id                 String                 @id @default(cuid())
+  memberId           String
+  member             Member                 @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  status             VerificationStatus     @default(EN_REVISION)
+  /// Lo que declaró el socio (la fuente es el documento; esto es su dicho hasta que el club mire).
+  docNumberCipher    Bytes
+  docHash            String
+  docLast4           String
+  birthDate          DateTime               @db.Date
+  reprocannNumber    String
+  reprocannExpiresAt DateTime               @db.Date
+  submittedAt        DateTime               @default(now())
+  reviewedAt         DateTime?
+  reviewedById       String?
+  reviewedBy         User?                  @relation("VerificationReviewer", fields: [reviewedById], references: [id])
+  rejectionReason    String?
+  supersedesId       String?                @unique
+  supersedes         MemberVerification?    @relation("VerificationSupersede", fields: [supersedesId], references: [id])
+  replaces           MemberVerification?    @relation("VerificationSupersede")
+  documents          VerificationDocument[]
+
+  @@index([memberId, submittedAt])
+  @@index([status, submittedAt])
+}
+
+/// Archivo de la re-validación: mismo cifrado en reposo que los documentos del alta.
+model VerificationDocument {
+  id             String             @id @default(cuid())
+  verificationId String
+  verification   MemberVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  tipo           String
+  mime           String
+  size           Int
+  sha256         String
+  iv             Bytes
+  tag            Bytes
+  data           Bytes
+  uploadedAt     DateTime           @default(now())
+
+  @@index([verificationId])
+}
+
+/// En qué está la re-validación del legajo. Un socio importado entra PENDIENTE: sin DNI ni REPROCANN
+/// verificados no puede reservar ni retirar, aunque su ficha exista desde antes.
+enum VerificationStatus {
+  PENDIENTE
+  EN_REVISION
+  VERIFICADO
+  RECHAZADO
 }
 
 enum AccessRequestStatus {

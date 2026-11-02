@@ -31,16 +31,19 @@ function ageYears(birth: Date, now = new Date()) {
 }
 
 function limitsForMember(
-  member: { birthDate: Date; reprocannStatus: string; reprocannExpiresAt: Date | null },
+  member: { birthDate: Date | null; reprocannStatus: string; reprocannExpiresAt: Date | null },
   config: ReturnType<typeof limitsFromClub>,
 ) {
-  const isMinor = ageYears(member.birthDate) < config.edadLimiteMenor;
+  // Sin fecha de nacimiento no hay edad: no se asume mayor de edad (el socio todavía no se validó).
+  const isMinor = member.birthDate ? ageYears(member.birthDate) < config.edadLimiteMenor : false;
+  const birthMissing = member.birthDate === null;
   const days = daysToExpiry(member.reprocannExpiresAt);
   const reprocannOk =
     !config.requiereReprocann ||
     (member.reprocannStatus === "VIGENTE" && (days == null || days >= 0));
   return {
     isMinor,
+    birthMissing,
     monthLimitG: isMinor ? Math.min(config.limiteMenorG, config.limiteMensualG) : config.limiteMensualG,
     dayLimitG: config.limiteDiarioG,
     thcMaxPct: isMinor ? config.thcMaxMenor : null,
@@ -182,6 +185,16 @@ export async function createPickup(input: {
     async (tx) => {
       const member = await tx.member.findUnique({ where: { id: input.memberId } });
       if (!member) throw notFound("Socio inexistente");
+
+      // Sin DNI y REPROCANN validados en la plataforma no se reserva: el pedido nacería para ser
+      // rechazado en la entrega. El socio lo ve en el portal, y acá está la puerta del servidor.
+      if (member.verificationStatus !== "VERIFICADO")
+        throw conflict(
+          "VERIFICACION_PENDIENTE",
+          member.verificationStatus === "EN_REVISION"
+            ? "Tu legajo está en revisión: cuando el club valide tu DNI y tu REPROCANN vas a poder pedir."
+            : "Antes de pedir tenés que validar tu DNI y tu REPROCANN en tu portal.",
+        );
 
       const limits = limitsForMember(member, config);
       // El cupo se mide en la fecha del retiro, no con el consumo de hoy (R04 del REA).

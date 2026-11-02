@@ -10,6 +10,9 @@ import { monthUsageByMember } from "@/lib/usage";
 import { memberIdsByName } from "@/lib/member-search";
 import { Avatar, Chip, Empty, Meter, PageHead, Panel } from "@/components/ui";
 import { AccessRequests } from "@/components/access-requests";
+import { ValidacionAcciones } from "@/components/validacion-acciones";
+import { colaVerificaciones } from "@/lib/verificacion";
+import { estadoVerificacion } from "@/lib/verificacion-rules";
 import { age, fmtGrams, MEMBER_STATUS, reprocannIssue } from "@/lib/labels";
 
 export const metadata = { title: "Socios" };
@@ -25,9 +28,17 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
 
   // Las altas viven en Socios, no en Configuración: se aprueban donde se ve el padrón que van a engrosar.
   const altas = session.role === "ADMIN" ? await prisma.accessRequest.count({ where: { status: "PENDIENTE" } }) : 0;
+  // La re-validación de los legajos que ya existen se revisa al lado del padrón, no en Configuración.
+  const porValidar =
+    session.role === "ADMIN" ? await prisma.memberVerification.count({ where: { status: "EN_REVISION" } }) : 0;
   const tabAltas = (
     <Link href="/socios?ver=altas" aria-current={ver === "altas" ? "true" : undefined}>
       Altas <span className="count">{altas}</span>
+    </Link>
+  );
+  const tabValidaciones = (
+    <Link href="/socios?ver=validaciones" aria-current={ver === "validaciones" ? "true" : undefined}>
+      Validaciones <span className="count">{porValidar}</span>
     </Link>
   );
   if (ver === "altas" && session.role === "ADMIN") {
@@ -43,6 +54,131 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
           {tabAltas}
         </nav>
         <AccessRequests />
+      </>
+    );
+  }
+
+  if (ver === "validaciones" && session.role === "ADMIN") {
+    const { revision, sinPresentar } = await colaVerificaciones();
+    return (
+      <>
+        <PageHead
+          title="Socios"
+          subtitle="Validaciones: el socio presentó su DNI y su REPROCANN. Aprobar es lo único que carga esos datos al legajo."
+          actions={<Link className="btn btn-quiet" href="/socios">Volver al padrón</Link>}
+        />
+        <nav className="seg" aria-label="Socios" style={{ marginBottom: 14 }}>
+          <Link href="/socios">Padrón</Link>
+          {tabValidaciones}
+          {tabAltas}
+        </nav>
+
+        <Panel
+          title="Presentaciones por revisar"
+          subtitle={
+            revision.length === 0
+              ? "Nada esperando: el socio aparece acá cuando presenta sus datos y sus archivos."
+              : `${revision.length} ${revision.length === 1 ? "legajo" : "legajos"} esperando que alguien mire los documentos`
+          }
+        >
+          {revision.length === 0 ? (
+            <Empty icon={Users} title="Sin presentaciones pendientes">
+              Cuando un socio suba su DNI y su REPROCANN desde el portal, aparece en esta cola.
+            </Empty>
+          ) : (
+            <ul className="rows">
+              {revision.map((r) => (
+                <li key={r.id} style={{ display: "block" }}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <b>
+                      {r.member.lastName}, {r.member.firstName}
+                    </b>
+                    <span className="cell-meta">legajo {r.member.legajo}</span>
+                    <Chip tone="warn">En revisión</Chip>
+                    <span className="cell-meta">
+                      presentado {r.submittedAt.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} · DNI ····
+                      {r.docLast4} · nace {r.birthDate.toISOString().slice(0, 10).split("-").reverse().join("/")}
+                    </span>
+                  </div>
+                  <div className="cell-meta" style={{ marginTop: 4 }}>
+                    REPROCANN {r.reprocannNumber} · vence {r.reprocannExpiresAt.toISOString().slice(0, 10).split("-").reverse().join("/")}
+                    {r.member.email ? ` · ${r.member.email}` : ""}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 8 }}>
+                    {["DNI_FRENTE", "DNI_DORSO", "REPROCANN"].map((tipo) => {
+                      const doc = r.documents.find((d) => d.tipo === tipo);
+                      const label = tipo === "REPROCANN" ? "REPROCANN" : tipo === "DNI_FRENTE" ? "DNI frente" : "DNI dorso";
+                      return doc ? (
+                        <a
+                          key={tipo}
+                          className="btn btn-quiet btn-sm"
+                          href={`/api/verificaciones/${r.id}/documentos/${doc.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {label}
+                        </a>
+                      ) : (
+                        <span key={tipo} className="chip chip-mute">
+                          {label}: falta
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <ValidacionAcciones
+                      id={r.id}
+                      faltantesTexto={
+                        r.documents.length < 3 ? `Faltan ${3 - r.documents.length} de los tres archivos: no se puede aprobar.` : ""
+                      }
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel
+          title="Socios sin validar"
+          subtitle={`${sinPresentar.length} ${sinPresentar.length === 1 ? "legajo" : "legajos"} del padrón que todavía no presentaron nada`}
+        >
+          {sinPresentar.length === 0 ? (
+            <Empty icon={Users} title="Todos los legajos están validados">
+              No queda nadie pendiente en el padrón.
+            </Empty>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Legajo</th>
+                    <th>Socio</th>
+                    <th>Email</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sinPresentar.map((m) => {
+                    const est = estadoVerificacion(m.verificationStatus);
+                    return (
+                      <tr key={m.id}>
+                        <td className="tnum">{m.legajo}</td>
+                        <td className="cell-main">
+                          {m.lastName}, {m.firstName}
+                        </td>
+                        <td className="cell-meta">{m.email ?? "—"}</td>
+                        <td>
+                          <Chip tone={est.tone}>{est.label}</Chip>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
       </>
     );
   }
@@ -120,6 +256,7 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
 
       <div className="flex flex-wrap items-center gap-3" style={{ marginBottom: 14 }}>
         <nav className="seg" aria-label="Filtrar padrón">
+          {session.role === "ADMIN" ? tabValidaciones : null}
           {session.role === "ADMIN" ? tabAltas : null}
           {filters.map((f) => (
             <Link key={f.key || "todos"} href={href(f.key)} aria-current={activeKey === f.key ? "true" : undefined}>
@@ -161,8 +298,11 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
                 {members.map((m) => {
                   const st = MEMBER_STATUS[m.status] ?? { label: m.status, tone: "mute" as const };
                   const issue = reprocannIssue(m);
-                  const years = age(m.birthDate);
-                  const monthLimit = years < limits.edadLimiteMenor ? Math.min(limits.limiteMenorG, limits.limiteMensualG) : limits.limiteMensualG;
+                  const years = m.birthDate ? age(m.birthDate) : null;
+                  const monthLimit =
+                    years !== null && years < limits.edadLimiteMenor
+                      ? Math.min(limits.limiteMenorG, limits.limiteMensualG)
+                      : limits.limiteMensualG;
                   const used = usage.get(m.id) ?? 0;
                   return (
                     <tr key={m.id}>

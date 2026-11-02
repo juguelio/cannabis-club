@@ -8,6 +8,10 @@ import { recalledBatchesForMember } from "@/lib/batch-quality";
 import { CONSENT_TEXTS, memberConsents } from "@/lib/privacy";
 import QRCode from "qrcode";
 import { MemberPortal } from "@/components/member-portal";
+import { VerificacionPanel } from "@/components/verificacion-panel";
+import { PageHead } from "@/components/ui";
+import { verificacionDelSocio } from "@/lib/verificacion";
+import { estadoVerificacion } from "@/lib/verificacion-rules";
 import { catalogoDelClub } from "@/lib/variedades";
 
 export const metadata = { title: "Mi portal" };
@@ -18,6 +22,50 @@ export default async function PortalPage() {
   const session = await getMemberSession();
   if (!session) redirect("/login");
   if (session.mustChangePassword) redirect("/portal/clave");
+
+  // Un legajo sin DNI y REPROCANN validados empieza por el trámite: sin eso no puede pedir, y el
+  // servidor se lo va a rechazar igual. Se le muestra el formulario, no una pantalla vacía.
+  const verificacion = await verificacionDelSocio(session.memberId);
+  if (verificacion.member.verificationStatus !== "VERIFICADO") {
+    const estado = estadoVerificacion(verificacion.member.verificationStatus);
+    return (
+      <>
+        <PageHead
+          title="Validá tus datos"
+          subtitle="Una vez por legajo: tu DNI y tu REPROCANN. Sin eso no se puede pedir ni retirar, por más que tu ficha exista."
+        />
+        <VerificacionPanel
+          inicial={{
+            estado: verificacion.member.verificationStatus,
+            label: estado.label,
+            detalle: estado.detalle,
+            motivoRechazo: verificacion.ultima?.rejectionReason ?? null,
+            presentacion: verificacion.ultima
+              ? {
+                  id: verificacion.ultima.id,
+                  enviada: verificacion.ultima.submittedAt.toISOString(),
+                  documentos: verificacion.ultima.documents.map((d) => ({
+                    id: d.id,
+                    tipo: d.tipo,
+                    size: d.size,
+                    subido: d.uploadedAt.toISOString(),
+                  })),
+                }
+              : null,
+            faltan: verificacion.faltan,
+            faltantesTexto: verificacion.faltantesTexto,
+            legajo: {
+              numero: verificacion.member.legajo,
+              docLast4: verificacion.member.docLast4,
+              venceReprocann: verificacion.member.reprocannExpiresAt
+                ? verificacion.member.reprocannExpiresAt.toISOString().slice(0, 10)
+                : null,
+            },
+          }}
+        />
+      </>
+    );
+  }
 
   const [overview, member, deliveries, recalled, consents, variedades] = await Promise.all([
     portalOverview(session.memberId),

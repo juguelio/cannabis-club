@@ -108,7 +108,7 @@ async function dispensaciones(opts: ReportOptions): Promise<Report> {
       new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(d.occurredAt),
       d.member.lastName,
       d.member.firstName,
-      d.member.birthDate.getUTCFullYear(),
+      d.member.birthDate ? d.member.birthDate.getUTCFullYear() : "",
       maskDoc(d.member.docLast4),
       d.batch.strain.name,
       d.batch.code,
