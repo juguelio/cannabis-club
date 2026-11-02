@@ -240,11 +240,30 @@ export async function cancelShipment(input: { id: string; actorId: string; reaso
   if (shipment.items.some((i) => i.dispensationId)) {
     throw conflict("SHIPMENT_HAS_DELIVERIES", "Ya tiene entregas registradas: no se cancela. Anulá las entregas una por una y dejá el registro.");
   }
-  const updated = await prisma.shipment.update({ where: { id: input.id }, data: { status: "CANCELADO", notes: [shipment.notes, `Cancelado: ${input.reason}`].filter(Boolean).join("\n") } });
-  await prisma.auditLog.create({
-    data: { actorId: input.actorId, action: "SHIPMENT_CANCEL", entity: "Shipment", entityId: input.id, ip: input.ip ?? null, payload: { reason: input.reason } },
+  // Cancelar antes de despachar libera los pedidos del portal que traía: el vínculo es único, así
+  // que si quedaba atado, el pedido no se podía cargar en otro traslado y seguía en la cola para siempre.
+  const { updated, liberados } = await prisma.$transaction(async (tx) => {
+    const libres = await tx.shipmentItem.updateMany({
+      where: { shipmentId: shipment.id, pickupRequestId: { not: null } },
+      data: { pickupRequestId: null },
+    });
+    const row = await tx.shipment.update({
+      where: { id: input.id },
+      data: { status: "CANCELADO", notes: [shipment.notes, `Cancelado: ${input.reason}`].filter(Boolean).join("\n") },
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: "SHIPMENT_CANCEL",
+        entity: "Shipment",
+        entityId: input.id,
+        ip: input.ip ?? null,
+        payload: { reason: input.reason, pedidosLiberados: libres.count },
+      },
+    });
+    return { updated: row, liberados: libres.count };
   });
-  return updated;
+  return { ...updated, pedidosLiberados: liberados };
 }
 
 export async function listShipments(): Promise<ShipmentSummary[]> {

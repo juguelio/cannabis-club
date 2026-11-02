@@ -12,6 +12,7 @@ export const metadata = { title: "Calendario" };
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ fecha?: string }> }) {
+  // (la versión se calcula abajo, después de leer franjas y días cerrados)
   const session = await getSession();
   if (!session) redirect("/login");
 
@@ -27,13 +28,24 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
     prisma.closedDay.findMany({ orderBy: { date: "asc" } }),
   ]);
 
+  // Huella barata de la configuración que dibuja la grilla: si cambia, la clave remonta el cliente.
+  const version = [
+    ...rules.map((r) => `${r.weekday}:${r.startMin}-${r.endMin}:${r.capacity}`),
+    ...closed.map((c) => `c:${c.date.toISOString().slice(0, 10)}`),
+  ].join("|");
+
   return (
     <>
       <PageHead
         title="Calendario del dispensario"
         subtitle="Qué hay cada día, quién viene y qué días el club no atiende. Los socios reservan desde el portal."
       />
+      {/* La clave cambia cuando cambian las franjas o los días cerrados: guardar una franja dispara
+          router.refresh(), el servidor manda datos nuevos y sin remontar la grilla seguía con los
+          viejos hasta navegar a otro rango. */}
       <CalendarioClub
+        key={`${ancla}-${version}`}
+        ancla={ancla}
         inicial={dias}
         desde={keys[0]}
         hasta={keys[keys.length - 1]}

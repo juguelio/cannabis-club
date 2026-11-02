@@ -13,16 +13,21 @@ const Body = z.object({ fuente: z.enum(["oficial", "blue", "bolsa", "manual"]), 
 
 /** Guarda la cotización y recalcula el aporte por gramo que usa la cuenta corriente. */
 async function guardar(cotizacion: Cotizacion, actorId: string | null, ip: string | null) {
-  const club = await prisma.club.findUnique({ where: { id: "singleton" }, select: { precios: true } });
+  // Se lee también `aportePorGramo`: los clubes viejos sólo tienen ese dato y de ahí sale la
+  // compatibilidad de `preciosDeClub`. Actualizar la cotización no puede borrar el aporte vigente
+  // (dejaría de cargarse el aporte de cultivo en cada entrega).
+  const club = await prisma.club.findUnique({ where: { id: "singleton" }, select: { precios: true, aportePorGramo: true } });
   const precios = { ...preciosDeClub(club ?? {}), cotizacion };
-  const aporte = aportePorGramoDe(precios);
+  const calculado = aportePorGramoDe(precios);
+  const legado = club?.aportePorGramo == null ? null : Number(club.aportePorGramo);
+  const aporte = calculado ?? (legado && legado > 0 ? legado : null);
 
   await prisma.$transaction(async (tx) => {
     await tx.club.update({ where: { id: "singleton" }, data: { precios, aportePorGramo: aporte } });
     await tx.auditLog.create({
       data: {
         actorId, action: "CLUB_UPDATE", entity: "Club", entityId: "singleton", ip,
-        payload: { cotizacion, aportePorGramo: aporte, origen: actorId ? "pantalla" : "cron" },
+        payload: { cotizacion, aportePorGramo: aporte, calculado: calculado != null, origen: actorId ? "pantalla" : "cron" },
       },
     });
   });

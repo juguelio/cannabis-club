@@ -63,6 +63,31 @@ export async function correrAvisosVencimiento(hoy = new Date()): Promise<Resulta
       detalle.push({ legajo: socio.legajo, dias: socio.dias!, estado: "sin_email", motivo: "el legajo no tiene email" });
       continue;
     }
+    // Reclamo atómico del episodio: el índice único hace de candado, así el cron y una corrida
+    // manual no mandan dos veces el mismo aviso. Si otro proceso lo tomó, P2002 y se sigue.
+    let reclamo: { id: string };
+    try {
+      reclamo = await prisma.noticeLog.create({
+        data: {
+          memberId: socio.id,
+          kind: "REPROCANN_POR_VENCER",
+          channel: "EMAIL",
+          byId: null,
+          automatic: true,
+          episode: episodio,
+          note: "Envío en curso",
+        },
+        select: { id: true },
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === "P2002") {
+        yaAvisados += 1;
+        detalle.push({ legajo: socio.legajo, dias: socio.dias!, estado: "ya_avisado" });
+        continue;
+      }
+      throw error;
+    }
+
     const envio = await enviarEmail({
       to: socio.email,
       subject:
@@ -72,6 +97,9 @@ export async function correrAvisosVencimiento(hoy = new Date()): Promise<Resulta
       text: textoAvisoVencimiento({ nombre: socio.firstName, dias: socio.dias!, club: club.nombreCorto ?? club.nombre }),
     });
     if (!envio.enviado) {
+      // No salió: se suelta el reclamo para que el próximo intento lo pueda tomar. Dejarlo
+      // «avisado» sin correo sería mentir en la cola.
+      await prisma.noticeLog.delete({ where: { id: reclamo.id } }).catch(() => undefined);
       detalle.push({
         legajo: socio.legajo,
         dias: socio.dias!,
@@ -80,16 +108,9 @@ export async function correrAvisosVencimiento(hoy = new Date()): Promise<Resulta
       });
       continue;
     }
-    await prisma.noticeLog.create({
-      data: {
-        memberId: socio.id,
-        kind: "REPROCANN_POR_VENCER",
-        channel: "EMAIL",
-        byId: null,
-        automatic: true,
-        episode: episodio,
-        note: `Aviso automático: vence en ${socio.dias} días`,
-      },
+    await prisma.noticeLog.update({
+      where: { id: reclamo.id },
+      data: { note: `Aviso automático: vence en ${socio.dias} días` },
     });
     await prisma.auditLog.create({
       data: {

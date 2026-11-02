@@ -290,6 +290,29 @@ export async function voidDispensation(input: {
       data: { voidedAt: new Date(), voidedById: input.actorId, voidReason: input.reason },
     });
 
+    // Si esta entrega cerró un pedido del portal (venía de un traslado), anularla lo devuelve a la
+    // cola. Sin esto el reintento de entrega choca contra PICKUP_NOT_OPEN y el paquete que sí llegó
+    // queda sin asiento: el stock vuelve, pero la reserva no.
+    const item = await tx.shipmentItem.findFirst({
+      where: { dispensationId: dispensation.id },
+      select: { id: true, pickupRequestId: true },
+    });
+    if (item?.pickupRequestId) {
+      await tx.pickupRequest.update({
+        where: { id: item.pickupRequestId },
+        data: { status: "SOLICITADA", fulfilledAt: null, dispensationId: null },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: input.actorId,
+          action: "PICKUP_REOPEN",
+          entity: "PickupRequest",
+          entityId: item.pickupRequestId,
+          payload: { motivo: "Se anuló la entrega del traslado", dispensationId: dispensation.id },
+        },
+      });
+    }
+
     // El cargo del aporte de cultivo también se revierte, con contra-asiento (no se borra).
     const cargo = await tx.accountEntry.findUnique({ where: { dispensationId: dispensation.id } });
     if (cargo && !cargo.voidedAt) {

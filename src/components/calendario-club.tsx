@@ -35,18 +35,21 @@ export function CalendarioClub({
   desde,
   hasta,
   hoy,
+  ancla: anclaInicial,
   cerrados,
 }: {
   inicial: Dia[];
   desde: string;
   hasta: string;
   hoy: string;
+  /** Día con el que abre la grilla: viene del servidor (`?fecha=`), no siempre `hoy`. */
+  ancla?: string;
   cerrados: Cerrado[];
 }) {
   const router = useRouter();
   const [vista, setVista] = useState<"semana" | "mes">("semana");
-  const [ancla, setAncla] = useState(hoy);
-  const [seleccion, setSeleccion] = useState(hoy);
+  const [ancla, setAncla] = useState(anclaInicial ?? hoy);
+  const [seleccion, setSeleccion] = useState(anclaInicial ?? hoy);
   const [dias, setDias] = useState<Dia[]>(inicial);
   const [rango, setRango] = useState({ desde, hasta });
   const [cargando, setCargando] = useState(false);

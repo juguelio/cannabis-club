@@ -338,6 +338,18 @@ export async function cancelPickup(input: { id: string; actorId: string | null; 
   if (!OPEN_STATUSES.includes(pickup.status as (typeof OPEN_STATUSES)[number])) {
     throw conflict("PICKUP_NOT_OPEN", "Esa reserva ya está cerrada.");
   }
+
+  // Una reserva cargada en un traslado no se cancela por acá: si el paquete ya viaja, liberar el
+  // cupo deja stock reservado a la vista y un envío que llega sin asiento. Se cancela el traslado.
+  const enTraslado = await prisma.shipmentItem.findFirst({
+    where: { pickupRequestId: pickup.id, shipment: { status: { in: ["PREPARACION", "DESPACHADO", "ENTREGADO"] } } },
+    select: { shipment: { select: { code: true, status: true } } },
+  });
+  if (enTraslado)
+    throw conflict(
+      "PICKUP_EN_TRASLADO",
+      `Está cargada en el traslado ${enTraslado.shipment.code} (${enTraslado.shipment.status.toLowerCase()}): no se cancela desde acá.`,
+    );
   if (!input.reason.trim()) throw unprocessable("CANCEL_REASON_REQUIRED", "Hace falta el motivo de la cancelación.");
 
   return prisma.$transaction(async (tx) => {
@@ -368,7 +380,13 @@ export async function cancelPickup(input: { id: string; actorId: string | null; 
 export async function expireStale() {
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   await prisma.pickupRequest.updateMany({
-    where: { status: { in: [...OPEN_STATUSES] }, createdAt: { lt: cutoff } },
+    where: {
+      status: { in: [...OPEN_STATUSES] },
+      createdAt: { lt: cutoff },
+      // Un pedido cargado en un traslado no vence por calendario: entre preparación y transporte
+      // pueden pasar más de siete días, y vencerlo deja el paquete sin poder registrar la entrega.
+      shipmentItem: { is: null },
+    },
     data: { status: "VENCIDA", canceledAt: new Date(), cancelReason: "Venció sin retirarse" },
   });
 }

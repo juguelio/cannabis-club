@@ -150,6 +150,7 @@ export const AUDIT_ACTION: Record<string, string> = {
   APPOINTMENT_CREATE: "Agendó un turno",
   PICKUP_CREATE: "Reserva desde el portal",
   PICKUP_CONFIRM: "Confirmó una reserva",
+  PICKUP_REOPEN: "Devolvió el pedido a la cola al anular la entrega",
   PICKUP_CANCEL: "Canceló una reserva",
   PICKUP_PARTIAL: "Entregó distinto de lo reservado",
   USER_CREATE: "Creó una cuenta del equipo",
