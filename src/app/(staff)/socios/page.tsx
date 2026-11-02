@@ -96,8 +96,8 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
                     <span className="cell-meta">legajo {r.member.legajo}</span>
                     <Chip tone="warn">En revisión</Chip>
                     <span className="cell-meta">
-                      presentado {r.submittedAt.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} · DNI ····
-                      {r.docLast4} · nace {r.birthDate.toISOString().slice(0, 10).split("-").reverse().join("/")}
+                      presentado {r.submittedAt.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} · DNI{" "}
+                      ····{r.docLast4} · nace {r.birthDate.toISOString().slice(0, 10).split("-").reverse().join("/")}
                     </span>
                   </div>
                   <div className="cell-meta" style={{ marginTop: 4 }}>
