@@ -12,6 +12,13 @@ import { daysToExpiry, fmtGrams } from "./labels";
 import { normalizeDoc } from "./doc-format";
 
 export const NOTICE_KINDS = {
+  VALIDACION_PENDIENTE: {
+    label: "Legajo sin validar",
+    severity: "warn",
+    why: "Hasta que valide DNI y REPROCANN en el portal no se le puede entregar nada.",
+    template: (name: string) =>
+      `Hola ${name}, para poder pedir y retirar necesitamos validar tu DNI y tu REPROCANN en el portal del club. Entrá con tu cuenta, subí las fotos y lo revisamos.`,
+  },
   REPROCANN_VENCIDO: {
     label: "REPROCANN vencido",
     severity: "danger",
@@ -96,12 +103,31 @@ export type NoticeInput = {
   balanceArs: number;
   openPickups: { id: string; grams: number; days: number }[];
   status: string;
+  /** Un legajo sin validar no tiene REPROCANN ni consentimiento que avisar: se pide la validación. */
+  verificationStatus?: string;
 };
 
 /** Reglas puras: qué avisarle a este socio, con qué urgencia y con qué texto. */
 export function memberNotices(m: NoticeInput, opts: { porVencerDias?: number } = {}): MemberNotice[] {
   const porVencer = opts.porVencerDias ?? 30;
   const out: MemberNotice[] = [];
+
+  // Si el legajo todavía no está validado, todo lo demás es ruido: no hay REPROCANN cargado ni
+  // consentimiento que reclamar, hay un trámite que el socio no hizo. Un aviso, el que importa.
+  if (m.verificationStatus && m.verificationStatus !== "VERIFICADO") {
+    const kind = NOTICE_KINDS.VALIDACION_PENDIENTE;
+    return [
+      {
+        kind: "VALIDACION_PENDIENTE",
+        label: kind.label,
+        severity: kind.severity,
+        why: kind.why,
+        episode: `verificacion:${m.verificationStatus}`,
+        message: kind.template(m.firstName),
+      } as MemberNotice,
+    ];
+  }
+
   const add = (kind: NoticeKind, detail: string, dueInDays: number | null = null, episode = "estado") => {
     const meta = NOTICE_KINDS[kind];
     out.push({
@@ -184,7 +210,7 @@ export async function noticeBoard() {
       where: { status: { in: ["ACTIVO", "SUSPENDIDO"] } },
       select: {
         id: true, legajo: true, firstName: true, lastName: true, phone: true, status: true,
-        reprocannStatus: true, reprocannExpiresAt: true, docHash: true,
+        reprocannStatus: true, reprocannExpiresAt: true, docHash: true, verificationStatus: true,
         consents: { where: { revokedAt: null }, select: { purpose: true } },
         account: { select: { kind: true, amountArs: true } },
         pickups: { where: { status: { in: ["SOLICITADA", "CONFIRMADA"] } }, select: { id: true, grams: true, createdAt: true } },
@@ -221,6 +247,7 @@ export async function noticeBoard() {
       days: Math.floor((Date.now() - p.createdAt.getTime()) / 86_400_000),
       })),
       status: m.status,
+      verificationStatus: m.verificationStatus,
     }, { porVencerDias: club?.avisoReprocannDias ?? 30 }).map((n) => {
       const last = lastByKey.get(`${m.id}:${n.kind}:${n.episode}`) ?? lastByKey.get(`${m.id}:${n.kind}:`);
       return { ...n, lastSentAt: last ? last.sentAt.toISOString() : null, lastChannel: last?.channel ?? null };

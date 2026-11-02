@@ -265,6 +265,7 @@ model Consent {
 
 /// Motivos por los que el club le escribe a un socio (REA 5).
 enum NoticeKind {
+  VALIDACION_PENDIENTE
   REPROCANN_VENCIDO
   REPROCANN_NO_VIGENTE
   REPROCANN_POR_VENCER
