@@ -28,14 +28,29 @@ async function post<T>(url: string, payload: unknown): Promise<T> {
   return data as T;
 }
 
+export type PadronPrevio = {
+  legajo: number;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  address: string | null;
+  locality: string | null;
+  province: string | null;
+  postalCode: string | null;
+  verificationStatus: string;
+} | null;
+
 export function SolicitudForm({
   email,
   solicitud,
   club,
+  padron,
 }: {
   email: string;
   solicitud: EstadoSolicitud | null;
   club: string;
+  /** Si el email ya está en el padrón, esto es un reclamo de ese legajo, no un alta nueva. */
+  padron?: PadronPrevio;
 }) {
   const [estado, setEstado] = useState<EstadoSolicitud | null>(solicitud);
   const [enviando, setEnviando] = useState(false);
@@ -43,12 +58,13 @@ export function SolicitudForm({
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const [previa, setPrevia] = useState<Record<string, string>>({});
   const [datos, setDatos] = useState({
-    firstName: "",
-    lastName: "",
+    // El padrón ya sabe nombre, teléfono y domicilio: se precargan y la persona corrige lo que falte.
+    firstName: padron?.firstName ?? "",
+    lastName: padron?.lastName ?? "",
     birthDate: "",
-    phone: "",
-    address: "",
-    locality: "",
+    phone: padron?.phone ?? "",
+    address: [padron?.address, padron?.postalCode].filter(Boolean).join(", ") ?? "",
+    locality: [padron?.locality, padron?.province].filter(Boolean).join(", ") ?? "",
     docNumber: "",
     reprocannNumber: "",
     reprocannExpiresAt: "",

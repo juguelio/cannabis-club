@@ -7,7 +7,12 @@ import { clientIp } from "@/lib/http";
 import { leerSesionSolicitud } from "@/lib/onboarding";
 import { docFingerprint } from "@/lib/privacy";
 import { encryptText } from "@/lib/docs-crypto";
-import { AFFIDAVIT_VERSION, validarSolicitud } from "@/lib/access-request";
+import {
+  AFFIDAVIT_VERSION,
+  esDocumentoDelMismoLegajo,
+  esReclamoDeLegajo,
+  validarSolicitud,
+} from "@/lib/access-request";
 
 const schema = z.object({
   firstName: z.string().trim().min(1),
@@ -71,9 +76,25 @@ export const POST = route(async (req) => {
   if (previa && previa.status !== "RECHAZADA")
     throw conflict("YA_PRESENTADA", "Ya presentaste la solicitud: está en revisión.");
 
+  // Reclamo de un legajo del padrón: el email ya está en la ficha, así que la solicitud se cuelga de ese
+  // legajo en vez de crear otro cuando el club apruebe.
+  const padronCandidato = await prisma.member.findFirst({
+    where: { email: { equals: user.email, mode: "insensitive" } },
+    select: { id: true, legajo: true, email: true, user: { select: { id: true } } },
+  });
+  const padron =
+    padronCandidato && esReclamoDeLegajo({ emailPadron: padronCandidato.email, emailCuenta: user.email, yaTieneCuenta: !!padronCandidato.user })
+      ? padronCandidato
+      : null;
+
   const huella = docFingerprint(input.docNumber);
   const duplicado = await prisma.member.findUnique({ where: { docHash: huella.docHash }, select: { legajo: true } });
-  if (duplicado) throw conflict("DOCUMENTO_YA_REGISTRADO", "Ese documento ya tiene legajo en el club.");
+  // Que el documento ya esté en el legajo que se reclama no es un duplicado: es el mismo socio.
+  const esSuPropioLegajo = esDocumentoDelMismoLegajo({
+    legajoDelDocumento: duplicado?.legajo ?? null,
+    legajoReclamado: padron?.legajo ?? null,
+  });
+  if (duplicado && !esSuPropioLegajo) throw conflict("DOCUMENTO_YA_REGISTRADO", "Ese documento ya tiene legajo en el club.");
 
   const datos = {
     firstName: input.firstName,
@@ -91,6 +112,7 @@ export const POST = route(async (req) => {
     affidavitAccepted: true,
     affidavitVersion: AFFIDAVIT_VERSION,
     status: "PENDIENTE" as const,
+    memberId: padron?.id ?? null,
     submittedAt: new Date(),
     reviewedAt: null,
     reviewedById: null,
@@ -107,7 +129,7 @@ export const POST = route(async (req) => {
     entity: "AccessRequest",
     entityId: solicitud.id,
     ip: clientIp(req),
-    payload: { email: user.email, docLast4: huella.docLast4 },
+    payload: { email: user.email, docLast4: huella.docLast4, legajoReclamado: padron?.legajo ?? null },
   });
 
   return { solicitud };

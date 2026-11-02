@@ -20,13 +20,22 @@ export default async function SolicitudPage() {
   if (!user) redirect("/login");
   if (user.active) redirect("/portal");
 
-  const [club, solicitud] = await Promise.all([
+  // Si el email de la cuenta ya está en el padrón (los socios que vinieron de la planilla) no se crea
+  // otro legajo: se reclama el que existe. El club sigue decidiendo; esto sólo evita el duplicado.
+  const [club, solicitud, padron] = await Promise.all([
     getBrandView(),
     prisma.accessRequest.findUnique({
       where: { userId },
       select: {
         status: true, firstName: true, lastName: true, reprocannNumber: true, rejectionReason: true, submittedAt: true,
         documents: { select: { id: true, tipo: true, mime: true, size: true } },
+      },
+    }),
+    prisma.member.findFirst({
+      where: { email: { equals: user.email, mode: "insensitive" }, user: { is: null } },
+      select: {
+        legajo: true, firstName: true, lastName: true, phone: true, address: true,
+        locality: true, province: true, postalCode: true, verificationStatus: true,
       },
     }),
   ]);
@@ -49,14 +58,15 @@ export default async function SolicitudPage() {
         <p className="muted" style={{ margin: 0 }}>
           {club.nombre} · alta de socios
         </p>
-        <h1 style={{ margin: 0 }}>Solicitud de alta</h1>
+        <h1 style={{ margin: 0 }}>{padron ? "Activá tu acceso" : "Solicitud de alta"}</h1>
         <p className="muted" style={{ margin: 0 }}>
-          Tres pasos: tus datos, la documentación y la revisión del club. Cuando el club apruebe, tu cuenta queda
-          habilitada con el mismo ingreso de Google.
+          {padron
+            ? `Ya estás en el padrón del club como ${padron.firstName} ${padron.lastName} (legajo ${padron.legajo}). Confirmá tus datos y subí la documentación: el club lo revisa una vez y tu cuenta queda habilitada con el mismo ingreso de Google.`
+            : "Tres pasos: tus datos, la documentación y la revisión del club. Cuando el club apruebe, tu cuenta queda habilitada con el mismo ingreso de Google."}
         </p>
       </header>
 
-      <SolicitudForm email={user.email} solicitud={estado} club={club.nombre} />
+      <SolicitudForm email={user.email} solicitud={estado} club={club.nombre} padron={padron} />
 
       <p className="muted" style={{ marginTop: 28, fontSize: 13 }}>
         ¿No sos vos? <Link href="/login">Entrá con otra cuenta</Link>. Tus datos se tratan según la{" "}

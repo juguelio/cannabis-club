@@ -107,6 +107,21 @@ export function validarRechazo(motivo: string | null | undefined) {
 }
 
 /** Legajo siguiente: el mayor + 1. Los legajos no se reutilizan. */
+/**
+ * Reclamo de un legajo que ya está en el padrón (socios que vinieron de la planilla).
+ *
+ * El alta normal crea el legajo; el reclamo lo completa. Dos consecuencias que se deciden acá y no en la ruta:
+ * un documento que ya figura en ese mismo legajo no es un duplicado, y un legajo que ya tiene cuenta no se reclama.
+ */
+export function esReclamoDeLegajo(params: { emailPadron: string | null; emailCuenta: string; yaTieneCuenta: boolean }) {
+  if (params.yaTieneCuenta || !params.emailPadron) return false;
+  return params.emailPadron.trim().toLowerCase() === params.emailCuenta.trim().toLowerCase();
+}
+
+export function esDocumentoDelMismoLegajo(params: { legajoDelDocumento: number | null; legajoReclamado: number | null }) {
+  return params.legajoDelDocumento != null && params.legajoDelDocumento === params.legajoReclamado;
+}
+
 export function legajoSiguiente(legajos: number[]) {
   return legajos.length ? Math.max(...legajos) + 1 : 1;
 }

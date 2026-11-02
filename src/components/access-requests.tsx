@@ -8,6 +8,8 @@ import { Inbox } from "lucide-react";
 type Doc = { id: string; tipo: string; mime: string; size: number };
 type Solicitud = {
   id: string;
+  /** Presente cuando la solicitud reclama un legajo que ya está en el padrón. */
+  memberId: string | null;
   status: "PENDIENTE" | "APROBADA" | "RECHAZADA";
   firstName: string;
   lastName: string;
@@ -111,6 +113,8 @@ export function AccessRequests() {
                 <h3 className="panel-title">
                   {s.firstName} {s.lastName}{" "}
                   {s.faltantes.length > 0 ? <Chip tone="warn">faltan archivos</Chip> : <Chip tone="ok">completa</Chip>}
+                  {/* Si trae memberId, no crea un legajo nuevo: completa el que ya está en el padrón. */}
+                  {s.memberId ? <Chip tone="mute">reclama un legajo del padrón</Chip> : null}
                 </h3>
                 <p className="panel-sub">
                   {s.user.email} · DNI •••{s.docLast4} · presentada el {fecha(s.submittedAt)}

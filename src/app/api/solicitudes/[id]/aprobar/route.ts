@@ -27,7 +27,7 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
     },
   });
   if (!solicitud) throw notFound("Esa solicitud no existe.");
-  if (solicitud.memberId || solicitud.user.memberId) throw conflict("YA_TIENE_LEGAJO", "Esa persona ya tiene legajo.");
+  if (solicitud.user.memberId) throw conflict("YA_TIENE_LEGAJO", "Esa persona ya tiene legajo.");
 
   const faltan = faltantesParaAprobar({
     status: solicitud.status,
@@ -36,15 +36,23 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
   });
   if (faltan.length) throw unprocessable("SOLICITUD_INCOMPLETA", "No se puede aprobar todavía.", faltan);
 
-  const legajos = await prisma.member.findMany({ select: { legajo: true } });
-  const legajo = legajoSiguiente(legajos.map((m) => m.legajo));
+  // Reclamo de un legajo del padrón (socios que vinieron de la planilla): no se crea otro, se completa el
+  // que existe. El email es la llave, y el club ya revisó los documentos antes de aprobar.
+  const reclamado = solicitud.memberId
+    ? await prisma.member.findUnique({
+        where: { id: solicitud.memberId },
+        select: { id: true, legajo: true, admittedAt: true, notes: true },
+      })
+    : null;
+
+  const legajo = reclamado
+    ? reclamado.legajo
+    : legajoSiguiente((await prisma.member.findMany({ select: { legajo: true } })).map((m) => m.legajo));
 
   const dni = solicitud.docNumberCipher ? decryptText(solicitud.docNumberCipher) : null;
 
   const resultado = await prisma.$transaction(async (tx) => {
-    const member = await tx.member.create({
-      data: {
-        legajo,
+    const datosLegajo = {
         firstName: solicitud.firstName,
         lastName: solicitud.lastName,
         birthDate: solicitud.birthDate,
@@ -54,16 +62,36 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
         docHash: solicitud.docHash,
         docLast4: solicitud.docLast4,
         docVerifiedAt: new Date(),
-        status: "ACTIVO",
-        admittedAt: new Date(),
+        status: "ACTIVO" as const,
         reprocannNumber: solicitud.reprocannNumber,
-        reprocannStatus: "VIGENTE",
+        reprocannStatus: "VIGENTE" as const,
         reprocannExpiresAt: solicitud.reprocannExpiresAt,
         consumptionType: solicitud.consumptionType,
         consentSignedAt: solicitud.submittedAt,
         consentVersion: AFFIDAVIT_VERSION,
-        notes: solicitud.locality ? `Solicitud web · ${solicitud.locality}` : "Solicitud web",
-      },
+      };
+
+    // El club aprobó mirando los mismos documentos que mira en la re-validación: el legajo queda validado
+    // y puede reservar sin pasar por el trámite otra vez.
+    const member = reclamado
+      ? await tx.member.update({
+          where: { id: reclamado.id },
+          data: {
+            ...datosLegajo,
+            admittedAt: reclamado.admittedAt ?? new Date(),
+            verificationStatus: "VERIFICADO",
+            verificationAt: new Date(),
+            notes: [reclamado.notes, "Acceso reclamado desde el portal (ya estaba en el padrón)."].filter(Boolean).join("\n"),
+          },
+          select: { id: true, legajo: true },
+        })
+      : await tx.member.create({
+        data: {
+          ...datosLegajo,
+          legajo,
+          admittedAt: new Date(),
+          notes: solicitud.locality ? `Solicitud web · ${solicitud.locality}` : "Solicitud web",
+        },
       select: { id: true, legajo: true },
     });
 
@@ -118,7 +146,9 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
 
   return {
     socio: { id: resultado.id, legajo: resultado.legajo, email: solicitud.user.email },
-    mensaje: `Legajo ${resultado.legajo} creado. La cuenta ya puede entrar al portal.`,
+    mensaje: reclamado
+      ? `Legajo ${resultado.legajo} reclamado y validado. La cuenta ya puede entrar al portal.`
+      : `Legajo ${resultado.legajo} creado. La cuenta ya puede entrar al portal.`,
     aviso: aviso.enviado ? "email" : "sin_email",
   };
 });
