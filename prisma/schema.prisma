@@ -360,6 +360,10 @@ model Member {
   /// Nulo mientras el socio no declaró su fecha de nacimiento (socios importados del padrón en papel).
   birthDate          DateTime?            @db.Date
   address            String?
+  /// Localidad y provincia: sin ellas la dirección no sirve para despachar (lo marcó el JEV del padrón).
+  locality           String?
+  province           String?
+  postalCode         String?
   phone              String?
   email              String?
   status             MemberStatus         @default(PENDIENTE)
@@ -763,6 +767,12 @@ model MemberVerification {
   birthDate          DateTime               @db.Date
   reprocannNumber    String
   reprocannExpiresAt DateTime               @db.Date
+  /// Cómo quiere recibir y a dónde: se declara acá y sólo pasa al legajo al aprobar.
+  deliveryMode       DeliveryMode           @default(RETIRO)
+  address            String?
+  locality           String?
+  province           String?
+  postalCode         String?
   submittedAt        DateTime               @default(now())
   reviewedAt         DateTime?
   reviewedById       String?

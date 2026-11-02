@@ -24,6 +24,8 @@ type Overview = {
     reprocannOk: boolean;
     reprocannDays: number | null;
     address: string | null;
+    locality: string | null;
+    postalCode: string | null;
   };
   club: {
     nombre: string;
@@ -365,6 +367,11 @@ export function MemberPortal({
                 </div>
                 {data.club.envios.length === 0 ? (
                   <span className="hint">El club todavía no cargó zonas de envío: por ahora sólo retiro en el club.</span>
+                ) : null}
+                {!data.member.postalCode ? (
+                  <span className="hint">
+                    Para pedir envío falta tu domicilio y código postal: completalos en «Validá tus datos».
+                  </span>
                 ) : null}
               </div>
 

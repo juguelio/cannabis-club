@@ -10,6 +10,12 @@ const Body = z.object({
   nacimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha va como AAAA-MM-DD"),
   reprocann: z.string().min(4).max(40),
   vence: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha va como AAAA-MM-DD"),
+  // El domicilio entra en el mismo trámite: es el único momento en que el socio ya está escribiendo.
+  entrega: z.enum(["RETIRO", "ENVIO"]).default("RETIRO"),
+  direccion: z.string().max(160).optional(),
+  localidad: z.string().max(80).optional(),
+  provincia: z.string().max(80).optional(),
+  codigoPostal: z.string().max(12).optional(),
 });
 
 export const dynamic = "force-dynamic";
@@ -28,6 +34,13 @@ export const GET = route(async () => {
           id: data.ultima.id,
           enviada: data.ultima.submittedAt.toISOString(),
           motivoRechazo: data.ultima.rejectionReason,
+          entrega: data.ultima.deliveryMode,
+          domicilio: {
+            direccion: data.ultima.address,
+            localidad: data.ultima.locality,
+            provincia: data.ultima.province,
+            codigoPostal: data.ultima.postalCode,
+          },
           documentos: data.ultima.documents.map((d) => ({ id: d.id, tipo: d.tipo, size: d.size, subido: d.uploadedAt.toISOString() })),
         }
       : null,

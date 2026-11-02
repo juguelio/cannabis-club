@@ -15,13 +15,25 @@ import { encryptDoc, encryptText, sha256 } from "./docs-crypto";
 import { badRequest, conflict, notFound } from "./errors";
 import { getClub } from "./club";
 import { limitsFromClub } from "./club";
-import { faltanDocumentos, textoFaltantes, validarDeclaracion, DOCS_OBLIGATORIOS } from "./verificacion-rules";
+import {
+  faltanDocumentos,
+  textoFaltantes,
+  validarDeclaracion,
+  validarDomicilio,
+  DOCS_OBLIGATORIOS,
+} from "./verificacion-rules";
 
 export type Presentacion = {
   dni: string;
   nacimiento: string;
   reprocann: string;
   vence: string;
+  /** Cómo recibe y a dónde. Se pide acá porque es el único momento en que el socio ya está escribiendo. */
+  entrega: "RETIRO" | "ENVIO";
+  direccion?: string;
+  localidad?: string;
+  provincia?: string;
+  codigoPostal?: string;
 };
 
 const DOCS_SELECT = { id: true, tipo: true, mime: true, size: true, sha256: true, uploadedAt: true } as const;
@@ -70,6 +82,9 @@ export async function presentarVerificacion(input: Presentacion & { memberId: st
   });
   if (!res.ok) throw badRequest(res.problema.codigo, res.problema.mensaje);
 
+  const dom = validarDomicilio(input);
+  if (!dom.ok) throw badRequest(dom.problema.codigo, dom.problema.mensaje);
+
   const member = await prisma.member.findUnique({
     where: { id: input.memberId },
     select: { id: true, verificationStatus: true, legajo: true },
@@ -112,6 +127,11 @@ export async function presentarVerificacion(input: Presentacion & { memberId: st
         birthDate: res.datos.nacimiento,
         reprocannNumber: input.reprocann.trim(),
         reprocannExpiresAt: res.datos.vence,
+        deliveryMode: dom.datos.entrega,
+        address: dom.datos.address,
+        locality: dom.datos.locality,
+        province: dom.datos.province,
+        postalCode: dom.datos.postalCode,
         supersedesId: anterior?.id ?? null,
       },
       select: { id: true },
@@ -253,6 +273,11 @@ export async function aprobarVerificacion(input: { id: string; actorId: string; 
         reprocannNumber: rev.reprocannNumber,
         reprocannExpiresAt: vence,
         reprocannStatus: vigente ? "VIGENTE" : "VENCIDO",
+        // El domicilio también: es lo que habilita el envío, y hasta acá vivía sólo en el expediente.
+        address: rev.address ?? undefined,
+        locality: rev.locality ?? undefined,
+        province: rev.province ?? undefined,
+        postalCode: rev.postalCode ?? undefined,
         verificationStatus: "VERIFICADO",
         verificationAt: hoy,
       },

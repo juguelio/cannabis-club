@@ -17,6 +17,7 @@ import { gramosPorEnvio, preciosDeClub } from "./precios";
 import { addDaysKey, dayKeyOf, evaluateBooking, labelOf, slotInstant, type Rule } from "./appointments";
 import { daysToExpiry } from "./labels";
 import { availableStock } from "./stock";
+import { faltaDomicilioParaEnvio } from "./verificacion-rules";
 
 type Tx = Prisma.TransactionClient | typeof prisma;
 
@@ -118,6 +119,8 @@ export async function portalOverview(memberId: string) {
       consumptionType: member.consumptionType,
       monthlyForecastG: member.monthlyForecastG == null ? null : Number(member.monthlyForecastG),
       address: member.address,
+      locality: member.locality,
+      postalCode: member.postalCode,
     },
     club: {
       nombre: club.nombre,
@@ -194,6 +197,14 @@ export async function createPickup(input: {
           member.verificationStatus === "EN_REVISION"
             ? "Tu legajo está en revisión: cuando el club valide tu DNI y tu REPROCANN vas a poder pedir."
             : "Antes de pedir tenés que validar tu DNI y tu REPROCANN en tu portal.",
+        );
+
+      // Un envío sin domicilio completo no sale: el padrón importado tiene 8 legajos sin localidad o sin
+      // código postal, y el paquete no se despacha con media dirección. Se completa en la validación.
+      if (esEnvio && faltaDomicilioParaEnvio(member))
+        throw conflict(
+          "ENVIO_SIN_DOMICILIO",
+          "Para pedir un envío necesitamos tu domicilio y código postal: completalos en «Validá tus datos».",
         );
 
       const limits = limitsForMember(member, config);

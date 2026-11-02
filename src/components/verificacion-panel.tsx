@@ -12,7 +12,18 @@ export type VerificacionEstado = {
   label: string;
   detalle: string;
   motivoRechazo: string | null;
-  presentacion: { id: string; enviada: string; documentos: DocMeta[] } | null;
+  presentacion: {
+    id: string;
+    enviada: string;
+    documentos: DocMeta[];
+    entrega?: "RETIRO" | "ENVIO";
+    domicilio?: {
+      direccion: string | null;
+      localidad: string | null;
+      provincia: string | null;
+      codigoPostal: string | null;
+    };
+  } | null;
   faltan: string[];
   faltantesTexto: string;
   legajo: { numero: number; docLast4: string | null; venceReprocann: string | null };
@@ -33,7 +44,18 @@ const fmtVence = (iso: string | null) => (iso ? iso.slice(0, 10).split("-").reve
 export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) {
   const router = useRouter();
   const toast = useToast();
-  const [form, setForm] = useState({ dni: "", nacimiento: "", reprocann: "", vence: "" });
+  const [form, setForm] = useState({
+    dni: "",
+    nacimiento: "",
+    reprocann: "",
+    vence: "",
+    // Cómo recibe: se pregunta acá porque es cuando ya está escribiendo, y sin localidad y CP no hay envío.
+    entrega: (inicial.presentacion?.entrega ?? "RETIRO") as "RETIRO" | "ENVIO",
+    direccion: inicial.presentacion?.domicilio?.direccion ?? "",
+    localidad: inicial.presentacion?.domicilio?.localidad ?? "",
+    provincia: inicial.presentacion?.domicilio?.provincia ?? "",
+    codigoPostal: inicial.presentacion?.domicilio?.codigoPostal ?? "",
+  });
   const [estado, setEstado] = useState(inicial);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -155,6 +177,82 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
               />
             </label>
           </div>
+          <div>
+            <span className="label">¿Cómo recibís el producto?</span>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Forma de entrega">
+              {([
+                { id: "RETIRO" as const, t: "Retiro en el club", d: "En la sede, con turno." },
+                { id: "ENVIO" as const, t: "Envío a domicilio", d: "Al domicilio que declares acá." },
+              ]).map((op) => (
+                <button
+                  key={op.id}
+                  type="button"
+                  className="btn btn-quiet"
+                  aria-pressed={form.entrega === op.id}
+                  onClick={() => setForm((f) => ({ ...f, entrega: op.id }))}
+                  style={
+                    form.entrega === op.id
+                      ? { borderColor: "var(--ink)", boxShadow: "inset 0 0 0 1px var(--ink)", textAlign: "left" }
+                      : { textAlign: "left", opacity: 0.75 }
+                  }
+                >
+                  <span style={{ display: "block", fontWeight: 650 }}>{op.t}</span>
+                  <span className="cell-meta">{op.d}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {form.entrega === "ENVIO" ? (
+            <div className="grid-2">
+              <label className="stack" style={{ gap: 6, gridColumn: "1 / -1" }}>
+                <span className="label">Calle y número</span>
+                <input
+                  className="input"
+                  autoComplete="street-address"
+                  placeholder="Ej. Tromen 120, casa 9"
+                  value={form.direccion}
+                  onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
+                  required
+                />
+              </label>
+              <label className="stack" style={{ gap: 6 }}>
+                <span className="label">Localidad</span>
+                <input
+                  className="input"
+                  autoComplete="address-level2"
+                  value={form.localidad}
+                  onChange={(e) => setForm((f) => ({ ...f, localidad: e.target.value }))}
+                  required
+                />
+              </label>
+              <label className="stack" style={{ gap: 6 }}>
+                <span className="label">Provincia</span>
+                <input
+                  className="input"
+                  autoComplete="address-level1"
+                  placeholder="Ej. Neuquén"
+                  value={form.provincia}
+                  onChange={(e) => setForm((f) => ({ ...f, provincia: e.target.value }))}
+                  required
+                />
+              </label>
+              <label className="stack" style={{ gap: 6 }}>
+                <span className="label">Código postal</span>
+                <input
+                  className="input"
+                  autoComplete="postal-code"
+                  inputMode="numeric"
+                  placeholder="Ej. 8370"
+                  maxLength={8}
+                  value={form.codigoPostal}
+                  onChange={(e) => setForm((f) => ({ ...f, codigoPostal: e.target.value }))}
+                  required
+                />
+              </label>
+            </div>
+          ) : null}
+
           <div className="flex items-center gap-2 flex-wrap">
             <button className="btn" disabled={busy === "datos"}>
               {busy === "datos" ? "Guardando…" : tienePresentacion ? "Corregir y reenviar" : "Guardar datos"}

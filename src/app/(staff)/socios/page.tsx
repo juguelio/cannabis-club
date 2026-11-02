@@ -104,6 +104,14 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
                     REPROCANN {r.reprocannNumber} · vence {r.reprocannExpiresAt.toISOString().slice(0, 10).split("-").reverse().join("/")}
                     {r.member.email ? ` · ${r.member.email}` : ""}
                   </div>
+                  {/* Cómo recibe y a dónde: sin localidad y CP no hay envío, y el club tiene que verlo al aprobar. */}
+                  <div className="cell-meta" style={{ marginTop: 2 }}>
+                    {r.deliveryMode === "ENVIO"
+                      ? r.address && r.postalCode
+                        ? `Envío · ${r.address}${r.locality ? `, ${r.locality}` : ""}${r.province ? `, ${r.province}` : ""} · CP ${r.postalCode}`
+                        : "Envío · falta domicilio o código postal: pedile que lo complete antes de aprobar"
+                      : `Retiro en el club${r.address ? ` · domicilio declarado: ${r.address}` : ""}`}
+                  </div>
                   <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 8 }}>
                     {["DNI_FRENTE", "DNI_DORSO", "REPROCANN"].map((tipo) => {
                       const doc = r.documents.find((d) => d.tipo === tipo);

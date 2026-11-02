@@ -12,7 +12,11 @@ export type ProblemaCodigo =
   | "MENOR_DE_EDAD"
   | "REPROCANN_INVALIDO"
   | "REPROCANN_VENCIDO"
-  | "FALTAN_DOCUMENTOS";
+  | "FALTAN_DOCUMENTOS"
+  | "DOMICILIO_FALTANTE"
+  | "LOCALIDAD_FALTANTE"
+  | "PROVINCIA_FALTANTE"
+  | "CP_INVALIDO";
 
 export type Problema = { codigo: ProblemaCodigo; mensaje: string };
 
@@ -142,3 +146,77 @@ export function estadoVerificacion(estado: string) {
 
 /** Sólo un legajo validado puede reservar, pedir envío o retirar. */
 export const puedeOperar = (estado: string) => estado === "VERIFICADO";
+
+/**
+ * El domicilio se declara en la validación, no después.
+ *
+ * El JEV sobre el padrón importado marcó 8 de 22 legajos con domicilio insuficiente para despachar (sin localidad, sin
+ * código postal, o «retiro en sucursal» sin aclarar). Pedirlo en el mismo trámite donde el socio ya escribe cierra ese
+ * hueco sin un formulario nuevo; y se guarda en el expediente, no en la ficha, hasta que el club lo mire.
+ */
+export type Entrega = "RETIRO" | "ENVIO";
+
+export type DomicilioDeclarado = {
+  entrega: Entrega;
+  direccion: string;
+  localidad: string;
+  provincia: string;
+  codigoPostal: string;
+};
+
+export type DomicilioOk = {
+  entrega: Entrega;
+  address: string | null;
+  locality: string | null;
+  province: string | null;
+  postalCode: string | null;
+};
+
+/** CP argentino: 4 dígitos, con la letra del CPA opcional («8370», «C1428ABC» → 1428). */
+export function normalizarCp(cp: string): string | null {
+  const limpio = (cp ?? "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+  const m = limpio.match(/^[A-Z]?(\d{4})/);
+  return m ? m[1] : null;
+}
+
+export function validarDomicilio(d: Partial<DomicilioDeclarado>): { ok: true; datos: DomicilioOk } | { ok: false; problema: Problema } {
+  const entrega: Entrega = d.entrega === "ENVIO" ? "ENVIO" : "RETIRO";
+  const direccion = (d.direccion ?? "").trim().replace(/\s+/g, " ");
+  const localidad = (d.localidad ?? "").trim();
+  const provincia = (d.provincia ?? "").trim();
+  const cp = normalizarCp(d.codigoPostal ?? "");
+
+  // Retiro en el club: no hay nada que despachar, así que no se exige domicilio. Se guarda lo que haya dicho.
+  if (entrega === "RETIRO")
+    return {
+      ok: true,
+      datos: {
+        entrega,
+        address: direccion || null,
+        locality: localidad || null,
+        province: provincia || null,
+        postalCode: cp,
+      },
+    };
+
+  if (direccion.length < 5 || !/\d/.test(direccion))
+    return {
+      ok: false,
+      problema: { codigo: "DOMICILIO_FALTANTE", mensaje: "Para enviarte necesitamos la calle y el número." },
+    };
+  if (localidad.length < 2)
+    return { ok: false, problema: { codigo: "LOCALIDAD_FALTANTE", mensaje: "Falta la localidad del domicilio." } };
+  if (provincia.length < 3)
+    return { ok: false, problema: { codigo: "PROVINCIA_FALTANTE", mensaje: "Falta la provincia del domicilio." } };
+  if (!cp)
+    return {
+      ok: false,
+      problema: { codigo: "CP_INVALIDO", mensaje: "El código postal tiene que tener 4 números (ej. 8370 o C1428)." },
+    };
+
+  return { ok: true, datos: { entrega, address: direccion, locality: localidad, province: provincia, postalCode: cp } };
+}
+
+/** Sin domicilio y CP no se puede despachar: el portal lo pide antes de armar el envío. */
+export const faltaDomicilioParaEnvio = (m: { address?: string | null; postalCode?: string | null }) =>
+  !m.address || !m.postalCode;
