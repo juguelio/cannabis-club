@@ -131,6 +131,8 @@ model Club {
   domicilioLegal     String?
   limiteDiarioG      Decimal  @default(25) @db.Decimal(6, 2)
   limiteMensualG     Decimal  @default(50) @db.Decimal(6, 2)
+  /// Con cuántos días de anticipación se avisa que el REPROCANN vence.
+  avisoReprocannDias Int      @default(30)
   limiteMenorG       Decimal  @default(30) @db.Decimal(6, 2)
   edadMinima         Int      @default(18)
   edadLimiteMenor    Int      @default(21)
@@ -292,8 +294,11 @@ model NoticeLog {
   kind      NoticeKind
   channel   NoticeChannel
   sentAt    DateTime      @default(now())
-  byId      String
-  by        User          @relation("NoticeSender", fields: [byId], references: [id])
+  /// Quién lo mandó. Vacío cuando lo mandó el trabajo automático de vencimientos.
+  byId      String?
+  by        User?         @relation("NoticeSender", fields: [byId], references: [id])
+  /// Aviso generado por el cron (email al socio), no por una persona desde la cola.
+  automatic Boolean       @default(false)
   note      String?
   createdAt DateTime      @default(now())
 

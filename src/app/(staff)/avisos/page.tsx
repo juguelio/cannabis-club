@@ -5,6 +5,7 @@ import { BellRing } from "lucide-react";
 import { Chip, Empty, PageHead, Panel } from "@/components/ui";
 import { NoticeActions } from "@/components/notice-actions";
 import { NOTICE_KINDS, noticeBoard, waLink } from "@/lib/notices";
+import { mailerConfigured } from "@/lib/mailer";
 import { fmtWhen } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +63,14 @@ export default async function NoticesPage({ searchParams }: { searchParams: Prom
           </div>
         </div>
       ) : null}
+
+      <div className={mailerConfigured() ? "note" : "note note-warn"}>
+        <div>
+          {mailerConfigured()
+            ? `El vencimiento del REPROCANN se avisa solo: sale un email cuando le faltan ${board.umbral} días o menos, una vez por vencimiento. Abajo quedan los demás motivos, que los avisa una persona.`
+            : `El aviso de vencimiento está listo pero el correo saliente no está configurado, así que no sale solo. Los socios por vencer aparecen igual en esta cola (a ${board.umbral} días) para avisarles a mano.`}
+        </div>
+      </div>
 
       <Panel title="Cola de avisos" subtitle="Ordenada por urgencia: primero lo que bloquea una entrega.">
         <div className="panel-body">

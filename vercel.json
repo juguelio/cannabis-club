@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     { "path": "/api/mantenimiento/retencion", "schedule": "10 4 * * *" },
-    { "path": "/api/club/cotizacion", "schedule": "0 13 * * *" }
+    { "path": "/api/club/cotizacion", "schedule": "0 13 * * *" },
+    { "path": "/api/avisos/vencimientos", "schedule": "0 12 * * *" }
   ]
 }

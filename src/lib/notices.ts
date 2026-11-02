@@ -192,7 +192,7 @@ export async function noticeBoard() {
       orderBy: { legajo: "asc" },
     }),
     prisma.noticeLog.findMany({ orderBy: { sentAt: "desc" }, select: { memberId: true, kind: true, episode: true, sentAt: true, channel: true } }),
-    prisma.club.findFirst({ select: { timezone: true } }),
+    prisma.club.findFirst({ select: { timezone: true, avisoReprocannDias: true } }),
   ]);
   void club;
 
@@ -221,7 +221,7 @@ export async function noticeBoard() {
       days: Math.floor((Date.now() - p.createdAt.getTime()) / 86_400_000),
       })),
       status: m.status,
-    }).map((n) => {
+    }, { porVencerDias: club?.avisoReprocannDias ?? 30 }).map((n) => {
       const last = lastByKey.get(`${m.id}:${n.kind}:${n.episode}`) ?? lastByKey.get(`${m.id}:${n.kind}:`);
       return { ...n, lastSentAt: last ? last.sentAt.toISOString() : null, lastChannel: last?.channel ?? null };
     });
@@ -232,7 +232,7 @@ export async function noticeBoard() {
   const total = rows.reduce((acc, r) => acc + r.notices.length, 0);
   const urgent = rows.reduce((acc, r) => acc + r.notices.filter((n) => n.severity === "danger").length, 0);
   const sinAvisar = rows.reduce((acc, r) => acc + r.notices.filter((n) => !n.lastSentAt).length, 0);
-  return { rows, total, urgent, sinAvisar };
+  return { rows, total, urgent, sinAvisar, umbral: club?.avisoReprocannDias ?? 30 };
 }
 
 export async function logNotice(input: {
