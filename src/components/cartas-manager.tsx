@@ -147,7 +147,7 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
       <Panel title="A quién le llega" subtitle="Sólo socios activos, con email y con consentimiento de comunicaciones.">
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <Chip tone="ok">{padron.total} socios reciben la carta</Chip>
-          <Chip tone="mute">{padron.excluidos} quedan afuera</Chip>
+          <Chip tone="mute">{padron.excluidos} no la reciben</Chip>
           {Object.entries(padron.motivos).map(([motivo, n]) => (
             <span key={motivo} className="text-xs text-[var(--muted-foreground)]">
               {n} × {motivo}
@@ -159,7 +159,7 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
       {!soloLectura && (
       <Panel
         title={editando ? "Editando un borrador" : "Nueva carta"}
-        subtitle="Escribís el texto; el diseño lo pone la plantilla. La vista previa es la real."
+        subtitle="Escribís el texto; el diseño lo pone la plantilla. La vista previa es la real. Al aprobar sale en la próxima pasada del cron (8:15), o enseguida con «Enviar ahora»."
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">
@@ -202,7 +202,7 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
               </div>
             </div>
           ))}
-          <button type="button" className="flex items-center gap-1 text-sm" onClick={() => setBloques([...bloques, { titulo: "", texto: "" }])}>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setBloques([...bloques, { titulo: "", texto: "" }])}>
             <Plus size={14} /> Agregar bloque
           </button>
         </div>
@@ -228,10 +228,10 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
         )}
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={previsualizar} disabled={ocupado !== null} className="flex items-center gap-1 rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
+          <button type="button" onClick={previsualizar} disabled={ocupado !== null} className="btn btn-sm btn-quiet">
             <Eye size={14} /> Ver vista previa
           </button>
-          <button type="button" onClick={guardar} disabled={ocupado !== null} className="flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-foreground,#fff)]">
+          <button type="button" onClick={guardar} disabled={ocupado !== null} className="btn btn-sm">
             <Check size={14} /> {editando ? "Guardar cambios" : "Guardar borrador"}
           </button>
           {editando && (
@@ -244,7 +244,8 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
         {html && (
           <div className="mt-4">
             <div className="mb-2 text-xs text-[var(--muted-foreground)]">Así se ve en el correo:</div>
-            <iframe title="Vista previa de la carta" srcDoc={html} className="h-[520px] w-full rounded-lg border border-[var(--border)] bg-white" />
+            <iframe title="Vista previa de la carta" srcDoc={html} // Alto para ver la carta entera sin scrollear adentro del recuadro.
+              className="h-[900px] w-full rounded-lg border border-[var(--border)] bg-white" />
           </div>
         )}
       </Panel>
@@ -273,11 +274,11 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
                 <div className="flex flex-wrap gap-2">
                   {!soloLectura && c.estado === "BORRADOR" && (
                     <>
-                      <button type="button" onClick={() => cargarEnForm(c)} className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs">Editar</button>
+                      <button type="button" onClick={() => cargarEnForm(c)} className="btn btn-sm btn-quiet">Editar</button>
                       <button
                         type="button"
                         onClick={() => accion(c.id, `/api/cartas/${c.id}/aprobar`, `¿Aprobar «${c.titulo}»? Va a salir a ${padron.total} socios en la próxima pasada del cron.`)}
-                        className="flex items-center gap-1 rounded-lg bg-[var(--accent)] px-2 py-1 text-xs font-semibold text-[var(--accent-foreground,#fff)]"
+                        className="btn btn-sm"
                       >
                         <Check size={12} /> Aprobar
                       </button>
@@ -287,7 +288,7 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
                     <button
                       type="button"
                       onClick={() => accion(c.id, `/api/cartas/${c.id}/probar`, "¿Mandar una prueba a la casilla del club?")}
-                      className="flex items-center gap-1 rounded-lg border border-[var(--border)] px-2 py-1 text-xs"
+                      className="btn btn-sm btn-quiet"
                     >
                       <Mail size={12} /> Prueba
                     </button>
@@ -296,7 +297,7 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
                     <button
                       type="button"
                       onClick={() => accion(c.id, `/api/cartas/${c.id}/enviar`, `¿Enviar «${c.titulo}» ahora a los socios? Esto manda correos de verdad.`)}
-                      className="flex items-center gap-1 rounded-lg border border-[var(--border)] px-2 py-1 text-xs"
+                      className="btn btn-sm btn-quiet"
                     >
                       <Send size={12} /> Enviar ahora
                     </button>

@@ -88,7 +88,7 @@ export function repartirCarta(candidatos: CandidatoCarta[]): RepartoCarta {
   const excluidos: RepartoCarta["excluidos"] = [];
   for (const c of candidatos) {
     const motivo = !c.email
-      ? "no tiene email"
+      ? "sin email"
       : c.status !== "ACTIVO"
         ? `legajo ${c.status.toLowerCase()}`
         : !c.comunicaciones

@@ -84,7 +84,7 @@ describe("a quién le llega la carta", () => {
     expect(r.alcanzables.map((c) => c.legajo)).toEqual([1]);
     const motivos = Object.fromEntries(r.excluidos.map((e) => [e.legajo, e.motivo]));
     expect(motivos[2]).toBe("sin consentimiento de comunicaciones");
-    expect(motivos[3]).toBe("no tiene email");
+    expect(motivos[3]).toBe("sin email");
     expect(motivos[4]).toBe("legajo pendiente");
     expect(motivos[5]).toBe("legajo baja");
   });
