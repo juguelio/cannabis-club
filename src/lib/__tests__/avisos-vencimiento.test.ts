@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diasHastaVencer, enVentanaDeAviso, episodioDeVencimiento, textoAvisoVencimiento } from "../avisos-rules";
+import { copyAvisoVencimiento, diasHastaVencer, enVentanaDeAviso, episodioDeVencimiento, fechaLarga, textoAvisoVencimiento, tonoDeAviso } from "../avisos-rules";
 
 /**
  * El aviso de vencimiento corre todos los días: si la ventana o el episodio están mal, el socio
@@ -39,5 +39,53 @@ describe("aviso de vencimiento del REPROCANN", () => {
     expect(t).not.toContain("venció");
     expect(textoAvisoVencimiento({ nombre: "Ana", dias: 0, club: "República" })).toContain("vence hoy");
     expect(textoAvisoVencimiento({ nombre: "Ana", dias: 1, club: "República" })).toContain("vence mañana");
+  });
+
+  it("el tono cambia según cuánto falta: un mes informa, la última semana apura", () => {
+    expect(tonoDeAviso(30)).toBe("mes");
+    expect(tonoDeAviso(21)).toBe("mes");
+    expect(tonoDeAviso(20)).toBe("cerca");
+    expect(tonoDeAviso(1)).toBe("cerca");
+    expect(tonoDeAviso(0)).toBe("hoy");
+  });
+
+  it("la fecha se escribe como la lee una persona, y no se corre por la zona horaria", () => {
+    expect(fechaLarga(new Date("2026-12-30T00:00:00.000Z"))).toBe("30 de diciembre de 2026");
+    // 23:00 UTC del 30 sigue siendo 30: se formatea en UTC, no en la zona del servidor.
+    expect(fechaLarga(new Date("2026-12-30T23:00:00.000Z"))).toContain("30 de diciembre");
+  });
+
+  it("el aviso de un mes dice la fecha, qué pasa si vence y dónde se renueva", () => {
+    const aviso = copyAvisoVencimiento({
+      nombre: "Ana",
+      dias: 30,
+      club: "República",
+      expira: new Date("2026-12-30T00:00:00.000Z"),
+    });
+    expect(aviso.asunto).toBe("Tu REPROCANN vence en un mes");
+    expect(aviso.titulo).toBe("Tu REPROCANN vence en un mes");
+    expect(aviso.destacado).toEqual({ etiqueta: "Vence", valor: "30 de diciembre de 2026" });
+    expect(aviso.copete).toContain("Ana");
+    expect(aviso.copete).toContain("30 de diciembre de 2026");
+    const cuerpo = aviso.parrafos.join(" ");
+    expect(cuerpo).toContain("bloquea");
+    expect(cuerpo).toContain("REPROCANN");
+    expect(cuerpo).toContain("portal del socio");
+    // No se afirma que ya venció: todavía falta.
+    expect(cuerpo).not.toContain("venció");
+  });
+
+  it("cuando faltan días el aviso apura y no promete un mes", () => {
+    const aviso = copyAvisoVencimiento({ nombre: "Ana", dias: 3, club: "República", expira: new Date("2026-11-04T00:00:00.000Z") });
+    expect(aviso.asunto).toBe("Tu REPROCANN vence en 3 días");
+    expect(aviso.copete).toContain("quedan 3 días");
+    expect(aviso.parrafos.join(" ")).not.toContain("con un mes");
+  });
+
+  it("el texto plano del aviso también lleva la fecha", () => {
+    const t = textoAvisoVencimiento({ nombre: "Ana", dias: 30, club: "República", expira: new Date("2026-12-30T00:00:00.000Z") });
+    expect(t).toContain("vence en 30 días");
+    expect(t).toContain("30 de diciembre de 2026");
+    expect(t).toContain("portal del socio");
   });
 });

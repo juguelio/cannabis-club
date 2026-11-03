@@ -28,15 +28,83 @@ export function enVentanaDeAviso(dias: number | null, umbral: number): boolean {
   return dias >= 0 && dias <= umbral;
 }
 
-export function textoAvisoVencimiento(input: { nombre: string; dias: number; club: string }): string {
+export function textoAvisoVencimiento(input: { nombre: string; dias: number; club: string; expira?: Date | null }): string {
   const cuando =
     input.dias === 0 ? "vence hoy" : input.dias === 1 ? "vence mañana" : `vence en ${input.dias} días`;
+  const fecha = input.expira ? ` (${fechaLarga(input.expira)})` : "";
   return [
-    `Hola ${input.nombre}: tu REPROCANN ${cuando}.`,
+    `Hola ${input.nombre}: tu REPROCANN ${cuando}${fecha}.`,
     "",
     `Sin el trámite al día no vas a poder retirar ni recibir tu producción en ${input.club}.`,
-    "Si ya lo renovaste, mandanos el comprobante y lo actualizamos en tu legajo.",
+    "Si todavía no lo renovaste, el trámite se hace en el sitio de REPROCANN del Ministerio de Salud.",
+    "Cuando lo tengas, subí la credencial nueva en el portal del socio y el club la valida.",
     "",
     input.club,
   ].join("\n");
+}
+
+/** Cómo suena el aviso según cuánto falta. El de un mes informa; el de la última semana apura. */
+export type TonoVencimiento = "mes" | "cerca" | "hoy";
+
+export function tonoDeAviso(dias: number): TonoVencimiento {
+  if (dias >= 21) return "mes";
+  if (dias >= 1) return "cerca";
+  return "hoy";
+}
+
+/** Fecha larga en español, en UTC: la del padrón es una fecha, no un instante. */
+export function fechaLarga(expira: Date): string {
+  return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(expira);
+}
+
+/**
+ * El copy del aviso, separado del layout: lo que dice el mail es del negocio, cómo se ve es de la
+ * plantilla. Todo lo que se afirma acá es lo que el sistema hace después (bloquear la entrega,
+ * pedir la credencial nueva en el portal).
+ */
+export function copyAvisoVencimiento(input: {
+  nombre: string;
+  dias: number;
+  club: string;
+  expira: Date;
+}): { asunto: string; titulo: string; copete: string; destacado: { etiqueta: string; valor: string }; parrafos: string[] } {
+  const { nombre, dias, club, expira } = input;
+  const tono = tonoDeAviso(dias);
+  const fecha = fechaLarga(expira);
+  const asunto =
+    tono === "mes"
+      ? "Tu REPROCANN vence en un mes"
+      : dias === 0
+        ? "Tu REPROCANN vence hoy"
+        : dias === 1
+          ? "Tu REPROCANN vence mañana"
+          : `Tu REPROCANN vence en ${dias} días`;
+
+  const copete =
+    tono === "mes"
+      ? `Hola ${nombre}: tu credencial vence el ${fecha}. Conviene renovarla desde ahora, sin esperar al último momento.`
+      : tono === "cerca"
+        ? `Hola ${nombre}: quedan ${dias} ${dias === 1 ? "día" : "días"} para que venza tu credencial.`
+        : `Hola ${nombre}: hoy es el último día de tu credencial.`;
+
+  const parrafos =
+    tono === "mes"
+      ? [
+          `Con el REPROCANN vencido el club no puede registrar una entrega: el sistema la bloquea hasta que esté renovado. Por eso te avisamos con un mes.`,
+          `El trámite de renovación se hace en el sitio de REPROCANN del Ministerio de Salud, con tu usuario: no lo puede hacer ${club} por vos.`,
+          "Cuando tengas la credencial nueva, subila desde el portal del socio. La revisamos y tu legajo queda habilitado otra vez.",
+        ]
+      : [
+          `Con el REPROCANN vencido el club no puede registrar una entrega: el sistema la bloquea hasta que esté renovado.`,
+          "Si ya lo renovaste, subí la credencial nueva desde el portal y avisanos: la validamos para que puedas retirar.",
+          `Si no llegás con los tiempos, escribinos antes de la fecha y vemos cómo seguir.`,
+        ];
+
+  return {
+    asunto,
+    titulo: tono === "mes" ? "Tu REPROCANN vence en un mes" : asunto,
+    copete,
+    destacado: { etiqueta: "Vence", valor: fecha },
+    parrafos,
+  };
 }

@@ -12,7 +12,7 @@ import { prisma } from "./db";
 import { getClub } from "./club";
 import { enviarEmail, mailerConfigured } from "./mailer";
 import { plantillaEmail } from "./email-template";
-import { diasHastaVencer, enVentanaDeAviso, episodioDeVencimiento, textoAvisoVencimiento } from "./avisos-rules";
+import { copyAvisoVencimiento, diasHastaVencer, enVentanaDeAviso, episodioDeVencimiento, textoAvisoVencimiento } from "./avisos-rules";
 
 export type EstadoAviso = "enviado" | "sin_email" | "ya_avisado" | "error";
 
@@ -89,21 +89,28 @@ export async function correrAvisosVencimiento(hoy = new Date()): Promise<Resulta
       throw error;
     }
 
+    // El copy vive en las reglas (probado sin base) y el layout en la plantilla: si mañana cambia
+    // el tono según cuánto falta, cambia en un solo lugar.
+    const copy = copyAvisoVencimiento({
+      nombre: socio.firstName,
+      dias: socio.dias!,
+      club: club.nombreCorto ?? club.nombre,
+      expira: socio.reprocannExpiresAt!,
+    });
     const envio = await enviarEmail({
       to: socio.email,
-      subject:
-        socio.dias === 0
-          ? "Tu REPROCANN vence hoy"
-          : `Tu REPROCANN vence en ${socio.dias} ${socio.dias === 1 ? "día" : "días"}`,
-      text: textoAvisoVencimiento({ nombre: socio.firstName, dias: socio.dias!, club: club.nombreCorto ?? club.nombre }),
+      subject: copy.asunto,
+      text: textoAvisoVencimiento({
+        nombre: socio.firstName,
+        dias: socio.dias!,
+        club: club.nombreCorto ?? club.nombre,
+        expira: socio.reprocannExpiresAt,
+      }),
       html: plantillaEmail({
-        titulo: socio.dias === 0 ? "Tu REPROCANN vence hoy" : `Tu REPROCANN vence en ${socio.dias} ${socio.dias === 1 ? "día" : "días"}`,
-        copete: `Hola ${socio.firstName}: tu credencial está por vencer y conviene renovarla antes de la fecha.`,
-        destacado: { etiqueta: "Legajo", valor: `N.º ${socio.legajo}` },
-        parrafos: [
-          "Con el REPROCANN vencido no se puede registrar una entrega: el sistema del club lo bloquea hasta que esté renovado.",
-          "Cuando lo tengas, entrá al portal y subí la credencial nueva. El club la revisa y el legajo queda habilitado otra vez.",
-        ],
+        titulo: copy.titulo,
+        copete: copy.copete,
+        destacado: copy.destacado,
+        parrafos: copy.parrafos,
         cta: { texto: "Subir la credencial al portal", url: `${process.env.APP_BASE_URL ?? ""}/portal` },
         pie: [`Este aviso lo manda ${club.nombreCorto ?? club.nombre} porque tu credencial figura por vencer en el padrón.`],
       }),
