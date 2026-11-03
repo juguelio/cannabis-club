@@ -69,10 +69,14 @@ export default async function SitioPage() {
   const [view, session, clubRow, variedades] = await Promise.all([
     getBrandView(),
     getAnySession(),
-    prisma.club.findUnique({ where: { id: CLUB_ID }, select: { edadMinima: true } }).catch(() => null),
+    prisma.club
+      .findUnique({ where: { id: CLUB_ID }, select: { edadMinima: true, nombre: true, nombreCorto: true } })
+      .catch(() => null),
     catalogoDelClub(),
   ]);
   const club = { edadMinima: clubRow?.edadMinima ?? 18 };
+  // Para los datos estructurados manda la razón social; el nombre corto es cómo se la conoce.
+  const razonSocial = clubRow?.nombre ?? view.nombre;
   const { brand } = view;
   const isAdmin = session?.role === "ADMIN";
   if (!brand.sitio.publico && !isAdmin) redirect("/login");
@@ -123,8 +127,8 @@ export default async function SitioPage() {
       {
         "@type": "NGO",
         "@id": `${SITE_URL}/sitio#organizacion`,
-        name: view.nombre,
-        alternateName: ["República Cannabis", "Republica Cannabis ONG"],
+        name: razonSocial,
+        alternateName: [view.nombre, "República Cannabis", "Republica Cannabis ONG"],
         url: `${SITE_URL}/sitio`,
         logo: `${SITE_URL}/icon-512.png`,
         image: `${SITE_URL}/icon-512.png`,
