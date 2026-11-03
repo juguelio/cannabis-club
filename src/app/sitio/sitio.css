@@ -124,10 +124,14 @@
 .s-close-actions { display: flex; flex-direction: column; gap: 12px; min-width: 260px; }
 
 .s-foot { background: color-mix(in srgb, var(--s-dark) 85%, #000); color: var(--on-dark-3); font-size: 14px; }
-.s-foot .s-wrap { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 36px; padding: 48px 0 28px; }
+/* Tres columnas: quién es el club · acceso de socios · legales. */
+.s-foot .s-wrap { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, .8fr) minmax(0, .9fr); gap: 36px; padding: 48px 0 28px; }
 .s-foot b { color: var(--on-dark); display: block; margin-bottom: 8px; font-size: 15px; }
 .s-foot a { color: var(--on-dark-2); }
-.s-legal { border-top: 1px solid color-mix(in srgb, var(--on-dark) 12%, transparent); padding: 18px 0 28px !important; display: block !important; font-size: 12.5px; line-height: 1.55; }
+.s-foot a:hover { color: var(--on-dark); }
+.s-foot div > a { display: block; margin: 3px 0; }
+/* El aviso legal ocupa el ancho completo, abajo de las tres columnas. */
+.s-legal { grid-column: 1 / -1; border-top: 1px solid color-mix(in srgb, var(--on-dark) 12%, transparent); padding: 18px 0 0 !important; display: block !important; font-size: 12.5px; line-height: 1.55; }
 
 .s-wa-float { display: none; }
 

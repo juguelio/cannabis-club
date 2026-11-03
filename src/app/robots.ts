@@ -30,7 +30,7 @@ const PRIVADAS = [
   "/configuracion",
 ];
 
-const PUBLICAS = ["/sitio", "/privacidad", "/llms.txt"];
+const PUBLICAS = ["/sitio", "/terminos", "/privacidad", "/llms.txt"];
 
 export default function robots(): MetadataRoute.Robots {
   return {

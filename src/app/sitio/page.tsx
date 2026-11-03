@@ -424,6 +424,12 @@ export default async function SitioPage() {
             <b>Socios</b>
             <Link href="/login">Ingresar al portal</Link>
           </div>
+          <div>
+            <b>Legales</b>
+            <Link href="/terminos">Términos y Condiciones</Link>
+            <Link href="/privacidad">Política de Privacidad</Link>
+            <Link href="/privacidad#cookies">Cookies</Link>
+          </div>
           <p className="s-legal">
             Sitio informativo de una asociación civil sin fines de lucro. El club no comercializa ni publicita cannabis: el acceso es
             exclusivo para socios con indicación médica y REPROCANN vigente, conforme a la Ley 27.350 y su reglamentación.

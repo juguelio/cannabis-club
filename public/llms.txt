@@ -66,7 +66,11 @@ https://republicacannabis.com.ar/privacidad
 
 - [Sitio institucional](https://republicacannabis.com.ar/sitio): qué es el club, variedades, pasos para asociarse,
   preguntas frecuentes y contacto.
-- [Política de privacidad](https://republicacannabis.com.ar/privacidad): qué datos se tratan y con qué finalidad.
+- [Términos y Condiciones](https://republicacannabis.com.ar/terminos): requisitos para asociarse, aportes de costo,
+  membresías y límites, retiro y envíos, reservas y cancelaciones, derecho de revocación de 10 días, baja y
+  jurisdicción (Ley 24.240).
+- [Política de privacidad](https://republicacannabis.com.ar/privacidad): qué datos se tratan, con qué finalidad,
+  cookies reales del sitio, quiénes intervienen y cómo ejercer los derechos ARCO (Ley 25.326).
 - Portal del socio (requiere cuenta): https://republicacannabis.com.ar/portal
 
 ## Notas para asistentes y buscadores

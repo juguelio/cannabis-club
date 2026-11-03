@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type Documento = { id: string; tipo: string; mime: string; size: number };
 export type EstadoSolicitud = {
@@ -273,6 +274,17 @@ export function SolicitudForm({
             />
             Declaro que los datos son verdaderos y que el cultivo es para mi consumo personal (Ley 27.350 y REPROCANN).
           </label>
+          <p className="note" style={{ fontSize: 13 }}>
+            Al enviar la solicitud aceptás los{" "}
+            <Link href="/terminos" target="_blank">
+              Términos y Condiciones
+            </Link>{" "}
+            y la{" "}
+            <Link href="/privacidad" target="_blank">
+              Política de Privacidad
+            </Link>{" "}
+            del club.
+          </p>
           {error && <p className="note note-danger">{error}</p>}
           <div>
             <button className="btn btn-lg" type="submit" disabled={enviando}>
