@@ -10,6 +10,7 @@ export type BrandView = {
   nombreLegal: string;
   sigla: string;
   cuit: string | null;
+  domicilioLegal?: string | null;
   reprocannNumber: string | null;
   version: number;
   /** URL versionada de cada imagen, o null si no se cargó. */
@@ -20,6 +21,7 @@ type Row = {
   nombre: string;
   nombreCorto: string | null;
   cuit: string | null;
+  domicilioLegal: string | null;
   reprocannNumber: string | null;
   marca: unknown;
   marcaVersion: number;
@@ -35,7 +37,7 @@ type Row = {
 export const getBrandView = cache(async (): Promise<BrandView> => {
   const rows = await prisma
     .$queryRaw<Row[]>`
-      SELECT nombre, "nombreCorto", cuit, "reprocannNumber", marca, "marcaVersion",
+      SELECT nombre, "nombreCorto", cuit, "domicilioLegal", "reprocannNumber", marca, "marcaVersion",
              ("marcaLogo" IS NOT NULL) AS "hasLogo",
              ("marcaEmblema" IS NOT NULL) AS "hasEmblema",
              ("marcaPortada" IS NOT NULL) AS "hasPortada"
@@ -53,6 +55,7 @@ export const getBrandView = cache(async (): Promise<BrandView> => {
     nombreLegal,
     sigla: siglaOf(brand, nombre),
     cuit: row?.cuit ?? null,
+    domicilioLegal: row?.domicilioLegal ?? null,
     reprocannNumber: row?.reprocannNumber ?? null,
     version: v,
     img: { logo: url("logo", row?.hasLogo), emblema: url("emblema", row?.hasEmblema), portada: url("portada", row?.hasPortada) },

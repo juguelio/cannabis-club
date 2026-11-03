@@ -1,95 +1,54 @@
-# Privacidad del padrón — qué se guarda y qué no
+# Privacidad — inventario y límites verificados el 03/11/2026
 
-Documento operativo del club. Explica el criterio con el que la app trata los datos personales,
-qué se puede prometer en una inspección y qué queda pendiente de decisión de la comisión directiva.
+Esta nota reemplaza el inventario anterior: la incorporación de altas, verificaciones y comprobantes hizo falsa la afirmación de que la aplicación no guarda el documento. Fuente: código local `c185484` y revisión en `codex/legales-privacidad-2026-11-03`. No verifica configuración productiva ni constituye un dictamen legal.
 
-## 1. El documento no se archiva
+## Datos e implementación
 
-El padrón necesita tres cosas: **detectar duplicados**, **verificar que la persona es quien dice ser**
-y **poder decir después que se verificó**. Ninguna de las tres exige conservar el número.
-
-Lo que se guarda:
-
-| Campo | Qué es | Para qué |
+| Categoría | Implementación observada | Límite |
 |---|---|---|
-| `docType` | DNI / LC / LE / PAS | encabezado del libro |
-| `docHash` | HMAC-SHA256 del documento normalizado | duplicados y búsqueda exacta |
-| `docLast4` | últimos 4 caracteres | verificación visual en el mostrador |
-| `docVerifiedAt` | cuándo se verificó | trazabilidad de la verificación |
+| Padrón | `docHash` HMAC y `docLast4`; identidad, contacto, nacimiento, REPROCANN | Sigue siendo información personal identificable |
+| Alta | `AccessRequest.docNumberCipher` y documentos cifrados | Se conserva el número completo, aunque no se muestre en la ficha ordinaria |
+| Verificación del socio | `MemberVerification.docNumberCipher` y adjuntos cifrados | No cubierta por la purga de solicitudes de alta rechazadas |
+| Comprobantes de transferencia | Archivos cifrados y metadatos; revisión por ADMIN/OPERADOR | Sin pasarela de pago ni borrado automático general |
+| Consentimientos | Cuatro finalidades, versión y revocación por registro | Alta no captura aceptación independiente de cada finalidad |
+| Auditoría | Actor, acción, fecha y, en ciertas rutas, IP | No afirmar que toda consulta, respaldo o acceso de infraestructura queda auditado por la app |
 
-Lo que **no** existe en la base: la columna con el número. La migración
-`…_borra_documento_en_claro` la elimina después de que todas las filas tienen huella.
+El cifrado de documentos es AES-256-GCM (`docs-crypto.ts`). El padrón y todos los metadatos no están cifrados con ese mecanismo. Las rutas autorizadas de apertura registran auditoría; esto no demuestra la custodia real de claves, controles de infraestructura ni seguridad absoluta.
 
-**Consecuencias que hay que saber:**
+`DOC_HASH_KEY` (con fallback a `AUTH_SECRET` y separación de dominio) permite comparar documentos exactos. Rotarla sin un procedimiento de migración invalida las comparaciones existentes. Las copias cifradas en expedientes no significan que exista una herramienta automática de reconstrucción de huellas. Conservar cifrado y huella no anonimiza el conjunto.
 
-- La búsqueda por documento es por **últimos 4** o por **número completo exacto** (se hashea lo tipeado
-  y se compara). No se puede buscar "los que empiezan con 30".
-- **Si se rota la clave de la huella, se pierde la búsqueda por documento** (no se puede recalcular sin
-  el número). La clave es `DOC_HASH_KEY`; si no está definida, se deriva de `AUTH_SECRET`. Rotarla exige
-  re-verificar documentos en el mostrador, no hay forma de recuperarlos.
-- Perder la clave **no** expone nada: la huella no es reversible.
+## Retención real y pendiente
 
-## 2. Consentimiento por finalidad
+`purgarDocumentosRechazadas` elimina únicamente `AccessDocument` de altas RECHAZADA cuya revisión superó 30 días, cuando corre la tarea. No elimina el expediente ni su `docNumberCipher`, verificaciones, comprobantes, libros o respaldos.
 
-Cuatro finalidades, registradas por separado (`Consent`): **datos personales**, **salud**, **imagen** y
-**comunicaciones**. Cada una guarda versión del texto, quién la registró y cuándo.
+No existe borrado general por baja ni debe publicarse “5 años por ley” para todas las categorías. Se requiere matriz aprobada: finalidad, fundamento, plazo o criterio, responsable, ejecución y tratamiento de respaldos. Los expedientes pendientes abandonados y las verificaciones reemplazadas necesitan una regla propia.
 
-- Registrar es un acto del club con el socio presente (Administración u Operación).
-- **Revocar no borra**: deja `revokedAt`. El consentimiento es un registro, no un checkbox.
-- La ficha del socio muestra el estado de las cuatro; el padrón y los libros no dependen de ellas
-  todavía (ver "pendiente").
+La integridad del libro se mantiene por contra-asientos; no permite rechazar automáticamente cualquier rectificación o supresión de datos personales.
 
-## 3. Minimización en los libros
+## Consentimientos y avisos
 
-- Los CSV del padrón y de dispensaciones muestran **`DNI ····1234`**, nunca el número completo.
-- Las dispensaciones guardan nombre, **año de nacimiento**, gramos, THC y fecha — no la fecha completa
-  de nacimiento ni el documento.
-- El modo inspección (`/inspeccion`) no muestra documentos.
+`CONSENT_VERSION=2026-10` y sus textos históricos se conservaron sin alteración. Cambiar la política no cambia las autorizaciones anteriores. La DDJJ de solicitud (`AFFIDAVIT_VERSION`) no debe presentarse como prueba de aceptación de cuatro finalidades ni de una versión concreta de T&C.
 
-## 4. Retención (pendiente de aprobación formal)
+Pendientes de implementación/definición antes de afirmar cumplimiento:
 
-**Esto todavía no es una decisión tomada.** La referencia de trabajo es **5 años** para los libros (entregas,
-stock, calidad, cierres), pero cada categoría necesita su fundamento y su responsable, y eso lo aprueba la
-organización con asesoramiento legal. Hasta que exista esa matriz, la app **no promete** un plazo: lo que sí hace
-es no borrar nada del libro y no permitir editar asientos.
+- Evidencia expresa y separada para los tratamientos que la requieran, especialmente datos de salud; el artículo 7 de Ley 25.326 necesita análisis del encuadre de la ONG, no sólo un checkbox.
+- Imagen institucional opcional, finalidad/canales/alcance y revocación; no convertir una copia del DNI en autorización de imagen.
+- `avisos-auto.ts` no consulta consentimiento COMUNICACIONES. Definir fundamento y preferencias y hacer que el comportamiento coincida con lo informado; los mensajes pueden revelar REPROCANN.
+- Captura de aceptación versionada de términos, si corresponde; no retroatribuir aceptación a los 22 legajos existentes.
+- Circuito de derechos con constancia y plazos: acceso 10 días corridos; rectificación, actualización y supresión 5 días hábiles según procedencia.
 
-Propuesta para esa matriz (a validar, no vigente):
+## Proveedores y transferencias
 
-| Categoría | Retención propuesta | Fundamento | Responsable |
-|---|---|---|---|
-| Entregas y stock (libros) | 5 años | trazabilidad ante inspección | Responsable Técnico |
-| Legajo del socio (identidad, contacto) | mientras dure el vínculo + 5 años | obligación registral | Administración |
-| Consentimientos | 5 años desde la revocación | prueba del consentimiento | Administración |
-| Datos de salud | a definir con el Director Médico | secreto profesional | Director Médico |
-| Imágenes de documento | **no se guardan en la app** | minimización | Administración |
+Código e inventario del proyecto: Vercel (app), Neon (base), Resend (correo si configurado), Google (OAuth opcional), WhatsApp/Meta (canal externo). El transporte puede recibir los datos necesarios de despacho. Google/Meta también tienen tratamientos propios; no afirmar que todos actúan sólo por instrucciones del club.
 
-## 4 bis. Qué no promete la huella del documento
+Pendiente verificar con quien administra las cuentas: contratos, encargados, subencargados, países/regiones, garantías para transferencias, acceso del desarrollador, custodia de claves, incidentes y respaldos. No se verificó nada de eso accediendo a cuentas en esta revisión.
 
-`docHash` **reduce** la exposición: sin la clave no se recupera el número. **No** vuelve anónimo el padrón (sigue
-siendo nominativo), **no** protege si se compromete `DOC_HASH_KEY` o un respaldo de la base, y **no** evita que un
-atacante con acceso a la app consulte por documento exacto. Un incidente acá es de dos clases distintas y hay que
-nombrarlas por separado:
+Cookies observadas: `cc_session` 8 h, `cc_solicitud` 4 h y `cc_oauth` 600 s. HttpOnly impide lectura por JavaScript, no por el navegador. No se encontró instrumentación de publicidad/analítica de visitas en el código revisado; revisar configuración de plataforma antes de afirmarlo globalmente.
 
-- **Pérdida de acceso** (se rota o se pierde la clave): los socios ya no se pueden verificar por documento. Se
-  resuelve re-verificando en el mostrador. No hay filtración.
-- **Compromiso de datos** (base o clave filtradas): hay que evaluar notificación y contención; la huella reduce el
-  daño respecto de guardar el número, no lo elimina.
+## Publicación y control
 
-## 4 ter. Acceso y credenciales
+Los textos de `/terminos` y `/privacidad` quedan como borradores revisados. Validar identidad/domicilio/contacto, estatuto, habilitaciones, reglas de devolución, transporte y tratamientos sensibles con la ONG y su asesor legal. No afirmar aprobación de la comisión sin evidencia.
 
-- La clave que se dicta en el mostrador es **temporal**: vence a las **72 horas** y obliga a cambiarla en el primer
-  ingreso (`/portal/clave`). Si vence, hay que pedir una nueva en la secretaría.
-- Cambiar o restablecer la clave **invalida las sesiones anteriores** (`User.tokenVersion` va en el token: un token
-  viejo deja de valer aunque no haya expirado).
-- La política mínima es 8 caracteres, con letras, distinta de la temporal. No hay recuperación por email: la
-  recuperación es asistida en la secretaría, y el mensaje de login no revela si el email existe.
+La cláusula de revocación ya no termina el derecho por retirar: bajo el régimen aplicable de contratación a distancia, el artículo 34 cuenta desde entrega o celebración, lo último que ocurra. Las excepciones y el encuadre concreto requieren revisión jurídica; la palabra “aporte” no excluye por sí sola derechos.
 
-## 5. Pendiente (decisiones de la comisión, no del sistema)
-
-1. **Texto del consentimiento** para cada finalidad: lo tiene que redactar el club con su asesor legal.
-   La app registra la versión, no la inventa.
-2. **Efecto de la revocación**: hoy revocar no bloquea la entrega. Definir si negar "datos personales"
-   impide operar (criterio sugerido: sí, porque el padrón es la base legal de la entrega).
-3. **Anonimización automática de bajas** a los N años: falta el job y la firma de quien lo autoriza.
-4. **Datos de salud** (indicación médica, seguimiento del Director Médico): se implementan en el REA 7,
-   con acceso restringido y consentimiento `SALUD` como condición.
+Comparativa, fuentes públicas y decisiones pendientes: nota `01-Projects/cannabis-club/LEGALES-comparativa-Codex-2026-11-03.md` del vault de Obsidian.

@@ -9,17 +9,9 @@ export const metadata = {
   alternates: { canonical: "https://republicacannabis.com.ar/terminos" },
 };
 
-const VERSION = "3-nov-2026";
+const VERSION = "2026-11-03 · revisión 2";
 
-/**
- * Términos y Condiciones del vínculo entre el club y la persona socia.
- *
- * Reglas al escribirlo: cada cláusula describe lo que el sistema hace de verdad (membresía de 10 g, tope
- * por pedido, comprobante de transferencia aprobado por el club, bloqueo con REPROCANN vencido) y ninguna
- * renuncia a derechos: si el club cancela, devuelve o reprograma a elección del socio, y la revocación de
- * diez días del art. 34 de la Ley 24.240 se escribe explícita. Un texto con plazos o precios que el código
- * no sostiene es peor que no tener texto.
- */
+/** Borrador revisado: requiere validación institucional y jurídica antes de publicarse. */
 export default async function TerminosPage() {
   const view = await getBrandView();
   const wa = view.brand.contacto.whatsapp;
@@ -39,8 +31,10 @@ export default async function TerminosPage() {
 
       <p>
         Estas condiciones rigen la relación entre <b>{view.nombreLegal}</b> (en adelante, «el club») y cada persona que
-        se asocia. Al completar la solicitud de ingreso aceptás este texto y la{" "}
-        <Link href="/privacidad">Política de Privacidad</Link>.
+        solicita el alta o utiliza sus servicios. La solicitud no equivale al alta aprobada. La información sobre
+        datos personales se encuentra en la{" "}
+        <Link href="/privacidad">Política de Privacidad</Link>. Estos términos no sustituyen el estatuto,
+        el reglamento asociativo ni los consentimientos específicos que correspondan.
       </p>
 
       <h2>1. Qué es el club</h2>
@@ -51,51 +45,62 @@ export default async function TerminosPage() {
         sede en San Telmo, Ciudad Autónoma de Buenos Aires, y acompaña a pacientes de todo el país.
       </p>
 
+      {view.domicilioLegal ? <p>Domicilio legal de la asociación: {view.domicilioLegal}.</p> :
+        <p className="muted">Domicilio legal: pendiente de completar por el club.</p>}
+
       <h2>2. Qué no es el club</h2>
       <p>
         El club <b>no vende cannabis</b> ni ningún producto: los aportes de las personas socias cubren los costos de
-        producción. No es un dispensario comercial, no entrega a quien no es socio, no publicita precios de cannabis,
-        no reemplaza a un médico y no atiende urgencias. Si tenés una urgencia, llamá al 107 (SAME) o al 911.
+        producción. No es un dispensario comercial, no entrega a quien no es socio, no reemplaza a un médico y no atiende urgencias. Ante una urgencia, acudí al servicio de emergencias
+        de tu localidad. El carácter asociativo no elimina las obligaciones ni los derechos que resulten aplicables.
       </p>
 
       <h2>3. Requisitos para asociarse</h2>
       <ul>
-        <li>Ser mayor de edad y tener documento argentino.</li>
+        <li>Ser mayor de edad para utilizar este circuito de alta y acreditar identidad con la documentación requerida.
+          La atención de menores necesita un procedimiento específico de representación y validación; este portal no lo ofrece.</li>
         <li>Contar con indicación médica y con el REPROCANN vigente, con el club y el profesional vinculados en la plataforma oficial.</li>
         <li>Completar la solicitud de ingreso con datos verdaderos y firmar la declaración jurada y el consentimiento informado.</li>
         <li>Entregar la documentación que el club pida para el legajo (documento y credencial del REPROCANN). Los documentos se guardan cifrados y sólo los ve el personal autorizado.</li>
-        <li>Aceptación del club: la solicitud no otorga la condición de socio hasta que la comisión directiva la apruebe.</li>
+        <li>Aceptación del club: la solicitud no otorga la condición de socio hasta su aprobación por el órgano o las personas competentes conforme al estatuto.
+          Una cuenta de Google, un pago o una credencial del portal no reemplazan la autorización oficial vigente.</li>
       </ul>
 
       <h2>4. Aportes: qué cubren y cómo se pagan</h2>
       <p>
         Cada persona socia cubre los costos de producción mediante un aporte. <b>El aporte no es el precio de compra
-        de cannabis</b>: es la contribución proporcional al sostenimiento del cultivo asociativo, y el monto vigente se
-        informa en el sitio y en el portal del socio antes de confirmar cualquier pedido.
+        de cannabis</b>: es la contribución proporcional al sostenimiento del cultivo asociativo, y el monto aplicable debe
+        informarse antes de confirmar el pedido, separando cultivo y transporte cuando corresponda.
+        Si la referencia es en dólares, deben informarse también la fuente, fecha y cotización usada para el importe en pesos.
       </p>
       <p>
         El pago se hace por <b>transferencia bancaria</b> a la cuenta que el club informa en el portal, y la persona
         socia <b>sube el comprobante</b> desde el portal. El pedido queda confirmado recién cuando el club aprueba ese
-        comprobante. No se procesan pagos con tarjeta ni con billeteras virtuales, y el club no solicita datos de
-        tarjeta en ningún caso. Si el comprobante no coincide con el aporte que corresponde, el club lo informa y
-        decide si acepta la diferencia.
+        comprobante. El portal no tiene una pasarela de tarjetas ni solicita claves bancarias, códigos de seguridad o datos
+        de tarjeta. Una transferencia puede originarse en la entidad o billetera que uses. Subir el comprobante no
+        acredita por sí solo la recepción del dinero. Si hay una diferencia, el club debe explicarla y acordar su
+        resolución; no habilita cargos adicionales sin informar. Conservá el comprobante y la confirmación.
       </p>
 
       <h2>5. Membresías, cantidades y límites</h2>
       <ul>
-        <li>La <b>membresía</b> es la unidad de retiro: una membresía equivale a 10 g de flores secas o su equivalente en extractos.</li>
-        <li>Se pueden pedir hasta cuatro membresías por pedido (40 g), según la indicación médica y los topes que fija la comisión directiva.</li>
-        <li>El sistema controla el stock y los topes de cada legajo y no permite superarlos. Si un pedido excede el límite, no se confirma.</li>
+        <li>La <b>membresía</b> es la unidad de retiro: su cantidad se informa en la configuración vigente del club y antes del pedido.
+          No constituye una autorización para superar la indicación médica ni los límites aplicables.</li>
+        <li>El máximo por pedido depende de la configuración vigente, del legajo y de las condiciones autorizadas.
+          No se establece una equivalencia automática entre gramos de flores y extractos: debe validarla el profesional competente.</li>
+        <li>El sistema aplica controles de stock y topes, y el club vuelve a verificar los requisitos antes de entregar.
+          Un error o una confirmación informática no autoriza una entrega contraria a esos requisitos.</li>
         <li>Las variedades disponibles dependen de la cosecha; se publican sin precios y el club informa qué hay disponible en cada momento.</li>
       </ul>
 
       <h2>6. Retiro en la sede y envíos</h2>
       <p>
         El retiro es personal, en la sede, dentro del horario de atención informado, y no tiene costo. Los envíos se
-        hacen al domicilio que la persona socia declaró en su legajo, por el transporte que el club indique, con
-        seguimiento; el costo depende de la zona y <b>se informa antes de confirmar el pedido</b>. Un envío no ocupa
+        coordinan al domicilio validado para el pedido, sujetos a la habilitación y documentación aplicables
+        al traslado y al transporte elegido; el costo depende de la zona y <b>se informa antes de confirmar el pedido</b>. Un envío no ocupa
         turno en la sede. Si el domicilio declarado está incompleto, el pedido no se puede confirmar hasta que se
-        corrija.
+        corrija. La disponibilidad, el transportista, la fecha estimada y el seguimiento, si lo hubiera, se deben
+        confirmar para cada envío; este texto no garantiza cobertura nacional ni un plazo único.
       </p>
       <p>
         Sólo se entrega a la persona socia titular, con su documento, y queda registrado cada gramo entregado. El
@@ -104,19 +109,33 @@ export default async function TerminosPage() {
 
       <h2>7. Reservas, turnos y cancelaciones</h2>
       <ul>
-        <li>La reserva indica día y hora de retiro; no habilita el retiro por sí sola si el legajo no está validado o el REPROCANN está vencido.</li>
-        <li>Podés cancelar tu reserva desde el portal mientras el pedido no haya salido de la sede.</li>
-        <li>Un pedido que no se retira en el plazo informado vence y se libera el stock; el aporte se resuelve según el punto 8.</li>
+        <li>La reserva para retiro indica día y hora; el envío se coordina sin turno en sede. Una reserva no habilita el retiro por sí sola si el legajo no está validado o el REPROCANN está vencido.</li>
+        <li>Podés solicitar la cancelación antes del despacho, desde el portal cuando esté habilitada la opción
+          o por contacto con el club. Si ya salió, consultá cómo coordinar la gestión; esto no limita el derecho de
+          revocación ni los reclamos que correspondan.</li>
+        <li>Un pedido que no se retira en el plazo informado vence y se libera el stock; el vencimiento de la reserva no implica por sí solo perder un aporte ya realizado. El club debe
+          conciliar el saldo e informar la reprogramación o devolución que corresponda.</li>
         <li>Si el club cancela o no puede cumplir por una causa ajena a vos, <b>elegís</b> entre reprogramar sin costo o la devolución íntegra del aporte.</li>
       </ul>
 
-      <h2>8. Derecho de revocación</h2>
+      <h2>8. Revocación, devoluciones y reclamos</h2>
       <p>
-        Si contrataste a distancia, tenés derecho a revocar la aceptación dentro de los <b>diez (10) días corridos</b>
-        desde que se formalizó el aporte, sin costo y sin expresar causa (art. 34, Ley 24.240), siempre que no hayas
-        retirado el pedido. La devolución se hace por el mismo medio de pago, dentro de los plazos que fija la
-        normativa. Pasado ese plazo, y si ya retiraste, el aporte se imputa al costo de producción ya realizado, que
-        el club puede detallar si lo pedís.
+        Cuando resulte aplicable el régimen de contratación a distancia de la Ley 24.240 (art. 34), podés revocar la
+        aceptación sin responsabilidad durante diez días corridos desde la entrega del bien o la celebración del
+        contrato, lo que ocurra después. El retiro no extingue por sí solo ese derecho. Las excepciones sólo pueden
+        ser las previstas legalmente y no se presume una por tratarse de un aporte asociativo.
+      </p>
+      <p>
+        Podés comunicarlo por los canales de contacto de esta página y conservar constancia del pedido. Cuando
+        corresponda restituir lo recibido, se pone a disposición del club y los gastos de devolución quedan a su
+        cargo. Coordiná previamente una devolución compatible con las reglas de transporte: no lo despaches por tu
+        cuenta. No se te puede imponer un saldo a favor en reemplazo de una devolución que corresponda.
+      </p>
+      <p>
+        Si hay una diferencia de cantidad, un problema de calidad, un paquete dañado o una entrega no recibida,
+        contactá al club e indicá pedido, fecha y lote si lo conocés. Guardá el envase y los comprobantes disponibles.
+        Esto facilita la investigación sin condicionar tus derechos a un plazo interno ni a una renuncia.
+        Ante una alerta sobre un lote, seguí las indicaciones del club y del profesional que te atiende.
       </p>
 
       <h2>9. Obligaciones de la persona socia</h2>
@@ -130,19 +149,21 @@ export default async function TerminosPage() {
 
       <h2>10. Suspensión, baja y expulsión</h2>
       <p>
-        La persona socia puede pedir la baja en cualquier momento, sin expresión de causa, desde el portal o por
-        WhatsApp; la baja no genera deuda ni cargo alguno. El club puede <b>suspender entregas</b> mientras el
+        La persona socia puede pedir la baja en cualquier momento, sin expresión de causa, por los canales de contacto del club; pedir la baja no tiene una penalidad propia.
+        Los saldos anteriores y pedidos pendientes se deben conciliar, explicando su origen y las devoluciones
+        que correspondan; no se extinguen ni se crean deudas automáticamente por la baja. El club puede <b>suspender entregas</b> mientras el
         REPROCANN esté vencido, el legajo no esté validado o falte documentación, y puede suspender o expulsar a quien
-        incumpla estos términos, aporte datos falsos o use lo retirado para fines distintos a los declarados. En todos
-        los casos se informa el motivo, se escucha el descargo y la decisión se registra por escrito.
+        incumpla estos términos, aporte datos falsos o use lo retirado para fines distintos a los declarados. Las medidas disciplinarias deben respetar el estatuto, la competencia del órgano que decide,
+        la información del motivo, el derecho a descargo y las vías de revisión que correspondan.
+        Un bloqueo preventivo de entregas por seguridad o falta de habilitación no equivale por sí solo a una expulsión.
       </p>
 
       <h2>11. Datos personales</h2>
       <p>
         El tratamiento de datos, incluidas las imágenes del documento, la credencial del REPROCANN y los comprobantes
         de pago, se describe en la <Link href="/privacidad">Política de Privacidad</Link>. Los documentos se guardan
-        cifrados, el acceso es sólo para personal autorizado y cada apertura queda registrada. Los datos de salud no se
-        comparten con terceros y no se usan para publicidad.
+        cifrados, el acceso es sólo para personal autorizado y cada apertura queda registrada. Los destinatarios y proveedores que intervienen están identificados en esa política; no se autoriza
+        publicidad ni tratamiento de salud por una aceptación genérica de estos términos.
       </p>
 
       <h2>12. Responsabilidad</h2>
@@ -157,7 +178,9 @@ export default async function TerminosPage() {
       <p>
         Si el club modifica estas condiciones, lo informa por los canales de contacto y en esta página, con al menos
         quince (15) días de anticipación cuando el cambio sea relevante. La versión vigente es la publicada acá, con su
-        fecha. Si no estás de acuerdo, podés pedir la baja antes de que el cambio entre en vigencia.
+        fecha. No se aplican cambios retroactivos que reduzcan derechos sobre pedidos ya confirmados.
+        Si no estás de acuerdo, podés pedir la baja y resolver los pedidos pendientes. Un cambio que requiera
+        consentimiento específico debe recabarse por separado.
       </p>
 
       <h2>14. Ley aplicable y jurisdicción</h2>
@@ -172,18 +195,18 @@ export default async function TerminosPage() {
       <p>
         {wa ? (
           <>
-            Por WhatsApp al <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer">+{wa}</a>, o desde el
-            portal del socio.
+            Por WhatsApp al <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer">+{wa}</a>.
           </>
         ) : (
-          <>Por WhatsApp o desde el portal del socio.</>
+          <>Por los canales de contacto informados en la portada.</>
         )}{" "}
-        Las consultas sobre este texto se responden por esos mismos canales.
+        {view.brand.contacto.email ? <>También por correo a <a href={`mailto:${view.brand.contacto.email}`}>{view.brand.contacto.email}</a>. </> : null}
+        Indicá si se trata de una consulta, baja, cancelación, revocación o reclamo y conservá constancia del envío.
       </p>
 
       <p className="muted" style={{ marginTop: 28, fontSize: 13 }}>
-        Versión {VERSION} · texto aprobado por la comisión directiva del club y pendiente de revisión legal
-        profesional.{" "}
+        Versión {VERSION} · borrador revisado, pendiente de validación de la comisión directiva y revisión
+        legal profesional. No se acredita aprobación institucional mediante esta publicación.{" "}
         <Link href="/privacidad">Privacidad</Link> · <Link href="/sitio">Volver a la portada</Link>
       </p>
     </main>
