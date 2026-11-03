@@ -45,6 +45,20 @@ export function verificarBaja(token: string | null | undefined): BajaVerificada 
   return { ok: true, memberId };
 }
 
+/**
+ * La misma firma sirve para lo contrario: pedir la carta sin tener que entrar al portal.
+ * Se llama distinto para que en el código se lea qué hace el link, no de qué archivo sale.
+ */
+export const firmarSocio = firmarBaja;
+export const verificarSocio = verificarBaja;
+
+/** Link de un click para sumarse a la carta (el club lo manda por WhatsApp o por correo). */
+export function urlAltaCarta(memberId: string, base: string): string | null {
+  const token = firmarBaja(memberId);
+  if (!token) return null;
+  return `${base.replace(/\/+$/, "")}/api/carta/alta?t=${encodeURIComponent(token)}`;
+}
+
 /** Link absoluto para el pie del correo. `base` es el origen del portal. */
 export function urlBaja(memberId: string, base: string): string | null {
   const token = firmarBaja(memberId);

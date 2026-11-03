@@ -94,19 +94,31 @@ export async function memberConsents(memberId: string) {
 }
 
 /** Registra (o vuelve a registrar) el consentimiento de una finalidad. */
-export async function grantConsent(input: { memberId: string; purpose: ConsentPurpose; actorId: string; note?: string | null }) {
+export async function grantConsent(input: { memberId: string; purpose: ConsentPurpose; /** `null` cuando lo otorga el socio desde un link propio. */ actorId: string | null; note?: string | null }) {
   return prisma.$transaction(async (tx) => {
     const active = await tx.consent.findFirst({ where: { memberId: input.memberId, purpose: input.purpose, revokedAt: null } });
     if (active) return active;
-    const row = await tx.consent.create({
-      data: {
-        memberId: input.memberId,
-        purpose: input.purpose,
-        version: CONSENT_VERSION,
-        grantedById: input.actorId,
-        note: input.note?.trim() || null,
-      },
+    // Si ya había un consentimiento revocado de esta misma versión del texto, se reabre en vez de
+    // crear otro: el único (socio, finalidad, versión) no admite dos filas, y volver a aceptar es
+    // reabrir el registro, no fabricar uno nuevo. La fecha de la baja queda en la auditoría.
+    const previo = await tx.consent.findFirst({
+      where: { memberId: input.memberId, purpose: input.purpose, version: CONSENT_VERSION, revokedAt: { not: null } },
+      orderBy: { createdAt: "desc" },
     });
+    const row = previo
+      ? await tx.consent.update({
+          where: { id: previo.id },
+          data: { revokedAt: null, grantedAt: new Date(), grantedById: input.actorId, note: input.note?.trim() || previo.note },
+        })
+      : await tx.consent.create({
+          data: {
+            memberId: input.memberId,
+            purpose: input.purpose,
+            version: CONSENT_VERSION,
+            grantedById: input.actorId,
+            note: input.note?.trim() || null,
+          },
+        });
     await tx.auditLog.create({
       data: { actorId: input.actorId, action: "CONSENT_GRANT", entity: "Member", entityId: input.memberId, payload: { purpose: input.purpose, version: CONSENT_VERSION } },
     });

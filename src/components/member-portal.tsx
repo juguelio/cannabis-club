@@ -134,6 +134,9 @@ export function MemberPortal({
   const [closedDay, setClosedDay] = useState(false);
   // Cómo llega el producto: al club con turno, o a la casa del socio por envío.
   const [modo, setModo] = useState<"RETIRO" | "ENVIO">("RETIRO");
+  // La carta del club la decide el socio, no la secretaría: se pide y se retira desde acá.
+  const [carta, setCarta] = useState<boolean>(consents.some((c) => c.purpose === "COMUNICACIONES" && c.granted));
+  const [cartaBusy, setCartaBusy] = useState(false);
   const [zona, setZona] = useState<string>(data.club.envios[0]?.zona ?? "");
   const [direccion, setDireccion] = useState<string>(data.member.address ?? "");
   const documentStatus = memberDocumentStatus(data.member);
@@ -596,8 +599,8 @@ export function MemberPortal({
         <div className="panel-head"><div>
           <h2 className="panel-title">Privacidad y permisos</h2>
           <p className="panel-sub">
-            Esto es lo que el club tiene registrado que autorizaste, por separado. Si querés revocar algo, pedilo en la
-            secretaría: queda registrado con fecha, no se borra.
+            Esto es lo que el club tiene registrado que autorizaste, por separado. La carta del club la manejás vos
+            desde acá; para el resto, pedilo en la secretaría: queda registrado con fecha, no se borra.
           </p>
         </div></div>
         <div className="panel-body">
@@ -615,6 +618,30 @@ export function MemberPortal({
                 <span className="cell-meta">
                   {(c.version && consentTexts[c.version]?.[c.purpose]) ?? c.detail}
                 </span>
+                {c.purpose === "COMUNICACIONES" ? (
+                  <div className="flex flex-wrap items-center gap-2" style={{ marginTop: 4 }}>
+                    <button
+                      type="button"
+                      className={carta ? "btn btn-sm btn-quiet" : "btn btn-sm"}
+                      disabled={cartaBusy}
+                      onClick={async () => {
+                        setCartaBusy(true);
+                        try {
+                          const r = await api("/api/portal/comunicaciones", { method: "POST", body: { quiere: !carta } });
+                          setCarta(!carta);
+                          toast({ tone: "ok", title: (r as { mensaje?: string })?.mensaje ?? "Listo." });
+                        } catch (e) {
+                          toast({ tone: "bad", title: "No se pudo cambiar", text: errMsg(e) });
+                        } finally {
+                          setCartaBusy(false);
+                        }
+                      }}
+                    >
+                      {carta ? "No quiero recibir la carta" : "Quiero recibir la carta"}
+                    </button>
+                    <span className="cell-meta">Es la carta mensual, no los avisos de tu trámite.</span>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
