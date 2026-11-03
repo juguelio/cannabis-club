@@ -19,7 +19,15 @@ export async function enviarEmail({ to, subject, text }: EmailInput): Promise<Em
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from: process.env.CLUB_MAIL_FROM, to: [to], subject, text }),
+      // `reply_to` existe porque el remitente técnico (avisos@) no recibe respuestas:
+      // si el socio contesta, tiene que caer en el buzón que el club sí lee.
+      body: JSON.stringify({
+        from: process.env.CLUB_MAIL_FROM,
+        to: [to],
+        subject,
+        text,
+        ...(process.env.CLUB_MAIL_REPLY_TO ? { reply_to: process.env.CLUB_MAIL_REPLY_TO } : {}),
+      }),
     });
     if (!r.ok) return { enviado: false, motivo: "error", detalle: `${r.status} ${(await r.text()).slice(0, 200)}` };
     return { enviado: true };
