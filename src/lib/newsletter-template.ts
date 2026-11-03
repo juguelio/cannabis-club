@@ -28,7 +28,14 @@ export type CartaClub = {
   cta?: { texto: string; url: string };
   /** Línea de baja. Obligatoria: la carta siempre se puede dejar de recibir. */
   baja: string;
+  /** Link de baja de un click (firmado). Si falta, el pie sólo invita a responder el correo. */
+  bajaUrl?: string;
 };
+
+/** Cabeceras para que Gmail y Apple Mail muestren el botón de baja de un click (RFC 8058). */
+export function cabecerasBaja(url: string): Record<string, string> {
+  return { "List-Unsubscribe": `<${url}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" };
+}
 
 export function plantillaCarta(carta: CartaClub): string {
   const { pino, papel, linea, tinta, tinta2, hoja, violeta, violetaSuave } = MARCA;
@@ -81,7 +88,7 @@ ${cta}
           </td>
         </tr>
         <tr>
-          ${pieCorreo([carta.baja])}
+          ${pieCorreo([carta.baja], carta.bajaUrl)}
         </tr>`;
 
   return sobre(carta.copete, carta.titulo, contenido);
@@ -98,6 +105,7 @@ export function textoCarta(carta: CartaClub): string {
     ...carta.bloques.flatMap((b) => [b.titulo.toUpperCase(), b.texto, ...(b.enlace ? [`${b.enlace.texto}: ${b.enlace.url}`] : []), ""]),
     ...(carta.cta ? [`${carta.cta.texto}: ${carta.cta.url}`, ""] : []),
     carta.baja,
+    ...(carta.bajaUrl ? [`Darte de baja: ${carta.bajaUrl}`] : []),
     "",
     "República Cannabis",
   ].join("\n");

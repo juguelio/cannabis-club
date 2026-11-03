@@ -55,13 +55,17 @@ export function cabecera(kicker = "Asociación Civil · REPROCANN"): string {
 }
 
 /** Pie oscuro con las líneas de razón del envío y el link al sitio. */
-export function pieCorreo(lineas: string[]): string {
+export function pieCorreo(lineas: string[], bajaUrl?: string): string {
   const { pino2, onDark3, acentoSuave } = MARCA;
   const parrafos = lineas
     .map((p) => `              <p style="margin:0 0 8px;font:400 12.5px/1.6 ${FUENTE_TEXTO};color:${onDark3};">${esc(p)}</p>`)
     .join("\n");
+  // La baja va como link y no como invitación a responder: un click, sin pedirle nada al socio.
+  const baja = bajaUrl
+    ? `            <p style="margin:10px 0 0;font:600 12.5px/1.6 ${FUENTE_TEXTO};"><a href="${esc(bajaUrl)}" style="color:${acentoSuave};text-decoration:underline;">Darte de baja de la carta</a></p>`
+    : "";
   return `<td style="background:${pino2};border-radius:0 0 16px 16px;padding:22px 26px 26px;">
-${parrafos}
+${parrafos}${baja}
             <p style="margin:14px 0 0;font:400 12.5px/1.6 ${FUENTE_TEXTO};color:${onDark3};">
               <a href="${SITE_URL}" style="color:${acentoSuave};text-decoration:none;">republicacannabis.com.ar</a>
             </p>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { plantillaCarta, textoCarta, type CartaClub } from "../newsletter-template";
+import { cabecerasBaja, plantillaCarta, textoCarta, type CartaClub } from "../newsletter-template";
 import { LOGO_URL } from "../email-brand";
 
 const carta: CartaClub = {
@@ -61,6 +61,22 @@ describe("carta del club", () => {
     const html = plantillaCarta({ ...carta, cta: undefined });
     expect(html).not.toContain("Entrar al portal");
     expect(html).toContain("El mes en que el club se ordena");
+  });
+
+  it("con link firmado la baja es de un click; sin link, se pide responder", () => {
+    const conLink = plantillaCarta({ ...carta, bajaUrl: "https://club.test/api/baja?t=v1.abc.def" });
+    expect(conLink).toContain("Darte de baja de la carta");
+    expect(conLink).toContain("api/baja?t=v1.abc.def");
+    expect(textoCarta({ ...carta, bajaUrl: "https://club.test/api/baja?t=v1.abc.def" })).toContain("Darte de baja: https://club.test/api/baja?t=v1.abc.def");
+    // Sin link no se inventa un botón que no lleva a ningún lado.
+    expect(plantillaCarta(carta)).not.toContain("Darte de baja de la carta");
+  });
+
+  it("las cabeceras de baja son las que piden Gmail y Apple Mail", () => {
+    expect(cabecerasBaja("https://club.test/api/baja?t=x")).toEqual({
+      "List-Unsubscribe": "<https://club.test/api/baja?t=x>",
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    });
   });
 
   it("no publica precios: eso es configuración del club y va en el portal", () => {

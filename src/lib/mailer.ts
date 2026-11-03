@@ -3,14 +3,21 @@
  * Sin `RESEND_API_KEY` y `CLUB_MAIL_FROM` configurados no se manda nada y se informa
  * el motivo: el alta y el rechazo funcionan igual, el aviso es un extra.
  */
-export type EmailInput = { to: string; subject: string; text: string; html?: string };
+export type EmailInput = {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  /** Cabeceras propias del envío. La carta usa `List-Unsubscribe` (+ `-Post` para la baja de un click). */
+  headers?: Record<string, string>;
+};
 export type EmailResultado = { enviado: boolean; motivo?: "sin_configurar" | "error"; detalle?: string };
 
 const RESEND = "https://api.resend.com/emails";
 
 export const mailerConfigured = () => Boolean(process.env.RESEND_API_KEY && process.env.CLUB_MAIL_FROM);
 
-export async function enviarEmail({ to, subject, text, html }: EmailInput): Promise<EmailResultado> {
+export async function enviarEmail({ to, subject, text, html, headers }: EmailInput): Promise<EmailResultado> {
   if (!mailerConfigured()) return { enviado: false, motivo: "sin_configurar" };
   try {
     const r = await fetch(RESEND, {
@@ -29,6 +36,7 @@ export async function enviarEmail({ to, subject, text, html }: EmailInput): Prom
         // leen los asistentes que abren el correo como texto.
         text,
         ...(html ? { html } : {}),
+        ...(headers ? { headers } : {}),
         ...(process.env.CLUB_MAIL_REPLY_TO ? { reply_to: process.env.CLUB_MAIL_REPLY_TO } : {}),
       }),
     });
