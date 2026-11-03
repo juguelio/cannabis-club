@@ -29,6 +29,20 @@ export const clubSettingsFields = z.object({
   cuotaIngresoArs: z.number().min(0).max(10_000_000).nullable(),
   /** Exigir la firma de liberación del lote antes de entregar. */
   requiereLiberacion: z.boolean(),
+  /**
+   * Datos para transferir el aporte (alias, CBU, titular, banco, nota). El club los carga porque cambian
+   * sin tocar código; sin ellos el portal no puede decir a dónde transferir.
+   */
+  cobro: z
+    .object({
+      alias: z.string().trim().max(60).optional(),
+      cbu: z.string().trim().max(30).optional(),
+      titular: z.string().trim().max(80).optional(),
+      banco: z.string().trim().max(60).optional(),
+      nota: z.string().trim().max(200).optional(),
+    })
+    .nullable()
+    .optional(),
 });
 export const clubSettings = clubSettingsFields.refine(v => v.limiteDiarioG <= v.limiteMensualG, { message: "El tope diario no puede superar el mensual", path: ["limiteDiarioG"] })
   .refine(v => v.limiteMenorG <= v.limiteMensualG, { message: "El tope para menores debe ser igual o inferior al general", path: ["limiteMenorG"] })

@@ -1,5 +1,7 @@
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { normalizarCobro } from "@/lib/comprobante-rules";
 import { requireUser } from "@/lib/auth";
 import { getClub, CLUB_ID, OMIT_IMAGES } from "@/lib/club";
 import { clubSettings, clubSettingsFields } from "@/lib/club-settings";
@@ -34,7 +36,10 @@ export async function PATCH(req: Request) {
         cuotaSocialArs: current.cuotaSocialArs == null ? null : Number(current.cuotaSocialArs),
         cuotaIngresoArs: current.cuotaIngresoArs == null ? null : Number(current.cuotaIngresoArs),
         reprocannNumber: current.reprocannNumber ?? "", reprocannCode: current.reprocannCode ?? "", ...body });
-      const updated = await tx.club.update({ where: { id: CLUB_ID }, data: body, omit: OMIT_IMAGES });
+      // `cobro` es JSON libre: se normaliza (sin vacíos, CBU validado) y se guarda como DbNull si no queda nada.
+      const { cobro, ...resto } = body;
+      const data = { ...resto, ...(cobro === undefined ? {} : { cobro: normalizarCobro(cobro) ?? Prisma.DbNull }) };
+      const updated = await tx.club.update({ where: { id: CLUB_ID }, data, omit: OMIT_IMAGES });
       await tx.auditLog.create({ data: { actorId: user.id, action: "CLUB_UPDATE", entity: "Club", entityId: CLUB_ID, ip: clientIp(req), payload: body } });
       return updated;
     }, { isolationLevel: "Serializable" });

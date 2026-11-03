@@ -14,6 +14,7 @@ import { balanceOf, periodOf } from "./account";
 import { memberUsage, memberUsageAt } from "./dispensary";
 import { evaluateEnvio, evaluatePickup, round2 } from "./pickup-rules";
 import { gramosPorEnvio, preciosDeClub } from "./precios";
+import { estadoDePago, leerCobro } from "./comprobante-rules";
 import { addDaysKey, dayKeyOf, evaluateBooking, labelOf, slotInstant, type Rule } from "./appointments";
 import { daysToExpiry } from "./labels";
 import { availableStock } from "./stock";
@@ -80,6 +81,22 @@ export async function portalOverview(memberId: string) {
     }),
   ]);
 
+  // Estado del comprobante por pedido: el portal muestra si falta transferir, si está en revisión o si
+  // el club lo aprobó. Los archivos no viajan acá, sólo el estado.
+  const comprobantes = pickups.length
+    ? await prisma.paymentProof.findMany({
+        where: { pickupId: { in: pickups.map((p) => p.id) } },
+        select: { pickupId: true, status: true, createdAt: true, motivo: true },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+  const pagoPorPedido = new Map<string, { estado: ReturnType<typeof estadoDePago>; motivo: string | null }>();
+  for (const p of pickups) {
+    const propios = comprobantes.filter((c) => c.pickupId === p.id);
+    const ultimo = propios[propios.length - 1];
+    pagoPorPedido.set(p.id, { estado: estadoDePago(propios), motivo: ultimo?.motivo ?? null });
+  }
+
   const pendingGrams = round2(pending.reduce((a, p) => a + Number(p.grams), 0));
   const stock = round2(Math.max(0, stockFisico - Number(reservadoGlobal._sum.grams ?? 0)));
   const disponibleMes = round2(Math.max(0, limits.monthLimitG - usage.monthGrams - pendingGrams));
@@ -129,6 +146,8 @@ export async function portalOverview(memberId: string) {
       // Envío: zonas con su costo y demora, y cuántos gramos entran en una caja.
       envios: precios.envios,
       topeEnvioG: gramosPorEnvio(precios),
+      // A dónde transferir el aporte: lo carga el club, no se inventa acá.
+      cobro: leerCobro(club.cobro),
     },
     cuenta: { saldo, periodo: periodoActual, aportesDelMes: Math.round(aporteMes * 100) / 100 },
     limits: {
@@ -162,6 +181,8 @@ export async function portalOverview(memberId: string) {
       deliveryMode: p.deliveryMode,
       deliveryZona: p.deliveryZona,
       deliveryCostoArs: p.deliveryCostoArs == null ? null : Number(p.deliveryCostoArs),
+      pago: pagoPorPedido.get(p.id)?.estado ?? "PENDIENTE",
+      pagoMotivo: pagoPorPedido.get(p.id)?.motivo ?? null,
     })),
   };
 }

@@ -148,6 +148,8 @@ model Club {
   cuotaIngresoArs          Decimal? @db.Decimal(12, 2)
   /// Exigir liberación firmada del lote antes de entregar (REA 5.1).
   requiereLiberacion       Boolean  @default(true)
+  /// Datos para transferir el aporte (alias, CBU, titular, banco). Validada por src/lib/comprobante-rules.ts.
+  cobro                    Json?
   /// Marca del club (colores, tipografías, textos del sitio). Validada por src/lib/brand.ts; null = aspecto por defecto.
   marca                    Json?
   /// Economía del club: gramos por membresía, aporte, máximo por envío, zonas y productos. Ver src/lib/precios.ts.
@@ -286,6 +288,39 @@ enum NoticeChannel {
 /// Registro de avisos: append-only. Sirve para no avisar dos veces lo mismo y para mostrar
 /// quién avisó, cuándo y por qué canal. El envío real no lo hace la app: lo hace una persona
 /// desde su WhatsApp (ver docs/avisos.md).
+/// El socio transfiere el aporte y sube la foto del comprobante; el club lo mira y decide.
+/// Sin aprobación del comprobante la reserva no se confirma: no hay cobro automático ni pasarela.
+enum PaymentProofStatus {
+  EN_REVISION
+  APROBADO
+  RECHAZADO
+}
+
+model PaymentProof {
+  id           String             @id @default(cuid())
+  pickupId     String
+  pickup       PickupRequest      @relation(fields: [pickupId], references: [id], onDelete: Cascade)
+  /// Lo que el socio declara haber transferido. Se compara con `PickupRequest.aporteEstimado`.
+  montoArs     Decimal?           @db.Decimal(12, 2)
+  referencia   String?
+  mime         String
+  size         Int
+  sha256       String
+  /// El archivo se guarda cifrado (AES-256-GCM), igual que los documentos del legajo.
+  iv           Bytes
+  tag          Bytes
+  data         Bytes
+  status       PaymentProofStatus  @default(EN_REVISION)
+  uploadedById String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  motivo       String?
+  createdAt    DateTime           @default(now())
+
+  @@index([pickupId, createdAt])
+  @@index([status])
+}
+
 model NoticeLog {
   id        String        @id @default(cuid())
   /// Episodio del aviso (mismo motivo, mismo hecho): un problema nuevo no queda tapado por el aviso viejo.
@@ -681,6 +716,8 @@ model PickupRequest {
   deliveryTransportista String?
   deliveryCostoArs      Decimal?      @db.Decimal(10, 2)
   shipmentItem          ShipmentItem?
+  /// Comprobantes de la transferencia del aporte. El último manda; los rechazados quedan como historial.
+  paymentProofs         PaymentProof[]
   notes                 String?
   confirmedAt           DateTime?
   fulfilledAt           DateTime?

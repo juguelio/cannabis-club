@@ -13,6 +13,8 @@ import { CatalogoManager } from "@/components/catalogo-manager";
 import { DatosLegalesForm } from "@/components/datos-legales-form";
 import { PreciosForm } from "@/components/precios-form";
 import { preciosDeClub } from "@/lib/precios";
+import { CobroForm } from "@/components/cobro-form";
+import { leerCobro } from "@/lib/comprobante-rules";
 import { ROLES_EQUIPO } from "@/lib/roles";
 import { PadronImport } from "@/components/padron-import";
 import { auditAction, fmtWhen } from "@/lib/labels";
@@ -60,7 +62,21 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     );
   } else if (tab === "precios") {
     const club = await getClub();
-    body = <PreciosForm initial={preciosDeClub(club)} />;
+    const cobro = leerCobro(club.cobro);
+    body = (
+      <>
+        <PreciosForm initial={preciosDeClub(club)} />
+        <CobroForm
+          initial={{
+            alias: cobro.alias ?? "",
+            cbu: cobro.cbu ?? "",
+            titular: cobro.titular ?? "",
+            banco: cobro.banco ?? "",
+            nota: cobro.nota ?? "",
+          }}
+        />
+      </>
+    );
   } else if (tab === "legales") {
     const club = await getClub();
     body = (

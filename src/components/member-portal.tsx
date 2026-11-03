@@ -8,6 +8,7 @@ import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
 import type { Variedad } from "@/lib/variedad-rules";
 import { VariedadCard } from "@/components/variedad-card";
+import { ComprobantePago } from "@/components/comprobante-pago";
 import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
 
@@ -31,7 +32,8 @@ type Overview = {
     nombre: string;
     aportePorGramo: number | null;
     /** Zonas de envío con costo y demora; vacío = el club sólo entrega en sede. */
-    envios: { zona: string; precioArs: number; demora: string; transportista?: string }[];
+    envios: { zona: string; precioArs: number; demora: string; transportista?: string | null }[];
+    cobro?: { alias: string | null; cbu: string | null; titular: string | null; banco: string | null; nota: string | null };
     /** Cuántos gramos entran en un envío (membresías por caja × gramos de la membresía). */
     topeEnvioG: number;
   };
@@ -55,6 +57,8 @@ type Overview = {
     deliveryMode?: "RETIRO" | "ENVIO";
     deliveryZona?: string | null;
     deliveryCostoArs?: number | null;
+    pago?: "PENDIENTE" | "EN_REVISION" | "APROBADO" | "RECHAZADO";
+    pagoMotivo?: string | null;
   }[];
 };
 
@@ -184,6 +188,15 @@ export function MemberPortal({
       setError(errMsg(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function recargar() {
+    try {
+      const json = await api<{ overview: Overview }>("/api/portal/overview");
+      setData(json.overview);
+    } catch {
+      // Si falla el refresco no se pierde nada: el comprobante ya quedó cargado.
     }
   }
 
@@ -501,6 +514,18 @@ export function MemberPortal({
                       {p.aporteEstimado != null ? ` · aporte ${p.status === "RETIRADA" ? "" : "estimado "}${MONEY.format(p.aporteEstimado)}` : ""}
                       {p.cancelReason ? ` · ${p.cancelReason}` : ""}
                     </div>
+                    {/* El aporte se transfiere y el comprobante cierra el pedido: sin eso el club no lo confirma. */}
+                    {["SOLICITADA", "CONFIRMADA"].includes(p.status) && p.aporteEstimado != null ? (
+                      <ComprobantePago
+                        pickupId={p.id}
+                        aporteEstimado={p.aporteEstimado}
+                        envioArs={p.deliveryCostoArs ?? null}
+                        pago={p.pago ?? "PENDIENTE"}
+                        pagoMotivo={p.pagoMotivo ?? null}
+                        cobro={data.club.cobro ?? { alias: null, cbu: null, titular: null, banco: null, nota: null }}
+                        onSubido={() => { void recargar(); }}
+                      />
+                    ) : null}
                   </div>
                   {isOpen ? <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => setCancelId(p.id)}>Cancelar</button> : null}
                 </li>
