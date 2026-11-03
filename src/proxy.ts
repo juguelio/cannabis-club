@@ -12,9 +12,11 @@ const COOKIE = "cc_session";
 // `/lote/<código>` es la ficha neutra que abre el QR de la etiqueta: sin sesión y sin datos personales.
 // `/sitio` es la portada pública del club y `/api/marca/*` sus imágenes (logo, emblema, portada).
 // `/solicitud` y `/api/solicitud*` validan la cookie de onboarding por su cuenta (no usan `cc_session`).
-// Los dos crons de Vercel llegan sin sesión y se autentican con `Authorization: Bearer $CRON_SECRET`
+// Los crons de Vercel llegan sin sesión y se autentican con el `Bearer` del CRON_SECRET
 // dentro de la propia ruta; acá sólo se los deja llegar.
 const PUBLIC = ["/login", "/api/auth/login", "/api/auth/google", "/api/auth/logout", "/api/health", "/lote", "/sitio", "/terminos", "/privacidad", "/solicitud", "/api/solicitud", "/api/marca", "/api/variedades", "/api/mantenimiento/retencion", "/api/club/cotizacion", "/api/avisos/vencimientos",
+  // La baja de la carta viene de un correo: sin sesión, con token firmado propio (GET y POST).
+  "/api/baja",
   // Descubrimiento y metadatos: son públicos por definición, si el proxy los manda al login los buscadores no los ven.
   "/robots.txt", "/sitemap.xml", "/llms.txt", "/manifest.webmanifest"];
 // Páginas que se dibujan sin el shell de la app aunque haya sesión (el layout lee este header).

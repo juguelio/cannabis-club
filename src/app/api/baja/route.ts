@@ -38,15 +38,20 @@ function pagina(titulo: string, mensaje: string, detalle: string, status = 200):
   return new Response(html, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
 }
 
-/** Deja el consentimiento de COMUNICACIONES revocado. Si no había, igual queda el registro de la negativa. */
-async function darDeBaja(memberId: string): Promise<"revocada" | "sin_socio"> {
+/**
+ * Deja el consentimiento de COMUNICACIONES revocado. Si no había, igual queda el registro de la negativa.
+ *
+ * **Es idempotente**: el socio puede tocar el link dos veces, o el cliente de correo hacer el POST de
+ * un click después de que ya lo abrió. Volver a darse de baja no es un error: es un dato viejo.
+ */
+async function darDeBaja(memberId: string): Promise<"revocada" | "ya_de_baja" | "sin_socio"> {
   const socio = await prisma.member.findUnique({ where: { id: memberId }, select: { id: true } });
   if (!socio) return "sin_socio";
-  await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     const activo = await tx.consent.findFirst({ where: { memberId, purpose: "COMUNICACIONES", revokedAt: null } });
-    if (activo) {
-      await tx.consent.update({ where: { id: activo.id }, data: { revokedAt: new Date(), note: "Baja desde el correo" } });
-    } else {
+    if (!activo) {
+      const alguna = await tx.consent.findFirst({ where: { memberId, purpose: "COMUNICACIONES" }, select: { id: true } });
+      if (alguna) return "ya_de_baja";
       // No había consentimiento vivo: se registra la negativa con la versión vigente del texto.
       await tx.consent.create({
         data: {
@@ -57,12 +62,14 @@ async function darDeBaja(memberId: string): Promise<"revocada" | "sin_socio"> {
           note: "Baja desde el correo (sin consentimiento previo vigente)",
         },
       });
+    } else {
+      await tx.consent.update({ where: { id: activo.id }, data: { revokedAt: new Date(), note: "Baja desde el correo" } });
     }
     await tx.auditLog.create({
       data: { actorId: null, action: "CONSENT_REVOKE", entity: "Member", entityId: memberId, payload: { purpose: "COMUNICACIONES", origen: "link_de_baja" } },
     });
+    return "revocada";
   });
-  return "revocada";
 }
 
 const SIN_TOKEN = "No pudimos leer el link de baja. Puede estar incompleto: probá abrirlo de nuevo desde el correo, o respondé el mensaje y te damos de baja a mano.";
@@ -85,7 +92,9 @@ export async function GET(req: Request) {
   }
   return pagina(
     "Listo, quedaste fuera de la carta",
-    "No vas a recibir más novedades ni la carta mensual del club.",
+    resultado === "ya_de_baja"
+      ? "Ya estabas fuera: este link no cambió nada, tu baja sigue registrada."
+      : "No vas a recibir más novedades ni la carta mensual del club.",
     "Los avisos de tu trámite —el vencimiento del REPROCANN, la validación de tu legajo— te siguen llegando por correo: son parte del servicio del club, no novedades. Si querés volver a recibir la carta, escribinos y la activamos.",
   );
 }
