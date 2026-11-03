@@ -8,6 +8,7 @@ import { clientIp } from "@/lib/http";
 import { validarRechazo } from "@/lib/access-request";
 import { getBrandView } from "@/lib/brand-db";
 import { enviarEmail, textoRechazado } from "@/lib/mailer";
+import { plantillaEmail } from "@/lib/email-template";
 
 const schema = z.object({ motivo: z.string().trim().min(1) });
 
@@ -54,6 +55,17 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
       motivo,
       club: club.nombre,
       url: `${process.env.APP_BASE_URL ?? ""}/login`,
+    }),
+    html: plantillaEmail({
+      titulo: "Falta algo en tu solicitud",
+      copete: `Revisamos tu alta en ${club.nombre} y por ahora no pudimos aprobarla.`,
+      destacado: { etiqueta: "Motivo", valor: motivo },
+      parrafos: [
+        `Hola ${solicitud.firstName}: podés corregir lo que indica el motivo y volver a presentar la solicitud desde el mismo link.`,
+        "Si tenés dudas sobre qué falta, respondé este correo y te contestamos desde el club.",
+      ],
+      cta: { texto: "Volver a presentar la solicitud", url: `${process.env.APP_BASE_URL ?? ""}/login` },
+      pie: [`Este aviso lo manda ${club.nombre} por tu solicitud de alta.`],
     }),
   });
   await audit({

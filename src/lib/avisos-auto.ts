@@ -11,6 +11,7 @@
 import { prisma } from "./db";
 import { getClub } from "./club";
 import { enviarEmail, mailerConfigured } from "./mailer";
+import { plantillaEmail } from "./email-template";
 import { diasHastaVencer, enVentanaDeAviso, episodioDeVencimiento, textoAvisoVencimiento } from "./avisos-rules";
 
 export type EstadoAviso = "enviado" | "sin_email" | "ya_avisado" | "error";
@@ -95,6 +96,17 @@ export async function correrAvisosVencimiento(hoy = new Date()): Promise<Resulta
           ? "Tu REPROCANN vence hoy"
           : `Tu REPROCANN vence en ${socio.dias} ${socio.dias === 1 ? "día" : "días"}`,
       text: textoAvisoVencimiento({ nombre: socio.firstName, dias: socio.dias!, club: club.nombreCorto ?? club.nombre }),
+      html: plantillaEmail({
+        titulo: socio.dias === 0 ? "Tu REPROCANN vence hoy" : `Tu REPROCANN vence en ${socio.dias} ${socio.dias === 1 ? "día" : "días"}`,
+        copete: `Hola ${socio.firstName}: tu credencial está por vencer y conviene renovarla antes de la fecha.`,
+        destacado: { etiqueta: "Legajo", valor: `N.º ${socio.legajo}` },
+        parrafos: [
+          "Con el REPROCANN vencido no se puede registrar una entrega: el sistema del club lo bloquea hasta que esté renovado.",
+          "Cuando lo tengas, entrá al portal y subí la credencial nueva. El club la revisa y el legajo queda habilitado otra vez.",
+        ],
+        cta: { texto: "Subir la credencial al portal", url: `${process.env.APP_BASE_URL ?? ""}/portal` },
+        pie: [`Este aviso lo manda ${club.nombreCorto ?? club.nombre} porque tu credencial figura por vencer en el padrón.`],
+      }),
     });
     if (!envio.enviado) {
       // No salió: se suelta el reclamo para que el próximo intento lo pueda tomar. Dejarlo

@@ -8,6 +8,7 @@ import { decryptText } from "@/lib/docs-crypto";
 import { AFFIDAVIT_VERSION, faltantesParaAprobar, legajoSiguiente } from "@/lib/access-request";
 import { getBrandView } from "@/lib/brand-db";
 import { enviarEmail, textoAprobado } from "@/lib/mailer";
+import { plantillaEmail } from "@/lib/email-template";
 
 /**
  * Aprobar la solicitud = crear el legajo. Es el único camino por el que una cuenta
@@ -133,6 +134,18 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
       legajo: resultado.legajo,
       club: club.nombre,
       url: `${process.env.APP_BASE_URL ?? ""}/login`,
+    }),
+    html: plantillaEmail({
+      titulo: "Tu alta quedó aprobada",
+      copete: `Ya sos parte del padrón de ${club.nombre}.`,
+      destacado: { etiqueta: "Tu legajo", valor: `N.º ${resultado.legajo}` },
+      parrafos: [
+        `Hola ${solicitud.firstName}: revisamos la documentación que subiste y tu alta quedó aprobada.`,
+        "Entrá al portal del socio con el mismo botón de Google que usaste para registrarte: ahí vas a ver tu carnet, los topes del mes y podés pedir tu producción para retiro en sede o envío.",
+        "Si cambian tus datos de contacto o tu credencial REPROCANN, avisanos por el portal para actualizar el legajo.",
+      ],
+      cta: { texto: "Entrar al portal del socio", url: `${process.env.APP_BASE_URL ?? ""}/login` },
+      pie: [`Este aviso lo manda ${club.nombre} porque tu solicitud de alta fue aprobada.`],
     }),
   });
   await audit({
