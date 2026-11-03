@@ -17,6 +17,8 @@ const COOKIE = "cc_session";
 const PUBLIC = ["/login", "/api/auth/login", "/api/auth/google", "/api/auth/logout", "/api/health", "/lote", "/sitio", "/terminos", "/privacidad", "/solicitud", "/api/solicitud", "/api/marca", "/api/variedades", "/api/mantenimiento/retencion", "/api/club/cotizacion", "/api/avisos/vencimientos",
   // La baja de la carta viene de un correo: sin sesión, con token firmado propio (GET y POST).
   "/api/baja",
+  // El cron que manda las cartas se autentica adentro con el CRON_SECRET.
+  "/api/cartas/enviar",
   // Descubrimiento y metadatos: son públicos por definición, si el proxy los manda al login los buscadores no los ven.
   "/robots.txt", "/sitemap.xml", "/llms.txt", "/manifest.webmanifest"];
 // Páginas que se dibujan sin el shell de la app aunque haya sesión (el layout lee este header).

@@ -276,6 +276,8 @@ enum NoticeKind {
   RESERVA_SIN_RETIRAR
   CUENTA_CON_SALDO
   DOCUMENTO_SIN_VERIFICAR
+  /// La carta del club (editorial), no un aviso de trámite: otro tono y otra base legal.
+  CARTA_CLUB
 }
 
 enum NoticeChannel {
@@ -310,7 +312,7 @@ model PaymentProof {
   iv           Bytes
   tag          Bytes
   data         Bytes
-  status       PaymentProofStatus  @default(EN_REVISION)
+  status       PaymentProofStatus @default(EN_REVISION)
   uploadedById String?
   reviewedById String?
   reviewedAt   DateTime?
@@ -353,6 +355,8 @@ model User {
   semesterReports    SemesterReport[] @relation("SemesterSigner")
   consents           Consent[]        @relation("ConsentGrantor")
   noticesSent        NoticeLog[]      @relation("NoticeSender")
+  cartasCreadas      EdicionCarta[]   @relation("CartaCreador")
+  cartasAprobadas    EdicionCarta[]   @relation("CartaAprobador")
   accountEntries     AccountEntry[]   @relation("AccountEntryCreator")
   email              String           @unique
   name               String
@@ -377,6 +381,53 @@ model User {
   accessRequest       AccessRequest?
   reviewedRequests    AccessRequest[]      @relation("AccessReviewer")
   verificationReviews MemberVerification[] @relation("VerificationReviewer")
+}
+
+enum EstadoCarta {
+  BORRADOR
+  APROBADA
+  ENVIANDO
+  ENVIADA
+  CANCELADA
+}
+
+/**
+ * Una edición de la carta del club: el contenido que se aprueba, cuándo sale y cuántos la recibieron.
+ * El contenido se guarda como JSON y se arma con `plantillaCarta`, no como HTML: el diseño vive en
+ * código y la base guarda los datos. Así una carta vieja se puede volver a dibujar con la plantilla
+ * del día sin quedar congelada en un HTML que ya no se toca.
+ */
+model EdicionCarta {
+  id             String      @id @default(cuid())
+  /// Cómo se llama la edición para el club: «noviembre 2026».
+  edicion        String
+  titulo         String
+  copete         String
+  /// Párrafos de apertura (string[]).
+  apertura       Json
+  /// Bloques con título, texto y enlace opcional (BloqueCarta[]).
+  bloques        Json
+  /// Botón principal (texto + url) o vacío.
+  cta            Json?
+  estado         EstadoCarta @default(BORRADOR)
+  /// Cuándo la puede tomar el cron. Es lo que el club programa, no cuándo se aprobó.
+  programadaPara DateTime?
+  enviadaEn      DateTime?
+  creadaPorId    String?
+  creadaPor      User?       @relation("CartaCreador", fields: [creadaPorId], references: [id], onDelete: SetNull)
+  /// Quién dijo «esto sale». Sin esto la carta no se manda: es el registro que pide la asamblea.
+  aprobadaPorId  String?
+  aprobadaPor    User?       @relation("CartaAprobador", fields: [aprobadaPorId], references: [id], onDelete: SetNull)
+  aprobadaEn     DateTime?
+  /// Cuántos socios entraban en el padrón consentido al momento de aprobar.
+  alcanzados     Int         @default(0)
+  enviados       Int         @default(0)
+  errores        Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([estado, programadaPara])
+  @@index([createdAt])
 }
 
 model Member {
@@ -695,26 +746,26 @@ model Appointment {
 /// No es una venta: el club prorratea su costo de cultivo y el retiro se hace en el club,
 /// con el mismo chequeo de REPROCANN y topes que una entrega de mostrador.
 model PickupRequest {
-  id                    String        @id @default(cuid())
+  id                    String         @id @default(cuid())
   memberId              String
-  member                Member        @relation(fields: [memberId], references: [id])
-  grams                 Decimal       @db.Decimal(10, 2)
-  status                PickupStatus  @default(SOLICITADA)
-  appointmentId         String?       @unique
-  appointment           Appointment?  @relation(fields: [appointmentId], references: [id])
+  member                Member         @relation(fields: [memberId], references: [id])
+  grams                 Decimal        @db.Decimal(10, 2)
+  status                PickupStatus   @default(SOLICITADA)
+  appointmentId         String?        @unique
+  appointment           Appointment?   @relation(fields: [appointmentId], references: [id])
   /// Aporte estimado congelado al reservar (costo por gramo x gramos).
-  aportePorGramo        Decimal?      @db.Decimal(10, 2)
-  aporteEstimado        Decimal?      @db.Decimal(12, 2)
+  aportePorGramo        Decimal?       @db.Decimal(10, 2)
+  aporteEstimado        Decimal?       @db.Decimal(12, 2)
   /// Foto del cálculo de topes al reservar, para poder explicar después.
   limitSnapshot         Json?
   /// RETIRO: viene al club con turno. ENVIO: se despacha a su domicilio, sin turno.
-  deliveryMode          DeliveryMode  @default(RETIRO)
+  deliveryMode          DeliveryMode   @default(RETIRO)
   /// Copia de la dirección al momento de pedir: el envío tiene que conservar la que se usó.
   deliveryAddress       String?
   deliveryZona          String?
   deliveryDemora        String?
   deliveryTransportista String?
-  deliveryCostoArs      Decimal?      @db.Decimal(10, 2)
+  deliveryCostoArs      Decimal?       @db.Decimal(10, 2)
   shipmentItem          ShipmentItem?
   /// Comprobantes de la transferencia del aporte. El último manda; los rechazados quedan como historial.
   paymentProofs         PaymentProof[]
@@ -723,10 +774,10 @@ model PickupRequest {
   fulfilledAt           DateTime?
   canceledAt            DateTime?
   cancelReason          String?
-  dispensationId        String?       @unique
-  dispensation          Dispensation? @relation(fields: [dispensationId], references: [id])
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  dispensationId        String?        @unique
+  dispensation          Dispensation?  @relation(fields: [dispensationId], references: [id])
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
   @@index([memberId, createdAt])
   @@index([status, createdAt])
