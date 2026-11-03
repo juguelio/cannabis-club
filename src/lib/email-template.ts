@@ -4,8 +4,10 @@
  * de eso, el mail llega roto. Las letras de la marca van primero en la lista y caen a un
  * sustituto parecido, así se parece al sitio sin depender de que el cliente baje la fuente.
  *
- * Paleta: los mismos valores de `src/app/globals.css` (pino, papel, antocianina).
+ * Paleta: los mismos valores de `src/app/globals.css` (pino, papel, antocianina), compartidos con
+ * la carta del club en `email-brand.ts`.
  */
+import { esc, FUENTE_TEXTO, FUENTE_TITULO, LOGO_URL, MARCA, SITE_URL } from "./email-brand";
 
 export type AvisoEmail = {
   /** Encabezado grande, en mayúscula como en el sitio. */
@@ -22,27 +24,23 @@ export type AvisoEmail = {
   pie?: string[];
 };
 
-const PINO = "#10231b";
-const PINO_2 = "#17342a";
-const PAPEL = "#ffffff";
-const NIEBLA = "#edf0ec";
-const TINTA = "#142019";
-const TINTA_2 = "#3c4a42";
-const MUTED = "#637068";
-const LINEA = "#d9e0d8";
-const HOJA = "#1f5a3f";
-const VIOLETA = "#5a33a3";
-const VIOLETA_SUAVE = "#efe9fa";
+// La paleta y las letras viven en `email-brand.ts`: la carta del club y el aviso transaccional
+// tienen que verse del mismo sistema, no de dos copias que se desincronizan.
+const {
+  pino: PINO,
+  pino2: PINO_2,
+  papel: PAPEL,
+  niebla: NIEBLA,
+  tinta: TINTA,
+  tinta2: TINTA_2,
+  muted: MUTED,
+  linea: LINEA,
+  hoja: HOJA,
+  violeta: VIOLETA,
+  violetaSuave: VIOLETA_SUAVE,
+} = MARCA;
 
-/** Las del sitio (Bricolage Grotesque / Instrument Sans) con sustituto honesto. */
-const FUENTE_TITULO = "'Bricolage Grotesque','Bricolage Grotesque Variable',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
-const FUENTE_TEXTO = "'Instrument Sans','Instrument Sans Variable',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
-
-const esc = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
-export const LOGO_URL = "https://republicacannabis.com.ar/logo-republica.png";
-export const SITE_URL = "https://republicacannabis.com.ar";
+export { LOGO_URL, SITE_URL };
 
 /**
  * Devuelve el HTML del aviso. Sin `<!doctype>` de más, sin fuentes externas, sin imágenes
