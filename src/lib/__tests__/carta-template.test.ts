@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cabecerasBaja, plantillaCarta, textoCarta, type CartaClub } from "../newsletter-template";
+import { cabecerasBaja, plantillaCarta, textoCarta, type CartaClub } from "../carta-template";
 import { LOGO_URL } from "../email-brand";
 
 const carta: CartaClub = {
