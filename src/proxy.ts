@@ -14,7 +14,9 @@ const COOKIE = "cc_session";
 // `/solicitud` y `/api/solicitud*` validan la cookie de onboarding por su cuenta (no usan `cc_session`).
 // Los dos crons de Vercel llegan sin sesión y se autentican con `Authorization: Bearer $CRON_SECRET`
 // dentro de la propia ruta; acá sólo se los deja llegar.
-const PUBLIC = ["/login", "/api/auth/login", "/api/auth/google", "/api/auth/logout", "/api/health", "/lote", "/sitio", "/privacidad", "/solicitud", "/api/solicitud", "/api/marca", "/api/variedades", "/api/mantenimiento/retencion", "/api/club/cotizacion", "/api/avisos/vencimientos"];
+const PUBLIC = ["/login", "/api/auth/login", "/api/auth/google", "/api/auth/logout", "/api/health", "/lote", "/sitio", "/privacidad", "/solicitud", "/api/solicitud", "/api/marca", "/api/variedades", "/api/mantenimiento/retencion", "/api/club/cotizacion", "/api/avisos/vencimientos",
+  // Descubrimiento y metadatos: son públicos por definición, si el proxy los manda al login los buscadores no los ven.
+  "/robots.txt", "/sitemap.xml", "/llms.txt", "/manifest.webmanifest"];
 // Páginas que se dibujan sin el shell de la app aunque haya sesión (el layout lee este header).
 const BARE = ["/sitio", "/privacidad", "/solicitud"];
 const matches = (pathname: string, list: string[]) => list.some((p) => pathname === p || pathname.startsWith(`${p}/`));

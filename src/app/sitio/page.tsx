@@ -14,13 +14,39 @@ import { BrandMark } from "@/components/brand-mark";
 import { SiteJoinFloat } from "@/components/site-join-float";
 import "./sitio.css";
 
+const SITE_URL = process.env.APP_BASE_URL?.startsWith("https://republicacannabis") ? process.env.APP_BASE_URL : "https://republicacannabis.com.ar";
+
+/**
+ * El sitio público es la única cara indexable de la app: la consola y el portal del socio quedan fuera.
+ * La descripción está escrita para que sirva igual a un buscador y a un modelo: qué es, dónde, bajo qué
+ * marco legal y cómo se accede, en una frase completa.
+ */
 export async function generateMetadata(): Promise<Metadata> {
   const view = await getBrandView();
-  const description = view.brand.lema || "Asociación civil de cultivo solidario bajo la Ley 27.350 y el REPROCANN.";
+  const canonical = `${SITE_URL}/sitio`;
+  const description =
+    "Club de cultivo solidario de República Cannabis (Asociación Civil inscripta en el REPROCANN, Ley 27.350) en San Telmo, CABA: acompañamiento médico, legajo de socio, retiro en sede y envíos a todo el país. No se vende cannabis: los socios cubren los costos de producción.";
+  const titulo = `${view.nombre} · club de cultivo solidario con REPROCANN en San Telmo, CABA`;
+  const images = view.img.portada ? [view.img.portada] : ["/icon-512.png"];
   return {
-    title: { absolute: view.brand.lema ? `${view.nombre} · ${view.brand.lema}` : view.nombre },
+    title: { absolute: titulo },
     description,
-    openGraph: { title: view.nombre, description, images: view.img.portada ? [view.img.portada] : undefined },
+    alternates: { canonical },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+    },
+    openGraph: {
+      type: "website",
+      url: canonical,
+      siteName: view.nombre,
+      locale: "es_AR",
+      title: titulo,
+      description,
+      images,
+    },
+    twitter: { card: "summary_large_image", title: titulo, description, images },
   };
 }
 
@@ -56,11 +82,102 @@ export default async function SitioPage() {
     : null;
   const ig = brand.contacto.instagram ? `https://www.instagram.com/${brand.contacto.instagram}/` : null;
   const parrafos = brand.presentacion.split(/\n{2,}|\r\n\r\n/).map((p) => p.trim()).filter(Boolean);
-  const lead = "Somos una asociación civil sin fines de lucro que cultiva cannabis para sus socios con indicación médica, bajo la Ley 27.350 y el REPROCANN.";
+  // La primera frase de la presentación suele ser el lema: repetirlo debajo del H1 no le dice nada a un
+  // buscador ni a alguien que entra por primera vez. Si es corta, va esta bajada descriptiva.
+  const lead =
+    "Somos una asociación civil sin fines de lucro que cultiva cannabis para sus socios con indicación médica, bajo la Ley 27.350 y el REPROCANN. Retiro en la sede de San Telmo, CABA, y envíos a todo el país.";
   const banda = [view.nombre, brand.lema, "Cultivo solidario", "Sin fines de lucro", "Ley 27.350"].filter(Boolean);
   const mark = { logo: view.img.logo, sigla: view.sigla, placa: brand.logoPlaca };
 
+  /**
+   * Datos estructurados: qué es la organización, dónde está, cómo se contacta y las respuestas de la FAQ.
+   * Es lo que un buscador muestra como ficha y lo que un modelo cita cuando le preguntan por un club de
+   * cultivo en Argentina. La FAQ va copiada del texto visible: si difiere, no sirve.
+   */
+  const faq = [
+    {
+      q: "¿Puedo conseguir cannabis sin ser socio?",
+      a: "No. El club no vende ni entrega a terceros: solo a socios activos, con indicación médica y el REPROCANN vinculado.",
+    },
+    {
+      q: "¿Qué necesito para asociarme?",
+      a: `Tu DNI, ser mayor de ${club.edadMinima} años y contar con el REPROCANN (o iniciarlo con orientación del club). Firmás la solicitud de ingreso y el consentimiento informado.`,
+    },
+    {
+      q: "¿Cuánto puedo retirar?",
+      a: "Lo que indica tu REPROCANN, dentro de los topes que fija la comisión. El sistema del club controla cada entrega y no permite superarlos.",
+    },
+    {
+      q: "¿Cómo veo mis retiros y turnos?",
+      a: "Desde el portal del socio: tu carnet, lo que te queda en el mes, tus retiros y la reserva de turnos. Entrás con el usuario que te da el club.",
+    },
+    {
+      q: "¿Mis datos de salud son privados?",
+      a: "Sí. Se usan solo para la gestión del club, con tu consentimiento, y se conservan de forma segura. Podés pedir acceso o rectificación cuando quieras.",
+    },
+  ];
+  const horarioDeclarado = /12.*20/.test(brand.contacto.horario ?? "") ? "Mo-Sa 12:00-20:00" : undefined;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "NGO",
+        "@id": `${SITE_URL}/sitio#organizacion`,
+        name: view.nombre,
+        alternateName: ["República Cannabis", "Republica Cannabis ONG"],
+        url: `${SITE_URL}/sitio`,
+        logo: `${SITE_URL}/icon-512.png`,
+        image: `${SITE_URL}/icon-512.png`,
+        slogan: brand.lema || undefined,
+        description: parrafos[0] || lead,
+        foundingLocation: { "@type": "Place", name: brand.contacto.zona || "San Telmo, Ciudad Autónoma de Buenos Aires" },
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: "San Telmo",
+          addressRegion: "Ciudad Autónoma de Buenos Aires",
+          addressCountry: "AR",
+        },
+        areaServed: { "@type": "Country", name: "Argentina" },
+        knowsAbout: ["REPROCANN", "cannabis medicinal", "club de cultivo", "Ley 27.350", "cultivo solidario"],
+        ...(horarioDeclarado ? { openingHours: horarioDeclarado } : {}),
+        sameAs: ig ? [ig] : undefined,
+        contactPoint: brand.contacto.whatsapp
+          ? [
+              {
+                "@type": "ContactPoint",
+                contactType: "atención al socio",
+                telephone: `+${brand.contacto.whatsapp}`,
+                areaServed: "AR",
+                availableLanguage: ["es-AR"],
+              },
+            ]
+          : undefined,
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/sitio#sitio`,
+        url: `${SITE_URL}/sitio`,
+        name: view.nombre,
+        inLanguage: "es-AR",
+        publisher: { "@id": `${SITE_URL}/sitio#organizacion` },
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${SITE_URL}/sitio#preguntas`,
+        inLanguage: "es-AR",
+        mainEntity: faq.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      },
+    ],
+  };
+
   return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <link rel="alternate" type="text/markdown" href="/llms.txt" title="Resumen del club para modelos de lenguaje" />
     <div className="sitio">
       {!brand.sitio.publico ? (
         <div className="s-preview" role="status">
@@ -94,7 +211,7 @@ export default async function SitioPage() {
                 <small>Asociación civil · cultivo solidario</small>
                 {brand.lema || view.nombre}
               </h1>
-              <p className="s-lead">{parrafos[0] && parrafos[0].length <= 260 ? parrafos[0] : lead}</p>
+              <p className="s-lead">{parrafos[0] && parrafos[0].length >= 120 && parrafos[0].length <= 320 ? parrafos[0] : lead}</p>
               <div className="s-actions">
                 <Link className="s-btn s-btn-firma" href="/login?alta=1"><UserPlus aria-hidden style={{ width: 17, height: 17 }} />Crear cuenta</Link>
                 <Link className="s-btn s-btn-ghost" href="/login">Ya soy socio</Link>
@@ -313,5 +430,6 @@ export default async function SitioPage() {
       <SiteJoinFloat />
       {wa ? <a className="s-wa-float" href={wa} target="_blank" rel="noreferrer" aria-label="Escribir por WhatsApp"><WhatsappIcon /></a> : null}
     </div>
+    </>
   );
 }

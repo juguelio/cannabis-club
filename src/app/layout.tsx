@@ -15,12 +15,20 @@ import { addDaysKey, dayKeyOf, slotInstant } from "@/lib/appointments";
 
 export async function generateMetadata(): Promise<Metadata> {
   const view = await getBrandView();
-  const icon = view.img.emblema ?? view.img.logo ?? "/icon-club.svg";
   return {
+    // Sin `metadataBase`, Next emite OG y canonical relativos y los buscadores los ignoran.
+    metadataBase: new URL(process.env.APP_BASE_URL ?? "https://republicacannabis.com.ar"),
     title: { default: `${view.nombre} · gestión del club`, template: `%s · ${view.nombre}` },
     description: "Padrón de socios, stock y registro de entregas para asociaciones de cultivo.",
+    // La consola del club no se indexa. El sitio público sí: lo habilita su propio `generateMetadata`.
     robots: { index: false, follow: false },
-    icons: { icon, apple: view.img.emblema ?? view.img.logo ?? undefined },
+    icons: {
+      icon: [
+        { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+        { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      ],
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
   };
 }
 

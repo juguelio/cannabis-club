@@ -3,8 +3,12 @@ import { getBrandView } from "@/lib/brand-db";
 import { CONSENT_PURPOSES, CONSENT_TEXTS, CONSENT_VERSION } from "@/lib/privacy";
 
 export const metadata = {
-  title: "Privacidad",
-  description: "Qué datos trata el club, para qué, cuánto tiempo los conserva y cómo pedir acceso, corrección o baja.",
+  title: "Política de privacidad",
+  description:
+    "Qué datos personales y de salud trata República Cannabis, con qué finalidad, cuánto tiempo los conserva y cómo pedir acceso, corrección o baja. Ley 25.326.",
+  // La consola no se indexa; esta página sí, porque es la que respalda el tratamiento de datos.
+  robots: { index: true, follow: true },
+  alternates: { canonical: "https://republicacannabis.com.ar/privacidad" },
 };
 
 /**
