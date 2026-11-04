@@ -49,6 +49,8 @@ export async function verificacionDelSocio(memberId: string) {
         verificationAt: true,
         birthDate: true,
         docLast4: true,
+        /// Lo que el socio contestó cuando le preguntamos si tiene REPROCANN (ver `reprocann-entrada`).
+        reprocannDeclaracion: true,
         reprocannStatus: true,
         reprocannExpiresAt: true,
       },

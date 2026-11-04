@@ -25,6 +25,13 @@ enum MemberStatus {
   BAJA
 }
 
+/// Lo que el socio contestó cuando se le preguntó, una vez, si tiene REPROCANN.
+/// Nulo = todavía no le preguntamos (el wizard del portal se muestra mientras siga en nulo).
+enum ReprocannDeclaracion {
+  TIENE
+  NO_TIENE
+}
+
 enum ReprocannStatus {
   NO_APORTA
   EN_TRAMITE
@@ -431,45 +438,48 @@ model EdicionCarta {
 }
 
 model Member {
-  id                 String               @id @default(cuid())
-  account            AccountEntry[]
-  shipmentItems      ShipmentItem[]
-  legajo             Int                  @unique
-  firstName          String
-  lastName           String
-  docType            String               @default("DNI")
+  id                   String                @id @default(cuid())
+  account              AccountEntry[]
+  shipmentItems        ShipmentItem[]
+  legajo               Int                   @unique
+  firstName            String
+  lastName             String
+  docType              String                @default("DNI")
   /// Huella HMAC-SHA256 del documento normalizado: el número no se archiva (REA 4).
-  docHash            String?              @unique
+  docHash              String?               @unique
   /// Últimos 4 dígitos, para verificar en el mostrador sin exponer el número.
-  docLast4           String?
-  docVerifiedAt      DateTime?
+  docLast4             String?
+  docVerifiedAt        DateTime?
   /// Nulo mientras el socio no declaró su fecha de nacimiento (socios importados del padrón en papel).
-  birthDate          DateTime?            @db.Date
-  address            String?
+  birthDate            DateTime?             @db.Date
+  address              String?
   /// Localidad y provincia: sin ellas la dirección no sirve para despachar (lo marcó el JEV del padrón).
-  locality           String?
-  province           String?
-  postalCode         String?
-  phone              String?
-  email              String?
-  status             MemberStatus         @default(PENDIENTE)
-  statusReason       String?
-  admittedAt         DateTime?            @db.Date
-  leftAt             DateTime?            @db.Date
-  reprocannNumber    String?
-  reprocannStatus    ReprocannStatus      @default(NO_APORTA)
-  reprocannExpiresAt DateTime?            @db.Date
-  consumptionType    ConsumptionType      @default(LUDICO)
-  monthlyForecastG   Decimal?             @db.Decimal(6, 2)
-  consentSignedAt    DateTime?
-  consentVersion     String?
+  locality             String?
+  province             String?
+  postalCode           String?
+  phone                String?
+  email                String?
+  status               MemberStatus          @default(PENDIENTE)
+  statusReason         String?
+  admittedAt           DateTime?             @db.Date
+  leftAt               DateTime?             @db.Date
+  reprocannNumber      String?
+  reprocannStatus      ReprocannStatus       @default(NO_APORTA)
+  reprocannExpiresAt   DateTime?             @db.Date
+  consumptionType      ConsumptionType       @default(LUDICO)
+  monthlyForecastG     Decimal?              @db.Decimal(6, 2)
+  consentSignedAt      DateTime?
+  consentVersion       String?
   /// Estado de la re-validación de DNI + REPROCANN. Sólo VERIFICADO habilita reservar y retirar.
-  verificationStatus VerificationStatus   @default(PENDIENTE)
-  verificationAt     DateTime?
-  verifications      MemberVerification[]
-  notes              String?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  verificationStatus   VerificationStatus    @default(PENDIENTE)
+  verificationAt       DateTime?
+  /// Respuesta a «¿tenés REPROCANN?». Se pregunta una vez y el socio puede corregirla.
+  reprocannDeclaracion ReprocannDeclaracion?
+  reprocannAskedAt     DateTime?
+  verifications        MemberVerification[]
+  notes                String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   user          User?
   appointments  Appointment[]

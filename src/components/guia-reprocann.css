@@ -12,6 +12,10 @@
   gap: 20px;
 }
 
+/* En el sitio público la guía va en una columna; en el portal ya viene la columna del portal. */
+.s-guia { max-width: 820px; padding: 34px 0 60px; }
+.s-guia .guia { gap: 22px; }
+
 /* --- Cabecera: tarjeta oscura, redondeada, sin invadir nada ------------------- */
 .guia-hero {
   position: relative;
@@ -162,9 +166,11 @@
 .guia-turno b { font-family: var(--font-display); font-size: 15.5px; display: block; }
 .guia-turno span { font-size: 12.5px; color: var(--muted); }
 /* Los botones se alinean aunque el texto sea distinto («Reservar turno» / «Pedir turno»). */
-.guia-turno .guia-btn { min-width: 172px; justify-content: center; }
+.guia .guia-turno .guia-btn { min-width: 172px; justify-content: center; }
 
-.guia-btn {
+/* `.sitio a { color: inherit }` (0,1,1) le gana a `.guia-btn` (0,1,0) en la página pública y dejaba
+   el texto del botón negro sobre negro. Por eso todo lo de botones va con `.guia` adelante. */
+.guia .guia-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -181,10 +187,10 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.guia-btn:hover { filter: brightness(1.18); }
-.guia-btn--wa { background: #1a8f47; border-color: #1a8f47; color: #fff; }
-.guia-btn--quiet { background: transparent; color: var(--ink); border-color: var(--ink); }
-.guia-btn svg { width: 16px; height: 16px; flex: none; }
+.guia .guia-btn:hover { filter: brightness(1.18); }
+.guia .guia-btn--wa { background: #1a8f47; border-color: #1a8f47; color: #fff; }
+.guia .guia-btn--quiet { background: transparent; color: var(--ink); border-color: var(--ink); }
+.guia .guia-btn svg { width: 16px; height: 16px; flex: none; }
 
 /* --- Trámite trabado -------------------------------------------------------- */
 .guia-estados { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -261,5 +267,5 @@
   .guia-fact:first-child { border-left: 0; }
 }
 @media (max-width: 430px) {
-  .guia-turno .guia-btn { min-width: 0; width: 100%; }
+  .guia .guia-turno .guia-btn { min-width: 0; width: 100%; }
 }

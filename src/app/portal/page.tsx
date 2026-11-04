@@ -9,6 +9,8 @@ import { CONSENT_TEXTS, memberConsents } from "@/lib/privacy";
 import QRCode from "qrcode";
 import Link from "next/link";
 import { ArrowRight, Stethoscope } from "lucide-react";
+import { WizardReprocann } from "@/components/wizard-reprocann";
+import { POR_QUE_LA_GUIA, pantallaDeEntrada } from "@/lib/reprocann-entrada";
 import { MemberPortal } from "@/components/member-portal";
 import { VerificacionPanel } from "@/components/verificacion-panel";
 import { PageHead } from "@/components/ui";
@@ -28,7 +30,51 @@ export default async function PortalPage() {
   // Un legajo sin DNI y REPROCANN validados empieza por el trámite: sin eso no puede pedir, y el
   // servidor se lo va a rechazar igual. Se le muestra el formulario, no una pantalla vacía.
   const verificacion = await verificacionDelSocio(session.memberId);
-  if (verificacion.member.verificationStatus !== "VERIFICADO") {
+  const pantalla = pantallaDeEntrada({
+    verificacion: verificacion.member.verificationStatus,
+    declaracion: verificacion.member.reprocannDeclaracion,
+  });
+
+  // Paso 1: la pregunta. Sin saber si tiene REPROCANN no se le puede pedir nada, y pedirle el DNI a
+  // alguien que todavía no hizo el trámite es mandarlo a un formulario que no puede completar.
+  if (pantalla === "preguntar") {
+    return (
+      <>
+        <PageHead
+          title="Empecemos por tu REPROCANN"
+          subtitle="Una sola pregunta y arrancamos. Si todavía no lo tenés, no es un problema: te acompañamos."
+        />
+        <WizardReprocann inicial={null} />
+      </>
+    );
+  }
+
+  // Paso 2 (camino sin REPROCANN): la guía es la pantalla, no un link escondido al final.
+  if (pantalla === "guia") {
+    return (
+      <>
+        <PageHead title="Tu REPROCANN" subtitle={POR_QUE_LA_GUIA} />
+        <WizardReprocann inicial="NO_TIENE" />
+        <section className="member-shortcut-reprocann member-cta-guia">
+          <span className="wiz-paso">Paso 2</span>
+          <Stethoscope aria-hidden size={20} />
+          <span>
+            <b>Cómo sacarlo, paso a paso</b>
+            <small>Turno médico, carga del trámite, por qué se traba y qué hacer en cada caso</small>
+          </span>
+          <Link href="/portal/reprocann" className="btn btn-sm">
+            Ver la guía
+          </Link>
+        </section>
+        <p className="member-guia-pie">
+          Cuando lo tengas, volvés acá, elegís «Sí, ya lo tengo» y subís el DNI y la credencial: el club revisa y
+          habilita el retiro.
+        </p>
+      </>
+    );
+  }
+
+  if (pantalla === "validar") {
     const estado = estadoVerificacion(verificacion.member.verificationStatus);
     return (
       <>
@@ -36,6 +82,7 @@ export default async function PortalPage() {
           title="Validá tus datos"
           subtitle="Una vez por legajo: tu DNI y tu REPROCANN. Sin eso no se puede pedir ni retirar, por más que tu ficha exista."
         />
+        <WizardReprocann inicial="TIENE" />
         <VerificacionPanel
           inicial={{
             estado: verificacion.member.verificationStatus,
@@ -65,14 +112,6 @@ export default async function PortalPage() {
             },
           }}
         />
-        <Link href="/portal/reprocann" className="member-shortcut-reprocann">
-          <Stethoscope aria-hidden size={18} />
-          <span>
-            <b>¿Todavía no tenés REPROCANN?</b>
-            <small>Te explicamos cómo sacarlo y con quién pedir turno</small>
-          </span>
-          <ArrowRight aria-hidden size={18} />
-        </Link>
       </>
     );
   }

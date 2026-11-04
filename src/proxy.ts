@@ -14,7 +14,7 @@ const COOKIE = "cc_session";
 // `/solicitud` y `/api/solicitud*` validan la cookie de onboarding por su cuenta (no usan `cc_session`).
 // Los crons de Vercel llegan sin sesión y se autentican con el `Bearer` del CRON_SECRET
 // dentro de la propia ruta; acá sólo se los deja llegar.
-const PUBLIC = ["/login", "/api/auth/login", "/api/auth/google", "/api/auth/logout", "/api/health", "/lote", "/sitio", "/terminos", "/privacidad", "/solicitud", "/api/solicitud", "/api/marca", "/api/variedades", "/api/mantenimiento/retencion", "/api/club/cotizacion", "/api/avisos/vencimientos",
+const PUBLIC = ["/login", "/api/auth/login", "/api/auth/google", "/api/auth/logout", "/api/health", "/lote", "/sitio", "/reprocann", "/terminos", "/privacidad", "/solicitud", "/api/solicitud", "/api/marca", "/api/variedades", "/api/mantenimiento/retencion", "/api/club/cotizacion", "/api/avisos/vencimientos",
   // La baja de la carta viene de un correo: sin sesión, con token firmado propio (GET y POST).
   "/api/baja",
   // El cron que manda las cartas se autentica adentro con el CRON_SECRET.
@@ -24,7 +24,7 @@ const PUBLIC = ["/login", "/api/auth/login", "/api/auth/google", "/api/auth/logo
   // Descubrimiento y metadatos: son públicos por definición, si el proxy los manda al login los buscadores no los ven.
   "/robots.txt", "/sitemap.xml", "/llms.txt", "/manifest.webmanifest"];
 // Páginas que se dibujan sin el shell de la app aunque haya sesión (el layout lee este header).
-const BARE = ["/sitio", "/privacidad", "/solicitud"];
+const BARE = ["/sitio", "/reprocann", "/privacidad", "/solicitud"];
 const matches = (pathname: string, list: string[]) => list.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 const secretKey = () => new TextEncoder().encode(process.env.AUTH_SECRET ?? "");

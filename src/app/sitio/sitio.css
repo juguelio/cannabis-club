@@ -27,6 +27,13 @@
 .s-nav { display: flex; gap: 22px; margin-left: auto; font-size: 14px; font-weight: 600; }
 .s-nav a { text-decoration: none; color: var(--on-dark-2); }
 .s-nav a:hover { color: var(--accent-on-dark); }
+/* El atajo a la guía del REPROCANN: mismo nav, un punto de color para que se encuentre. */
+.s-nav a.s-nav-reprocann { color: var(--on-dark); }
+.s-nav a.s-nav-reprocann::after { content: "↓"; margin-left: 5px; font-weight: 700; color: var(--accent-on-dark); }
+.s-nav a.s-nav-reprocann:hover { color: var(--accent-on-dark); }
+.s-sin-reprocann { margin: 14px 0 0; font-size: 13.5px; color: var(--on-dark-3); }
+.s-sin-reprocann a { color: var(--on-dark); text-decoration: underline; text-underline-offset: 3px; }
+.s-sin-reprocann a:hover { color: var(--accent-on-dark); }
 
 .s-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 22px; border-radius: 999px;

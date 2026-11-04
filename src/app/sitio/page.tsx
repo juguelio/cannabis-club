@@ -199,6 +199,10 @@ export default async function SitioPage() {
             <a href="#que-es">Qué es</a>
             <a href="#variedades">Variedades</a>
             <a href="#asociarse">Asociarse</a>
+            {/* El que no tiene REPROCANN es el que más pregunta: la guía va en el nav, no al pie. */}
+            <Link href="/reprocann" className="s-nav-reprocann">
+              ¿Sin REPROCANN?
+            </Link>
             {brand.sitio.envios ? <a href="#envios">Envíos</a> : null}
             <a href="#preguntas">Preguntas</a>
             <a href="#contacto">Contacto</a>
@@ -220,6 +224,10 @@ export default async function SitioPage() {
                 <Link className="s-btn s-btn-firma" href="/login?alta=1"><UserPlus aria-hidden style={{ width: 17, height: 17 }} />Crear cuenta</Link>
                 <Link className="s-btn s-btn-ghost" href="/login">Ya soy socio</Link>
               </div>
+              <p className="s-sin-reprocann">
+                ¿Todavía no tenés REPROCANN?{" "}
+                <Link href="/reprocann">Mirá cómo sacarlo, paso a paso</Link>
+              </p>
               <div className="s-facts">
                 <span><i />Ley 27.350</span>
                 <span><i />REPROCANN</span>
