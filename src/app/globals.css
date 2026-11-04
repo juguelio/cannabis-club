@@ -507,7 +507,8 @@ dialog.dlg[open] { animation: rise .16s ease-out; }
 @media (min-width: 560px) { .wiz-opciones { grid-template-columns: 1fr 1fr; } }
 .wiz-opcion {
   position: relative; text-align: left; display: grid; gap: 3px; padding: 14px 44px 14px 16px;
-  border: 1.5px solid var(--line); border-radius: 14px; background: #fff; color: var(--ink); cursor: pointer; font: inherit;
+  border: 1.5px solid color-mix(in srgb, var(--ink) 42%, transparent); border-radius: 14px; background: #fff; color: var(--ink);
+  cursor: pointer; font: inherit;
   transition: border-color .15s, box-shadow .15s;
 }
 /* Se lee como botón, no como ficha informativa: flecha y sombra al pasar. */

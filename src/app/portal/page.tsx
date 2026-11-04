@@ -42,7 +42,7 @@ export default async function PortalPage() {
       <>
         <PageHead
           title="Empecemos por tu REPROCANN"
-          subtitle="Una sola pregunta y arrancamos. Si todavía no lo tenés, no es un problema: te acompañamos."
+          subtitle="Una pregunta para empezar: según lo que respondas te mostramos lo que sigue. Si todavía no lo tenés, no es un problema."
         />
         <WizardReprocann inicial={null} />
       </>

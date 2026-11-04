@@ -39,13 +39,15 @@ export function WizardReprocann({ inicial }: { inicial: DeclaracionReprocann }) 
   return (
     <section className="wiz-reprocann" aria-labelledby="wiz-reprocann-titulo">
       <div className="wiz-reprocann-head">
-        <span className="wiz-paso">Paso 1 de 2</span>
+        <span className="wiz-paso" aria-current="step">
+          Paso 1 de 2
+        </span>
         <h2 id="wiz-reprocann-titulo">
           <Stethoscope aria-hidden size={17} /> ¿Tenés REPROCANN?
         </h2>
         <p>
-          Es el permiso del Ministerio de Salud que habilita todo lo demás. Si ya lo tenés, subimos tu DNI y tu
-          credencial; si no, te explicamos cómo sacarlo con el consultorio del club.{" "}
+          Es el permiso del Ministerio de Salud que habilita todo lo demás. Si ya lo tenés, subís tu DNI y tu
+          credencial para que el club los revise; si no, te explicamos cómo sacarlo con el consultorio.{" "}
           <a className="wiz-ayuda" href="/reprocann" target="_blank" rel="noopener noreferrer">
             ¿Qué es el REPROCANN?
           </a>
