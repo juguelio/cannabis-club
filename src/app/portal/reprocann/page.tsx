@@ -69,7 +69,7 @@ export default async function GuiaReprocannPage() {
         </p>
         <ol className="guia-pasos">
           {PASOS.map((p) => (
-            <li key={p.titulo}>
+            <li key={p.titulo} data-clave={p.titulo.includes("términos") ? "" : undefined}>
               <b>{p.titulo}</b>
               {p.texto}
             </li>
@@ -90,9 +90,10 @@ export default async function GuiaReprocannPage() {
                 <b>{p.nombre}</b>
                 <span>{p.via}</span>
               </div>
+              {/* Misma acción con distinto canal: el verbo no cambia, cambia el icono. */}
               <a className="guia-btn" href={p.url} target="_blank" rel="noopener noreferrer">
                 {p.via === "Turnos por WhatsApp" ? <MessageCircle aria-hidden /> : <CalendarCheck aria-hidden />}
-                {p.via === "Turnos por WhatsApp" ? "Pedir turno" : "Reservar turno"}
+                Reservar turno
                 <ExternalLink aria-hidden width={13} height={13} />
               </a>
             </div>
@@ -180,13 +181,11 @@ export default async function GuiaReprocannPage() {
         <h2>¿Otra duda?</h2>
         <p className="intro">Para el trámite, escribile al consultorio. Para tu legajo, al club.</p>
         <div className="guia-contacto">
-          <a className="guia-btn guia-btn--wa" href={whatsappGuia()} target="_blank" rel="noopener noreferrer">
-            <MessageCircle aria-hidden /> WhatsApp del consultorio
+          <a className="guia-tarjeta" href={whatsappGuia()} target="_blank" rel="noopener noreferrer">
+            <small>WhatsApp del consultorio</small>
+            <b>{GUIA.whatsappLegible}</b>
           </a>
-          <div style={{ display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 13, color: "var(--muted)" }}>{GUIA.whatsappLegible}</span>
-          </div>
-          <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
+          <a className="guia-tarjeta" href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
             <small>Instagram</small>
             <b>@{GUIA.instagram}</b>
           </a>

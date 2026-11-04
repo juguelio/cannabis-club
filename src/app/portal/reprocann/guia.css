@@ -1,68 +1,85 @@
 /*
  * Guía del REPROCANN dentro del portal.
  *
- * Usa el lenguaje del sitio (bandas, trazo de 2 px, tipografía de afiche) pero el portal es una
- * columna de 720 px: los tamaños del afiche acá serían un cartel pegado en un pasillo. Se reusan los
- * tokens y se baja la escala; nada de colores nuevos.
+ * Lenguaje del sitio (titular de afiche, trazo de 2 px, sombra dura) a la escala del portal, que es
+ * una columna de 720 px. La primera versión sangraba al borde y apoyaba la banda negra sobre las
+ * tarjetas de datos con un margen negativo: se leía como un bloque encimado. Ahora cada bloque es una
+ * pieza cerrada, con su radio, y nada invade a nada.
  */
 .guia {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-inline: -16px; /* el portal ya trae 16 px de padding: la banda llega al borde */
+  gap: 20px;
 }
 
+/* --- Cabecera: tarjeta oscura, redondeada, sin invadir nada ------------------- */
 .guia-hero {
+  position: relative;
+  overflow: hidden;
   background: var(--pine);
   color: var(--on-dark);
-  padding: 26px 16px 30px;
+  border-radius: 18px;
+  padding: 24px 22px 28px;
+}
+/* Filo de firma abajo: el detalle que ata la tarjeta con la marca. */
+.guia-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 5px;
+  background: var(--firma);
 }
 .guia-hero .eyebrow {
-  font-size: 11.5px;
+  display: inline-block;
+  font-size: 10.5px;
   font-weight: 800;
-  letter-spacing: .12em;
+  letter-spacing: .13em;
   text-transform: uppercase;
   /* No usar `--firma-ink`: en la marca del club es un color oscuro y sobre la banda quedaba
      invisible (contraste 1:1). `--on-dark-3` da 6:1 y se lee en cualquier preset. */
   color: var(--on-dark-3);
+  border: 1px solid color-mix(in srgb, var(--on-dark) 26%, transparent);
+  border-radius: 999px;
+  padding: 5px 11px;
+  margin-bottom: 12px;
 }
 .guia-hero h1 {
   font-family: var(--font-display);
   font-weight: 850;
   text-transform: uppercase;
-  font-size: clamp(28px, 7.5vw, 40px);
-  line-height: .98;
+  font-size: clamp(27px, 6.6vw, 38px);
+  line-height: .99;
   letter-spacing: -.015em;
-  margin: 8px 0 10px;
+  margin: 0 0 10px;
   text-wrap: balance;
 }
 .guia-hero .lead {
   color: var(--on-dark-2);
-  font-size: 15.5px;
+  font-size: 15px;
   line-height: 1.55;
   margin: 0;
-  max-width: 46ch;
+  max-width: 52ch;
 }
 .guia-hero .hecho-por {
   margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--on-dark) 18%, transparent);
   color: var(--on-dark-3);
-  font-size: 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
+/* --- Datos: tres columnas dentro de una sola tarjeta ------------------------ */
 .guia-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 0 16px;
-  margin-top: -14px;
-}
-.guia-fact {
-  flex: 1 1 150px;
-  background: var(--surface, #fff);
+  display: grid;
+  gap: 0;
+  background: #fff;
   border: 2px solid var(--ink);
   border-radius: 14px;
-  padding: 12px 14px;
+  overflow: hidden;
 }
+.guia-fact { padding: 14px 15px; border-top: 1px solid var(--line, #dde3da); min-width: 0; }
+.guia-fact:first-child { border-top: 0; }
 .guia-fact small {
   display: block;
   font-size: 10.5px;
@@ -75,56 +92,66 @@
   display: block;
   font-family: var(--font-display);
   font-size: 19px;
+  line-height: 1.2;
+  margin-top: 3px;
   overflow-wrap: anywhere;
-  line-height: 1.15;
-  margin-top: 2px;
 }
 .guia-fact span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 
-.guia-sec { padding: 4px 16px 18px; }
+/* --- Secciones -------------------------------------------------------------- */
+.guia-sec { padding: 0 2px; }
 .guia-sec h2 {
   font-family: var(--font-display);
   font-weight: 850;
   text-transform: uppercase;
-  font-size: clamp(22px, 5.4vw, 29px);
+  font-size: clamp(21px, 5vw, 27px);
   line-height: 1.02;
   letter-spacing: -.01em;
   margin: 0 0 6px;
 }
-.guia-sec .intro { font-size: 14.5px; line-height: 1.55; color: var(--muted); margin: 0 0 14px; max-width: 60ch; }
+.guia-sec .intro { font-size: 14.5px; line-height: 1.55; color: var(--muted); margin: 0 0 14px; max-width: 62ch; }
 
-/* Pasos: la tarjeta con trazo y sombra dura, chica. */
+/* --- Pasos: tarjeta con trazo y sombra dura, con el número en un disco ------- */
 .guia-pasos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: paso; }
 .guia-pasos li {
   background: #fff;
   border: 2px solid var(--ink);
   border-radius: 14px;
-  padding: 12px 14px 13px 52px;
+  padding: 13px 15px 14px 54px;
   position: relative;
   box-shadow: 4px 4px 0 var(--ink);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 .guia-pasos li::before {
   counter-increment: paso;
   content: counter(paso);
   position: absolute;
-  left: 14px;
-  top: 9px;
+  left: 13px;
+  top: 12px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--pine);
+  color: var(--on-dark);
   font-family: var(--font-wordmark);
   font-weight: 800;
-  font-size: 26px;
+  font-size: 14px;
   line-height: 1;
-  color: var(--violet-2, var(--pine));
 }
-.guia-pasos b { display: block; font-family: var(--font-display); font-size: 15.5px; margin-bottom: 3px; }
+/* El paso que traba todo lo demás: el único marcado. */
+.guia-pasos li[data-clave] { border-color: var(--firma); box-shadow: 4px 4px 0 var(--firma); }
+.guia-pasos li[data-clave]::before { background: var(--firma); color: var(--firma-ink); }
+.guia-pasos b { display: block; font-family: var(--font-display); font-size: 15px; margin-bottom: 3px; }
 
-/* Turnos: una tarjeta por profesional. */
+/* --- Turnos ----------------------------------------------------------------- */
 .guia-turnos { display: grid; gap: 10px; }
 .guia-turno {
   border: 2px solid var(--ink);
   border-radius: 14px;
-  padding: 13px 14px;
+  padding: 13px 15px;
   background: #fff;
   display: flex;
   flex-wrap: wrap;
@@ -132,10 +159,10 @@
   align-items: center;
   justify-content: space-between;
 }
-.guia-turno b { font-family: var(--font-display); font-size: 16px; display: block; }
+.guia-turno b { font-family: var(--font-display); font-size: 15.5px; display: block; }
 .guia-turno span { font-size: 12.5px; color: var(--muted); }
 /* Los botones se alinean aunque el texto sea distinto («Reservar turno» / «Pedir turno»). */
-.guia-turno .guia-btn { min-width: 168px; justify-content: center; }
+.guia-turno .guia-btn { min-width: 172px; justify-content: center; }
 
 .guia-btn {
   display: inline-flex;
@@ -144,31 +171,33 @@
   min-height: 40px;
   padding: 0 16px;
   border-radius: 999px;
-  border: 2px solid var(--firma, var(--pine));
-  background: var(--firma, var(--pine));
-  color: var(--firma-ink, #fff);
+  border: 2px solid var(--pine);
+  background: var(--pine);
+  color: var(--on-dark);
   font: 800 12.5px/1 var(--font-display);
   text-transform: uppercase;
   letter-spacing: .03em;
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
 }
-.guia-btn:hover { filter: brightness(1.08); }
-.guia-btn--wa { background: #1fa855; border-color: #1fa855; color: #fff; }
+.guia-btn:hover { filter: brightness(1.18); }
+.guia-btn--wa { background: #1a8f47; border-color: #1a8f47; color: #fff; }
 .guia-btn--quiet { background: transparent; color: var(--ink); border-color: var(--ink); }
 .guia-btn svg { width: 16px; height: 16px; flex: none; }
 
-/* Estados del trámite trabado. */
+/* --- Trámite trabado -------------------------------------------------------- */
 .guia-estados { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .guia-estados li {
-  border-left: 4px solid var(--violet-2, var(--pine));
-  background: var(--mist, #f4f6f2);
+  border-left: 4px solid var(--firma);
+  background: var(--mist, #f2ece2);
   border-radius: 0 12px 12px 0;
-  padding: 10px 14px;
+  padding: 11px 14px;
 }
-.guia-estados b { display: block; font-size: 13.5px; font-family: var(--font-display); margin-bottom: 2px; }
-.guia-estados span { font-size: 13.5px; line-height: 1.5; color: var(--ink-2, var(--ink)); }
+.guia-estados b { display: block; font-size: 13px; font-family: var(--font-display); margin-bottom: 2px; }
+.guia-estados span { font-size: 13.5px; line-height: 1.5; }
 
+/* --- Preguntas -------------------------------------------------------------- */
 .guia-faq { border-top: 2px solid var(--ink); }
 .guia-faq details { border-bottom: 1px solid var(--line, #dde3da); }
 .guia-faq summary {
@@ -183,30 +212,34 @@
 .guia-faq summary::-webkit-details-marker { display: none; }
 .guia-faq summary::after { content: "+"; font-size: 22px; line-height: 1; font-weight: 500; flex: none; transition: transform .2s; }
 .guia-faq details[open] summary::after { transform: rotate(45deg); }
-.guia-faq .respuesta { padding: 0 0 16px; font-size: 14px; line-height: 1.6; color: var(--ink-2, var(--ink)); max-width: 68ch; }
+.guia-faq .respuesta { padding: 0 0 16px; font-size: 14px; line-height: 1.6; max-width: 66ch; }
 .guia-faq .respuesta p { margin: 0 0 8px; }
+.guia-faq .respuesta p:last-child { margin-bottom: 0; }
 .guia-faq .respuesta ul { margin: 8px 0; padding-left: 18px; }
 
 .guia-nota {
-  margin-top: 14px;
-  border-left: 3px solid var(--firma, var(--pine));
+  margin: 14px 0 0;
+  border-left: 3px solid var(--firma);
   padding-left: 12px;
   font-size: 12.5px;
   line-height: 1.55;
   color: var(--muted);
 }
 
-.guia-contacto { display: grid; gap: 10px; }
-.guia-contacto a {
+/* --- Contacto --------------------------------------------------------------- */
+.guia-contacto { display: grid; gap: 10px; justify-items: start; }
+.guia-contacto .guia-btn { min-height: 42px; }
+.guia-contacto a.guia-tarjeta {
+  width: 100%;
   border: 2px solid var(--ink);
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 12px 15px;
   text-decoration: none;
   color: var(--ink);
   display: block;
   background: #fff;
 }
-.guia-contacto a:hover { box-shadow: 4px 4px 0 var(--ink); }
+.guia-contacto a.guia-tarjeta:hover { box-shadow: 4px 4px 0 var(--ink); }
 .guia-contacto small {
   display: block;
   font-size: 10.5px;
@@ -218,10 +251,14 @@
 }
 .guia-contacto b { font-family: var(--font-display); font-size: 16px; overflow-wrap: anywhere; }
 
-.guia-pie { padding: 6px 16px 24px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.guia-pie { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin: 0; padding: 0 2px 26px; }
 
 @media (min-width: 560px) {
   .guia-pasos { grid-template-columns: 1fr 1fr; }
+  /* minmax(0,1fr): sin esto la columna del texto más largo se come a las otras. */
+  .guia-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .guia-fact { border-top: 0; border-left: 1px solid var(--line, #dde3da); }
+  .guia-fact:first-child { border-left: 0; }
 }
 @media (max-width: 430px) {
   .guia-turno .guia-btn { min-width: 0; width: 100%; }
