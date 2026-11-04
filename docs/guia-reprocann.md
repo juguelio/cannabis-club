@@ -33,31 +33,24 @@ Reconstruida el **2026-11-04** de la mini página de recepción del consultorio 
 - **Diseño con el lenguaje del sitio** (`.sitio`: banda oscura, titular de afiche, tarjetas con trazo
   y sombra dura) pero a la escala del portal, que es una columna de 720 px.
 
-## Pendiente de decisión: el valor de la consulta
+## El valor de la consulta (resuelto el 4-nov-2026)
 
-Hay **dos precios distintos** en la app:
+Rige el del consultorio: **$60.000**. El club lo confirmó y se actualizaron los dos lugares donde el
+número se ve:
 
-| Fuente | Valor |
-|---|---|
-| `Club.marca.sitio.pasos` (sitio público, visible hoy) | **$50.000** |
-| Consultorio del Dr. Victorica (4-nov-2026) | **$60.000** |
+| Lugar | Antes | Ahora |
+|---|---|---|
+| Guía del portal (`src/lib/guia-reprocann.ts`) | no publicado | **$60.000** |
+| Sitio público (`Club.marca.sitio.pasos`, paso 4) | $50.000 | **$60.000** |
 
-Por eso la guía **no publica ningún número**: dice «te lo confirma el consultorio». Publicar los dos
-en la misma app es una contradicción visible para el socio. Para publicarlo, dos cambios en
-`src/lib/guia-reprocann.ts`:
-
-```ts
-valorConsultaArs: 60000,   // el valor que rija
-publicarValores: true,     // ← la página empieza a mostrarlo
-```
-
-El test `no publica un valor mientras el sitio y el consultorio no coincidan` obliga a que el cambio
-sea deliberado: si alguien lo prende, falla hasta que actualice el test.
+Si el valor cambia otra vez, se tocan esos dos lugares. El test `publica el valor del consultorio`
+fija la constante: un cambio de precio obliga a pasar por el test, no a que se escape un número
+viejo en producción.
 
 ## Otras contradicciones detectadas en la misma pasada (no tocadas)
 
-- `Club.marca.sitio.pasos` todavía manda a **retirar en la sede de San Telmo**: el club está en San
-  Martín de los Andes. Es texto viejo de otro club.
+- `Club.marca.sitio.pasos` manda a **retirar en la sede de San Telmo**: el club **sí** está en San
+  Telmo; San Martín de los Andes será una segunda sede. No se tocó.
 - `Club.marca.sitio.enviosTexto` dice CABA **$20.000** y GBA **$25.000**; la configuración
   (`Club.precios`) dice CABA **$10.000** y GBA1 **$18.000**.
 - El paso 4 de la marca dice que la consulta es **obligatoria (Res. 1780/2025)** y de **vigencia 3

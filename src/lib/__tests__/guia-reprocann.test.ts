@@ -69,12 +69,12 @@ describe("guía del REPROCANN", () => {
     expect(TIEMPOS.map((t) => t.tipo).join(" ")).toContain("club");
   });
 
-  it("no publica un valor mientras el sitio y el consultorio no coincidan", () => {
-    // Si algún día se publican, este test obliga a decidirlo a propósito y no de olvido.
-    expect(typeof GUIA.publicarValores).toBe("boolean");
-    expect(GUIA.publicarValores).toBe(false);
-    expect(GUIA.valorConsultaArs).toBeGreaterThan(0);
-    expect(GUIA.valorVinculacionArs).toBeGreaterThan(0);
+  it("publica el valor del consultorio, que es el que rige desde el 4-nov-2026", () => {
+    expect(GUIA.publicarValores).toBe(true);
+    expect(GUIA.valorConsultaArs).toBe(60_000);
+    // La vinculación de quien ya tiene REPROCANN es otro servicio, no el mismo precio.
+    expect(GUIA.valorVinculacionArs).toBe(40_000);
+    expect(GUIA.valorVinculacionArs).toBeLessThan(GUIA.valorConsultaArs);
   });
 
   it("la página dice que el trámite lo hace el socio y que el club no cobra", () => {

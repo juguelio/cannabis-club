@@ -18,14 +18,15 @@ export const GUIA = {
   modalidad: "Videollamada por Google Meet, desde donde estés",
   /**
    * Valores que fija el consultorio, no el club. **No se publican todavía**: el sitio público del club
-   * dice $50.000 (`Club.marca.sitio.pasos`) y el consultorio pasó $60.000 el 4-nov-2026. Publicar los
-   * dos números en la misma app es una contradicción visible para el socio, así que hasta que el club
-   * confirme cuál rige la página dice que el valor lo confirma el consultorio. Para publicarlo:
-   * `publicarValores: true`.
+   * dice $50.000 (`Club.marca.sitio.pasos`) y el consultorio pasó $60.000 el 4-nov-2026. El club
+   * confirmó que **rige el del consultorio** y que el sitio se corrige, así que se publica. Si el
+   * valor vuelve a cambiar, se toca acá y en `Club.marca.sitio.pasos`: son los dos lugares donde el
+   * número se ve.
    */
   valorConsultaArs: 60_000,
   valorVinculacionArs: 40_000,
-  publicarValores: false,
+  /** El club confirmó el 4-nov-2026 que rige el valor del consultorio y que el sitio se actualiza. */
+  publicarValores: true,
   whatsapp: "5491131482320",
   whatsappLegible: "+54 9 11 3148-2320",
   instagram: "codigoverde8",
