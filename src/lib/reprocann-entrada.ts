@@ -18,6 +18,11 @@ export type EntradaSocio = {
 };
 
 /**
+ * Decisión del club (4-nov-2026): la pregunta es **sólo para el socio no verificado**. Al que ya está
+ * verificado no se le pregunta si tiene REPROCANN porque el club ya miró su credencial y la respuesta
+ * está en el legajo; volver a preguntarle es ruido. Si algún día se quiere «confirmar datos» para
+ * todos, eso es otra pantalla y otro texto, no este wizard.
+ *
  * - `portal`: ya está verificado; el trámite terminó y entra directo.
  * - `preguntar`: no sabemos si tiene REPROCANN, así que primero se pregunta (una vez).
  * - `guia`: dijo que no tiene; la guía es la pantalla, no un link escondido.
