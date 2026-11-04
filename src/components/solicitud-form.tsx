@@ -54,6 +54,12 @@ export function SolicitudForm({
   padron?: PadronPrevio;
 }) {
   const [estado, setEstado] = useState<EstadoSolicitud | null>(solicitud);
+  // Sin REPROCANN el alta no se puede completar: el número y el vencimiento son obligatorios. Se
+  // pregunta antes de mostrar el formulario, para no hacerlo llenar seis campos y chocar al final.
+  const [tieneReprocann, setTieneReprocann] = useState<"SI" | "NO" | null>(null);
+  // Se pregunta siempre que no haya una solicitud ya presentada: el número de REPROCANN es obligatorio
+  // también para el socio del padrón que viene a reclamar su legajo.
+  const pideGate = !estado;
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
@@ -209,6 +215,65 @@ export function SolicitudForm({
         </div>
       )}
 
+      {pideGate && tieneReprocann === null ? (
+        <div className="panel">
+          <div className="panel-head">
+            <h2 className="panel-title">Antes de empezar · ¿Tenés REPROCANN?</h2>
+            <p className="panel-sub">
+              Es el permiso del Ministerio de Salud que habilita el cultivo. Sin él el club no puede asociar a nadie, así
+              que lo primero es saber en qué punto estás.
+            </p>
+          </div>
+          <div className="panel-body">
+            <div className="wiz-opciones">
+              <button type="button" className="wiz-opcion" onClick={() => setTieneReprocann("SI")}>
+                <span className="wiz-opcion-titulo">Sí, ya lo tengo</span>
+                <span className="wiz-opcion-detalle">Sigo con el formulario de alta.</span>
+              </button>
+              <button type="button" className="wiz-opcion" onClick={() => setTieneReprocann("NO")}>
+                <span className="wiz-opcion-titulo">No, todavía no</span>
+                <span className="wiz-opcion-detalle">Ver cómo sacarlo, paso a paso.</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pideGate && tieneReprocann === "NO" ? (
+        <div className="panel">
+          <div className="panel-head">
+            <h2 className="panel-title">Sin REPROCANN no podemos completar el alta</h2>
+            <p className="panel-sub">
+              No es una traba del club: el número y el vencimiento del trámite son obligatorios, y el Ministerio tiene que
+              haberte autorizado antes de vincularte.
+            </p>
+          </div>
+          <div className="panel-body stack">
+            <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.6 }}>
+              <li>Pedís un turno con el consultorio y hacés la consulta por videollamada.</li>
+              <li>El consultorio carga el trámite y vos aceptás los términos en REPROCANN.</li>
+              <li>El club te vincula, REPROCANN aprueba y descargás tu credencial.</li>
+            </ol>
+            <div>
+              <Link className="btn btn-lg" href="/reprocann" target="_blank">
+                Cómo sacarlo, paso a paso
+              </Link>
+            </div>
+            <div>
+              <button type="button" className="btn btn-quiet" onClick={() => setTieneReprocann("SI")}>
+                Ya lo tengo: volver al formulario
+              </button>
+            </div>
+            <p className="hint">
+              Tu cuenta ya está creada. Cuando tengas el permiso volvés, entrás con el mismo botón y completás el alta:
+              no perdés nada de lo que hiciste.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {(!pideGate || tieneReprocann === "SI") ? (
+      <>
       <div className="panel">
         <div className="panel-head">
           <h2 className="panel-title">1 · Tus datos</h2>
@@ -293,6 +358,8 @@ export function SolicitudForm({
           </div>
         </div>
       </div>
+      </>
+      ) : null}
     </form>
   );
 }
