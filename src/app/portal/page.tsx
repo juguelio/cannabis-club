@@ -7,6 +7,8 @@ import { closedDayKeys } from "@/lib/closed-days";
 import { recalledBatchesForMember } from "@/lib/batch-quality";
 import { CONSENT_TEXTS, memberConsents } from "@/lib/privacy";
 import QRCode from "qrcode";
+import Link from "next/link";
+import { ArrowRight, Stethoscope } from "lucide-react";
 import { MemberPortal } from "@/components/member-portal";
 import { VerificacionPanel } from "@/components/verificacion-panel";
 import { PageHead } from "@/components/ui";
@@ -63,6 +65,14 @@ export default async function PortalPage() {
             },
           }}
         />
+        <Link href="/portal/reprocann" className="member-shortcut-reprocann">
+          <Stethoscope aria-hidden size={18} />
+          <span>
+            <b>¿Todavía no tenés REPROCANN?</b>
+            <small>Te explicamos cómo sacarlo y con quién pedir turno</small>
+          </span>
+          <ArrowRight aria-hidden size={18} />
+        </Link>
       </>
     );
   }
@@ -104,7 +114,16 @@ export default async function PortalPage() {
   const qr = await QRCode.toString(`${base}/dispensario?socio=${session.memberId}`, { type: "svg", margin: 0, color: { dark: "#10231b", light: "#ffffff" } });
 
   return (
-    <MemberPortal
+    <>
+      <Link href="/portal/reprocann" className="member-shortcut-reprocann">
+        <Stethoscope aria-hidden size={18} />
+        <span>
+          <b>¿Necesitás tu REPROCANN?</b>
+          <small>Cómo sacarlo, cuánto tarda y por qué no avanza</small>
+        </span>
+        <ArrowRight aria-hidden size={18} />
+      </Link>
+      <MemberPortal
       initial={overview}
       recalled={recalled}
       consents={consents.map((c) => ({ ...c, grantedAt: c.grantedAt ? c.grantedAt.toISOString() : null, revokedAt: c.revokedAt ? c.revokedAt.toISOString() : null }))}
@@ -115,6 +134,7 @@ export default async function PortalPage() {
       consentDate={member.consentSignedAt?.toISOString() ?? null}
       history={deliveries.map((d) => ({ id: d.id, at: d.occurredAt.toISOString(), grams: Number(d.grams), strain: d.batch.strain.name, batch: d.batch.code, voided: Boolean(d.voidedAt) }))}
       variedades={variedades}
-    />
+      />
+    </>
   );
 }
