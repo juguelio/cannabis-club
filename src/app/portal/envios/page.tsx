@@ -84,8 +84,8 @@ export default async function EnviosPage() {
               en despachos separados.
             </li>
             <li>
-              <b>La demora es de despacho, no de entrega.</b> Cuenta desde que el club prepara el pedido, y el
-              transportista puede demorar un día más.
+              <b>No elegís día: el envío es libre.</b> Pedís cuando quieras y el club despacha cuando prepara el
+              pedido. La demora de tu zona es orientativa y cuenta desde el despacho, no desde el pedido.
             </li>
             <li>
               <b>Tiene que haber alguien para recibir.</b> Si el domicilio está incompleto o no hay quien reciba, el

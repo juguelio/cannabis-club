@@ -160,9 +160,14 @@ y página «Envíos» del portal con las cuatro zonas de producción.
 *Aceptación:* un socio con CP 8370 ve antes de armar el combo que su zona es Interior, $25.000, 5 días
 hábiles; y si arma 5 g ve «te faltan 5 g» en lugar de un botón muerto.
 
-**Corte 2 — que se elija (un día).**
-Fechas de despacho reales por zona, elegidas por el socio; la reserva congela la fecha.
-*Aceptación:* la reserva guarda la fecha de despacho pedida y el club la ve en su panel.
+**Corte 2 — anulado por decisión del club (5-nov-2026).**
+El envío es **libre**: no se elige fecha ni ventana, y no se restringe a días fijos de despacho. El
+socio pide cuando quiere y el club despacha cuando prepara el pedido; la demora de la zona es
+orientativa y se cuenta desde el despacho, no desde el pedido.
+
+Se anula a propósito y no por falta de tiempo: fijar ventanas obliga al club a sostener una logística
+que hoy no tiene, y un horario incumplido es peor que ningún horario. Si algún día hay reparto propio
+con días fijos, se retoma —el dato ya está pensado y la reserva puede congelar la fecha—.
 
 **Corte 3 — que se pueda auditar (un día).**
 Bitácora del envío: salida, transportista, seguimiento, entrega o rechazo.
