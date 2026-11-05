@@ -3,9 +3,10 @@ import Link from "next/link";
 import { getBrandView } from "@/lib/brand-db";
 import { BrandMark } from "@/components/brand-mark";
 import { GuiaReprocann } from "@/components/guia-reprocann";
+import { siteUrl } from "@/lib/site";
 import "../sitio/sitio.css";
 
-const SITE_URL = process.env.APP_BASE_URL?.startsWith("https://republicacannabis") ? process.env.APP_BASE_URL : "https://republicacannabis.com.ar";
+const SITE_URL = siteUrl();
 
 /**
  * La guía del REPROCANN, pública.

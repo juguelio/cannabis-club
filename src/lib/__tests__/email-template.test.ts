@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { LOGO_URL, plantillaEmail } from "../email-template";
+import { MARCA } from "../email-brand";
+import { siteUrl } from "../site";
 
 describe("plantilla de email", () => {
   const base = { titulo: "Tu alta quedó aprobada", parrafos: ["Hola: ya está."] };
@@ -13,7 +15,7 @@ describe("plantilla de email", () => {
   it("no depende de recursos externos más que el logo del propio dominio", () => {
     const html = plantillaEmail(base);
     const urls = html.match(/https?:\/\/[^"'\s<>)]+/g) ?? [];
-    const externas = urls.filter((u) => !u.startsWith(LOGO_URL) && !u.startsWith("https://republicacannabis.com.ar"));
+    const externas = urls.filter((u) => !LOGO_URL || !u.startsWith(LOGO_URL)).filter((u) => !u.startsWith(siteUrl()));
     expect(externas).toEqual([]);
     // Sin <style> ni fuentes web: los clientes de correo las tiran.
     expect(html).not.toContain("<style");
@@ -28,11 +30,10 @@ describe("plantilla de email", () => {
       destacado: { etiqueta: "Tu legajo", valor: "N.º 24" },
       cta: { texto: "Entrar", url: "https://club.test/portal" },
     });
-    expect(html).toContain("Bricolage Grotesque");
-    expect(html).toContain("Instrument Sans");
-    expect(html).toContain("#10231b"); // pino, cabecera y pie
-    expect(html).toContain("#1f5a3f"); // hoja, el botón
-    expect(html).toContain("#5a33a3"); // antocianina, el dato destacado
+    expect(html).toContain("Segoe UI"); // pila del sistema: igual en todos los clientes
+    expect(html).toContain(MARCA.pino); // cabecera y pie
+    expect(html).toContain(MARCA.hoja); // el botón
+    expect(html).toContain(MARCA.violeta); // el dato destacado
   });
 
   it("arma el botón sólo si hay CTA, con la url absoluta", () => {

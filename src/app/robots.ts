@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
+import { siteUrl } from "@/lib/site";
 
-const SITE = "https://republicacannabis.com.ar";
+const SITE = siteUrl();
 
 /**
  * La consola del club y el portal del socio no se indexan (tienen datos de salud de personas).

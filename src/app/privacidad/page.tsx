@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { getBrandView } from "@/lib/brand-db";
 import { CONSENT_PURPOSES, CONSENT_TEXTS, CONSENT_VERSION } from "@/lib/privacy";
+import { siteUrl } from "@/lib/site";
 
 export const metadata = {
   title: "Política de privacidad",
-  description: "Datos del legajo, documentos, pagos, proveedores y derechos de las personas socias de República Cannabis. Ley 25.326.",
+  description: "Datos del legajo, documentos, pagos, proveedores y derechos de las personas socias del club. Ley 25.326.",
   robots: { index: true, follow: true },
-  alternates: { canonical: "https://republicacannabis.com.ar/privacidad" },
+  alternates: { canonical: `${siteUrl()}/privacidad` },
 };
 
 const VERSION = "2026-11-03 · revisión 2";

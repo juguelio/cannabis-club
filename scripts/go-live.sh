@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # De punta a punta: Neon -> migraciones -> seed -> Vercel -> prod.
-# Uso: bash scripts/go-live.sh   (lee la key de ~/.config/neon-api-key o NEON_API_KEY)
+# Uso: NEON_ORG=org-... NEON_PROJECT=club-<nombre> APP_BASE_URL=https://tudominio.com \
+#        bash scripts/go-live.sh
+# La key de Neon sale de NEON_API_KEY o de ~/.config/neon-api-key.
+# Nada de esto tiene valores de un club: cada despliegue se parametriza por entorno.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -8,9 +11,10 @@ KEY="${NEON_API_KEY:-$(cat "$HOME/.config/neon-api-key" 2>/dev/null || true)}"
 [ -z "$KEY" ] && { echo "Falta la API key de Neon." >&2; exit 1; }
 export NEON_API_KEY="$KEY"
 CLI="npx --yes neonctl@latest"
-ORG="org-delicate-glitter-39647088"
-PROJECT="cannabis-club"
-REGION="aws-sa-east-1"
+ORG="${NEON_ORG:?Falta NEON_ORG (id de la organización de Neon)}"
+PROJECT="${NEON_PROJECT:?Falta NEON_PROJECT (nombre del proyecto, uno por club)}"
+REGION="${NEON_REGION:-aws-sa-east-1}"
+SITE="${APP_BASE_URL:?Falta APP_BASE_URL (dominio público, con https://)}"
 
 echo "== 1/6 proyecto Neon =="
 if ! $CLI projects list --output json 2>/dev/null | grep -q "\"name\": \"$PROJECT\""; then
@@ -25,8 +29,8 @@ DIRECT="$($CLI connection-string "$PROJECT" --org-id "$ORG" 2>/dev/null | tail -
 POOLED="$($CLI connection-string "$PROJECT" --org-id "$ORG" --pooled 2>/dev/null | tail -1)"
 [ -z "$DIRECT" ] && { echo "No pude obtener el connection string" >&2; exit 1; }
 mkdir -p "$HOME/.config"
-printf '%s' "$DIRECT" > "$HOME/.config/cannabis-club-db-url"
-chmod 600 "$HOME/.config/cannabis-club-db-url"
+printf '%s' "$DIRECT" > "$HOME/.config/$PROJECT-db-url"
+chmod 600 "$HOME/.config/$PROJECT-db-url"
 HOST="$(printf '%s' "$DIRECT" | sed -E 's#.*@([^/:]+).*#\1#')"
 echo "host de la base: $HOST"
 
@@ -42,7 +46,9 @@ case "$RUNTIME" in *"?"*) RUNTIME="$RUNTIME&pgbouncer=true&connect_timeout=15";;
 printf '%s' "$RUNTIME" | npx vercel env add DATABASE_URL production --force >/dev/null
 printf '%s' "$DIRECT"  | npx vercel env add DIRECT_URL production --force >/dev/null
 openssl rand -hex 32 | npx vercel env add AUTH_SECRET production --force >/dev/null
-printf '%s' "https://cannabis-club.vercel.app" | npx vercel env add APP_BASE_URL production --force >/dev/null
+printf '%s' "$SITE" | npx vercel env add APP_BASE_URL production --force >/dev/null
+# Los correos necesitan nombre y, si hay logo, una URL absoluta: ver src/lib/site.ts.
+[ -n "${CLUB_NOMBRE:-}" ] && printf '%s' "$CLUB_NOMBRE" | npx vercel env add CLUB_NOMBRE production --force >/dev/null
 echo "ok"
 
 echo "== 5/6 deploy =="

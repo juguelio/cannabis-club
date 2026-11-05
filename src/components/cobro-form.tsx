@@ -60,7 +60,7 @@ export function CobroForm({ initial }: { initial: CobroInicial }) {
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
         <label className="field">
           <span>Alias</span>
-          <input className="input" value={c.alias} onChange={(e) => set("alias", e.target.value)} placeholder="republica.ong" />
+          <input className="input" value={c.alias} onChange={(e) => set("alias", e.target.value)} placeholder="club.aportes" />
         </label>
         <label className="field">
           <span>CBU (22 dígitos)</span>

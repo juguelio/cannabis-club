@@ -1,13 +1,14 @@
 import type { MetadataRoute } from "next";
 import { getBrandView } from "@/lib/brand-db";
+import { clubNombre } from "@/lib/site";
 
 /** Manifest del sitio: nombre, colores del club e íconos generados del monograma. */
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const view = await getBrandView();
   return {
     name: view.nombre,
-    short_name: view.brand.sigla || "República",
-    description: view.brand.lema || "Club de cultivo solidario con REPROCANN.",
+    short_name: view.brand.sigla || view.nombre.slice(0, 12),
+    description: view.brand.lema || `Gestión de socios, stock y registro de ${clubNombre()}: padrón, dispensario y libros.`,
     start_url: "/sitio",
     display: "standalone",
     background_color: view.brand.colores.claro,

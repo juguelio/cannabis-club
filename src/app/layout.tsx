@@ -12,12 +12,13 @@ import { themeCss } from "@/lib/brand";
 import { MemberShell, Shell } from "@/components/shell";
 import type { BrandMarkInfo } from "@/components/brand-mark";
 import { addDaysKey, dayKeyOf, slotInstant } from "@/lib/appointments";
+import { siteUrl } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
   const view = await getBrandView();
   return {
     // Sin `metadataBase`, Next emite OG y canonical relativos y los buscadores los ignoran.
-    metadataBase: new URL(process.env.APP_BASE_URL ?? "https://republicacannabis.com.ar"),
+    metadataBase: new URL(siteUrl()),
     title: { default: `${view.nombre} · gestión del club`, template: `%s · ${view.nombre}` },
     description: "Padrón de socios, stock y registro de entregas para asociaciones de cultivo.",
     // La consola del club no se indexa. El sitio público sí: lo habilita su propio `generateMetadata`.

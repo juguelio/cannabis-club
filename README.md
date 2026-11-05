@@ -1,9 +1,15 @@
-# Club de cultivo — gestión (socios · stock · registro)
+# Club de cultivo — template de gestión (socios · stock · registro)
 
-App de gestión para una **asociación civil de cultivo (club cannábico) argentina inscripta en REPROCANN**.
+App de gestión para una **asociación civil de cultivo (club cannábico) argentina inscripta en REPROCANN**,
+pensada como **template white-label**: se despliega una instancia por club y la identidad (nombre, colores,
+tipografía, logo, textos, dominio) es configuración, no código.
+
 Primer foco: **padrón de socios, control de stock y registro trazable de entregas**.
-
 No es un POS: el club no vende, prorratea costos entre socios (cuota social + cuota de cultivo).
+
+**Alta de un club nuevo → [`TEMPLATE.md`](TEMPLATE.md)** (checklist de variable de entorno, marca, datos legales
+y verificación). La base visual es neutra a propósito: grises, un verde de acción, azul para foco, tipografía del
+sistema y radios chicos; el club la reemplaza desde Configuración › Marca sin tocar CSS.
 
 ## Principios que manda el diseño
 
@@ -41,7 +47,8 @@ npm run dev                       # http://localhost:3300
 
 Usuarios del seed (sólo demo): `admin@club.test / Admin1234!` y `operador@club.test / Operador1234!`.
 
-Variables: `DATABASE_URL`, `AUTH_SECRET`, `APP_BASE_URL` (ver `.env.example`).
+Variables: `DATABASE_URL`, `AUTH_SECRET`, `APP_BASE_URL` (ver `.env.example`). El resto —nombre y logo de los
+correos, Resend, claves de documentos y cron— está comentado con lo que hace cada una.
 
 ## Verificación
 
@@ -64,8 +71,10 @@ src/app/*                 panel, socios, stock, dispensario, reportes
 scripts/dev-db.sh         cluster Postgres local descartable
 ```
 
-Rediseño y mejoras de backend del 24/10/2026: ver [`docs/rediseno-y-backend-2026-10-24.md`](docs/rediseno-y-backend-2026-10-24.md).
 Smoke de punta a punta contra la base local: `bash scripts/smoke-api.sh` (con la app corriendo y el seed recién aplicado).
+
+La documentación de operación está en [`docs/`](docs): reglas de dominio (`REA-*`), correo, avisos, turnos,
+traslados, privacidad, roles y la guía del REPROCANN para el portal.
 
 ## Límites conocidos
 

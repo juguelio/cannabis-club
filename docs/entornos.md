@@ -2,14 +2,14 @@
 
 ## Regla
 
-**Un preview nunca escribe en la base de producción.** Hasta el 26-oct-2026 los dos entornos compartían `neondb`:
+**Un preview nunca escribe en la base de producción.** Si los dos entornos comparten base, un preview escribe en producción:
 un deploy de prueba podía crear socios, dispensar o cerrar un mes sobre los datos reales del club.
 
 ## Cómo quedó
 
 | Entorno | Base | Dónde |
 |---|---|---|
-| Producción | `neondb` | Neon `aws-sa-east-1`, host `ep-polished-mouse-b6pgnalj` |
+| Producción | `<base>` | Neon, región `aws-sa-east-1` |
 | Preview | `cannabis_club_preview` | **misma instancia** de Neon, base aparte |
 | Local | `cannabis_club_demo` | Postgres de desarrollo en `127.0.0.1:55433` |
 
@@ -33,7 +33,7 @@ Es una barrera de solicitudes web, no un permiso de base de datos: los scripts, 
 ## Cómo se comprueba
 
 ```
-curl https://cannabis-club-mauve.vercel.app/api/health
+curl https://<proyecto>.vercel.app/api/health
 → {"ok":true,"entorno":"production","huella":"f04e602c11be",...}
 
 curl https://<deploy-preview>.vercel.app/api/health

@@ -40,9 +40,9 @@ rechazar borra la cuenta. Todo queda en `AuditLog` (`USER_PENDING`, `USER_APPROV
 Variables (producción + local): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `APP_BASE_URL`.
 Si falta cualquiera de las tres, el botón no se muestra y el endpoint vuelve al login con aviso: la app no se rompe.
 
-- Proyecto GCP: `republica-ong-signin` (cuenta `hal9000.hermes@gmail.com`).
+- Proyecto GCP: `<proyecto>-signin` (cuenta del operador).
 - Cliente OAuth: *Web application*; redirects autorizados:
-  `https://cannabis-club-mauve.vercel.app/api/auth/google/callback` y
+  `https://<dominio>/api/auth/google/callback` y
   `http://127.0.0.1:3321/api/auth/google/callback`.
 - Pantalla de consentimiento: tipo **External**; para que entre cualquier cuenta (no sólo test users) hay que
   **publicar la app**, y para publicar Google exige home page y política de privacidad públicas → `/sitio` y `/privacidad`.

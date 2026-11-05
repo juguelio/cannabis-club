@@ -2,6 +2,7 @@ import { body, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth";
 import { plantillaCarta, type BloqueCarta } from "@/lib/carta-template";
 import { contenidoCarta } from "@/lib/cartas-schema";
+import { siteUrl } from "@/lib/site";
 
 /**
  * La vista previa del editor: devuelve el HTML de la plantilla real, no una maqueta.
@@ -21,7 +22,7 @@ export const POST = route(async (req) => {
     cta: input.cta,
     // Un token con forma válida y firma falsa: el link se dibuja, la URL no funciona.
     baja: "Recibís esta carta porque sos socio del club. Podés darte de baja cuando quieras.",
-    bajaUrl: "https://republicacannabis.com.ar/api/baja?t=v1.cHJ1ZWJh.zZ9-vista-previa",
+    bajaUrl: `${siteUrl()}/api/baja?t=v1.cdVlLnZpc3RhLXByZXZpYQ.zZ9-vista-previa`,
   });
   return { html };
 });

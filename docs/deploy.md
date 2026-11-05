@@ -4,7 +4,7 @@
 
 | Pieza | Valor |
 |---|---|
-| URL | https://cannabis-club-mauve.vercel.app |
+| URL | https://<proyecto>.vercel.app |
 | Proyecto Vercel | `patagonia-sounds/cannabis-club` (team `team_NRTVM5djaTCwNkCe7biFE0ik`), protección SSO **desactivada** |
 | Base | Neon `cannabis-club`, org `org-delicate-glitter-39647088`, `aws-sa-east-1`, Postgres 18 |
 | Host directo | `ep-polished-mouse-b6pgnalj.c-2.sa-east-1.aws.neon.tech` |

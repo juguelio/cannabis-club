@@ -14,6 +14,7 @@
  *   así que no se inventa un link que no funciona.
  */
 import { cabecera, esc, FUENTE_TEXTO, FUENTE_TITULO, MARCA, pieCorreo, sobre } from "./email-brand";
+import { clubNombre } from "./site";
 
 export type BloqueCarta = { titulo: string; texto: string; enlace?: { texto: string; url: string } };
 
@@ -107,6 +108,6 @@ export function textoCarta(carta: CartaClub): string {
     carta.baja,
     ...(carta.bajaUrl ? [`Darte de baja: ${carta.bajaUrl}`] : []),
     "",
-    "República Cannabis",
+    clubNombre(),
   ].join("\n");
 }

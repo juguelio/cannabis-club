@@ -1,12 +1,12 @@
 # Guía del REPROCANN en el portal
 
-Reconstruida el **2026-11-04** de la mini página de recepción del consultorio del Dr. Javier Victorica
+Reconstruida el **2026-11-04** de la página de recepción del consultorio del médico indicante
 (link público compartido por el club). Método REA: lo observado, lo inferido y las decisiones.
 
 ## Lo observado (fuente)
 
 - Consulta **por videollamada (Google Meet)**, con tres profesionales que hacen la consulta **y la carga
-  del trámite**: Javier Victorica y Federico Brodschi con agenda online (Doodle), Paula Barreiro por
+  del trámite**: los profesionales con agenda online, y la secretaría por
   WhatsApp.
 - Valor de la consulta en la fuente: **$60.000**. Vinculación de quien ya tiene REPROCANN: **$40.000**.
 - Siete preguntas frecuentes; dos de ellas son las importantes: **cuánto tarda** (autocultivo vs. club)
@@ -49,8 +49,8 @@ viejo en producción.
 
 ## Otras contradicciones detectadas en la misma pasada (no tocadas)
 
-- `Club.marca.sitio.pasos` manda a **retirar en la sede de San Telmo**: el club **sí** está en San
-  Telmo; San Martín de los Andes será una segunda sede. No se tocó.
+- `Club.marca.sitio.pasos` manda a **retirar en la sede**: el retiro es presencial en la sede declarada;
+  si el club suma sedes, se aclara en la presentación de la marca.
 - `Club.marca.sitio.enviosTexto` dice CABA **$20.000** y GBA **$25.000**; la configuración
   (`Club.precios`) dice CABA **$10.000** y GBA1 **$18.000**.
 - El paso 4 de la marca dice que la consulta es **obligatoria (Res. 1780/2025)** y de **vigencia 3

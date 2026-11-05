@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
 import { verificarBaja } from "@/lib/baja";
 import { CONSENT_VERSION } from "@/lib/privacy";
+import { clubNombre } from "@/lib/site";
+
+/** El nombre del club lo escribe el operador en una variable de entorno: se escapa igual. */
+const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /**
  * Baja de la carta del club, de un click y sin sesión.
@@ -16,23 +20,23 @@ import { CONSENT_VERSION } from "@/lib/privacy";
  * letras para que nadie se sorprenda después.
  */
 
-const PALETA = { pino: "#10231b", hoja: "#1f5a3f", papel: "#fff", tinta: "#142019", tinta2: "#3c4a42", linea: "#d9e0d8" };
+const PALETA = { pino: "#1f2933", hoja: "#2f6f4f", papel: "#fff", tinta: "#1a2027", tinta2: "#3d4652", linea: "#dfe3e8" };
 
 function pagina(titulo: string, mensaje: string, detalle: string, status = 200): Response {
   const html = `<!doctype html>
 <html lang="es-AR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><title>${titulo} · República Cannabis</title></head>
-<body style="margin:0;background:#edf0ec;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<meta name="robots" content="noindex"><title>${titulo} · ${clubNombre()}</title></head>
+<body style="margin:0;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
 <main style="max-width:520px;margin:0 auto;padding:64px 24px;">
   <div style="background:${PALETA.papel};border:1px solid ${PALETA.linea};border-radius:16px;overflow:hidden;">
-    <div style="background:${PALETA.pino};padding:20px 24px;color:#f4f8f5;font-weight:700;font-size:15px;">República Cannabis</div>
+    <div style="background:${PALETA.pino};padding:20px 24px;color:#f4f8f5;font-weight:700;font-size:15px;">${esc(clubNombre())}</div>
     <div style="padding:28px 24px;">
       <h1 style="margin:0 0 12px;font-size:24px;line-height:1.2;color:${PALETA.pino};">${titulo}</h1>
       <p style="margin:0 0 14px;font-size:16px;line-height:1.6;color:${PALETA.tinta};">${mensaje}</p>
       <p style="margin:0;font-size:14px;line-height:1.6;color:${PALETA.tinta2};">${detalle}</p>
     </div>
   </div>
-  <p style="text-align:center;font-size:12px;color:#637068;margin-top:16px;">Asociación Civil República Cannabis · San Martín de los Andes, Neuquén</p>
+  <p style="text-align:center;font-size:12px;color:#64707d;margin-top:16px;">${esc(clubNombre())}</p>
 </main>
 </body></html>`;
   return new Response(html, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });

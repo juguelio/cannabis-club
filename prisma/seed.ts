@@ -23,8 +23,8 @@ async function main() {
   const club = await prisma.club.create({
     data: {
       id: "singleton",
-      nombre: "Asociación Civil República ONG",
-      nombreCorto: "República ONG",
+      nombre: "Asociación Civil Club de Cultivo Demo",
+      nombreCorto: "Club Demo",
       cuit: "30-00000000-0",
       reprocannNumber: "REPROCANN-DEMO-0001",
       reprocannCode: "VINC-DEMO-2026",

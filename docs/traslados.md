@@ -1,6 +1,6 @@
 # Traslados — cuando el paciente no retira en sede
 
-República entrega a distancia: pacientes en San Martín de los Andes, Aluminé, Villa La Angostura y Bariloche,
+El club entrega a distancia: pacientes de la zona y de localidades vecinas,
 y en agosto de 2026 hizo el primer traslado aéreo autorizado de materia vegetal del país. Hasta ahora la app
 **no sabía representar eso**: todo el dispensario suponía mostrador.
 

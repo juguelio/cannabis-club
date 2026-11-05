@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
+import { siteUrl } from "@/lib/site";
 
-const SITE = "https://republicacannabis.com.ar";
+const SITE = siteUrl();
 
 /** Lo indexable es poco y es a propósito: el sitio público y la política de privacidad. */
 export default function sitemap(): MetadataRoute.Sitemap {

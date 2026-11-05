@@ -14,12 +14,13 @@ import { urlBaja } from "./baja";
 import { cabecerasBaja, plantillaCarta, textoCarta, type BloqueCarta } from "./carta-template";
 import { mailerConfigured, enviarEmail } from "./mailer";
 import { repartirCarta, type CandidatoCarta, type ContenidoCarta } from "./cartas-rules";
+import { siteUrl } from "./site";
 
 /** Cuántos correos por corrida: la función de Vercel tiene techo de tiempo y Resend cobra por ráfaga. */
 const MAX_POR_CORRIDA = 40;
 const CONCURRENCIA = 4;
 
-const base = () => (process.env.APP_BASE_URL ?? "https://republicacannabis.com.ar").replace(/\/+$/, "");
+const base = () => siteUrl();
 
 export type ResumenEnvio = {
   edicion: string;

@@ -12,7 +12,7 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
   const [error, setError] = useState<string | null>(null);
   const identity = [
     ["nombre", "Nombre del club", "Como figura en el estatuto; va en libros y comprobantes."],
-    ["nombreCorto", "Nombre corto", "Para el menú y el portal (por ejemplo, «República ONG»)."],
+    ["nombreCorto", "Nombre corto", "Para el menú y el portal (por ejemplo, «Club Centro»)."],
     ["cuit", "CUIT", ""],
     ["directorMedico", "Director médico", "Nombre y matrícula."],
     ["responsableTecnico", "Responsable técnico", "Nombre y matrícula."],

@@ -1,68 +1,72 @@
 @import "tailwindcss";
 
 /*
- * Sistema visual del club — "invernadero y libro".
- * Pino profundo para la estructura, niebla fría de fondo, y un solo acento: antocianina (violeta),
- * reservado a lo que mide topes y a la selección. Lo demás es silencioso.
+ * Sistema visual base — "consola neutra".
+ * Grises de fondo, blanco para las superficies, un verde sobrio como acción principal y un azul
+ * reservado para foco y selección. Sin fuentes web: la tipografía es la del sistema, así el
+ * template arranca rápido y cualquier club lo adopta sin encargar una identidad gráfica.
+ * Los nombres de las variables no cambian: `src/lib/brand.ts` escribe encima de ellas cuando el
+ * club carga su propia marca.
  */
 :root {
-  --mist: #edf0ec;          /* fondo */
-  --mist-2: #e4e9e3;        /* fondo hundido, pistas de medidores */
+  --mist: #f4f5f7;          /* fondo */
+  --mist-2: #e9ebef;        /* fondo hundido, pistas de medidores */
   --paper: #ffffff;         /* paneles */
-  --paper-2: #f7f9f6;       /* encabezados de tabla, filas en hover */
-  --pine: #10231b;          /* tinta y barra lateral */
-  --pine-2: #17342a;
-  --pine-3: #23493a;
-  --leaf: #1f5a3f;          /* acción primaria */
-  --leaf-2: #184a33;
-  --leaf-soft: #e3eee6;
-  --violet: #6f42c1;        /* antocianina: topes, selección, foco */
-  --violet-2: #5a33a3;
-  --violet-soft: #efe9fa;
-  --ink: #142019;
-  --ink-2: #3c4a42;
-  --muted: #637068;
-  --line: #d9e0d8;
-  --line-soft: #e8ece6;
+  --paper-2: #fafbfc;       /* encabezados de tabla, filas en hover */
+  --pine: #1f2933;          /* tinta y barra lateral */
+  --pine-2: #27333f;
+  --pine-3: #33404d;
+  --leaf: #2f6f4f;          /* acción primaria */
+  --leaf-2: #275c41;
+  --leaf-soft: #e7efe9;
+  --violet: #2b6cb0;        /* foco y selección */
+  --violet-2: #1f5490;
+  --violet-soft: #e8f1fa;
+  --ink: #1a2027;
+  --ink-2: #3d4652;
+  --muted: #64707d;
+  --line: #dfe3e8;
+  --line-soft: #eceff2;
   --ok: #1d7a49;
-  --ok-soft: #e4f3e9;
+  --ok-soft: #e6f3ec;
   --warn: #a35f00;
-  --warn-soft: #fbf0dc;
+  --warn-soft: #fdf3e3;
   --danger: #b8382a;
-  --danger-soft: #fbe9e6;
-  --line-strong: #cfd8ce;   /* borde de controles y botones secundarios */
-  --line-hover: #b7c2b6;    /* borde en hover */
-  --muted-2: #94a097;       /* placeholders, deshabilitados, anulados */
-  --avatar: #d5e5d9;        /* fondo de iniciales */
-  --bar: #b9d0bf;           /* barras del gráfico */
+  --danger-soft: #fbebe8;
+  --line-strong: #d2d7dd;   /* borde de controles y botones secundarios */
+  --line-hover: #b8c0c9;    /* borde en hover */
+  --muted-2: #97a1ad;       /* placeholders, deshabilitados, anulados */
+  --avatar: #dfe7e2;        /* fondo de iniciales */
+  --bar: #a9bfb2;           /* barras del gráfico */
 
   /* Derivados de la marca (src/lib/brand.ts los recalcula si el club elige otra paleta) */
-  --leaf-ink: #f2f8f4;      /* texto sobre el primario */
+  --leaf-ink: #ffffff;      /* texto sobre el primario */
   --leaf-text: var(--leaf); /* el primario usado como texto */
   --violet-ink: #ffffff;    /* texto sobre el acento */
-  --violet-faint: #fcfaff;  /* fondo de lo elegido */
-  --on-dark: #f4f8f5;       /* texto fuerte sobre superficies oscuras */
-  --on-dark-2: #d5e2da;     /* texto normal sobre oscuro */
-  --on-dark-3: #9fb8aa;     /* texto secundario sobre oscuro */
-  --dark-line: #23413a;
-  --dark-line-2: #355a4b;
-  --dark-raised: #183a2e;   /* veredicto neutro, placas sobre oscuro */
-  --dark-track: #23453a;    /* pista del medidor sobre oscuro */
-  --dark-used: #6e9c83;     /* lo ya retirado en el medidor */
-  --accent-on-dark: #b99cf0;
-  --accent-on-dark-2: #cbb5f5;
+  --violet-faint: #f7fafd;  /* fondo de lo elegido */
+  --on-dark: #eef1f5;       /* texto fuerte sobre superficies oscuras */
+  --on-dark-2: #cbd3dc;     /* texto normal sobre oscuro */
+  --on-dark-3: #98a3b1;     /* texto secundario sobre oscuro */
+  --dark-line: #313d4a;
+  --dark-line-2: #44515f;
+  --dark-raised: #28333f;   /* veredicto neutro, placas sobre oscuro */
+  --dark-track: #33404d;    /* pista del medidor sobre oscuro */
+  --dark-used: #6f7f8c;     /* lo ya retirado en el medidor */
+  --accent-on-dark: #7fb0e0;
+  --accent-on-dark-2: #a3c8ec;
   --accent-on-dark-ink: var(--pine);
-  --firma: #2c6a4c;         /* color de firma del club: monograma, sitio */
-  --firma-ink: #f1f7f3;
+  --firma: #2f6f4f;         /* color de firma del club: monograma, sitio */
+  --firma-ink: #ffffff;
   --font-wordmark: var(--font-display);
 
-  --font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Instrument Sans Variable", "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Una sola familia para títulos y texto: la del sistema. Cambiarla es configuración del club. */
+  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-  --r-sm: 7px;   /* controles */
-  --r-md: 12px;  /* paneles */
-  --r-lg: 18px;  /* superficies protagonistas */
-  --shadow-pop: 0 1px 2px rgb(16 35 27 / 6%), 0 12px 32px -8px rgb(16 35 27 / 22%);
+  --r-sm: 4px;   /* controles */
+  --r-md: 8px;   /* paneles */
+  --r-lg: 12px;  /* superficies protagonistas */
+  --shadow-pop: 0 1px 2px rgb(16 24 40 / 6%), 0 8px 24px -12px rgb(16 24 40 / 20%);
 }
 
 * { box-sizing: border-box; }
@@ -75,13 +79,12 @@ body {
   font-size: 14.5px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "ss01", "cv11";
 }
 ::selection { background: var(--violet-soft); color: var(--violet-2); }
 :focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; border-radius: 4px; }
 a { color: inherit; }
 .tnum, .num { font-variant-numeric: tabular-nums; }
-.display { font-family: var(--font-display); font-optical-sizing: auto; letter-spacing: -0.02em; }
+.display { font-family: var(--font-display); letter-spacing: -0.01em; }
 .muted { color: var(--muted); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -93,16 +96,16 @@ a { color: inherit; }
 }
 .rail-brand { display: flex; align-items: center; gap: 11px; padding: 2px 8px 22px; text-decoration: none; }
 .monogram {
-  flex: none; width: 38px; height: 38px; border-radius: 11px 11px 11px 3px; display: grid; place-items: center;
+  flex: none; width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center;
   background: var(--firma); color: var(--firma-ink); font-family: var(--font-wordmark); font-weight: 700; font-size: 15px; letter-spacing: -0.03em;
 }
-/* El logo es negro, rojo y blanco: va sobre placa clara para no perder el contorno sobre el verde. */
+/* Placa clara para logos con contorno oscuro: sobre la barra oscura se perderían. */
 .brand-plate {
-  flex: none; width: 44px; height: 44px; border-radius: 13px 13px 13px 4px; background: #fff;
+  flex: none; width: 44px; height: 44px; border-radius: 8px; background: #fff;
   display: grid; place-items: center; overflow: hidden; box-shadow: 0 1px 0 rgba(0,0,0,.18), 0 4px 12px rgba(0,0,0,.18);
 }
 .brand-plate img { width: 36px; height: auto; object-fit: contain; }
-.brand-plate--lg { width: 64px; height: 64px; border-radius: 16px 16px 16px 6px; }
+.brand-plate--lg { width: 64px; height: 64px; border-radius: 10px; }
 .brand-plate--lg img { width: 52px; }
 .rail-club { font-family: var(--font-display); font-weight: 650; font-size: 15px; line-height: 1.2; color: var(--on-dark); }
 .rail-sub { font-size: 12px; color: var(--on-dark-3); margin-top: 2px; }
@@ -145,7 +148,7 @@ a { color: inherit; }
 
 .page { width: 100%; max-width: 1320px; margin: 0 auto; padding: 30px 32px 56px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
-.page-title { font-family: var(--font-display); font-size: clamp(26px, 2.6vw, 34px); font-weight: 650; letter-spacing: -0.03em; line-height: 1.1; margin: 0; }
+.page-title { font-family: var(--font-display); font-size: clamp(26px, 2.6vw, 34px); font-weight: 650; letter-spacing: -0.01em; line-height: 1.15; margin: 0; }
 .page-sub { margin: 8px 0 0; color: var(--muted); max-width: 68ch; font-size: 14.5px; }
 .crumb { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13.5px; text-decoration: none; margin-bottom: 10px; }
 .crumb:hover { color: var(--ink); }
@@ -467,7 +470,7 @@ dialog.dlg[open] { animation: rise .16s ease-out; }
 /* ───────────── login ───────────── */
 .auth { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
 .auth-side { background: var(--pine); color: var(--on-dark-2); padding: 44px 48px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
-.auth-side h1 { font-family: var(--font-display); font-weight: 650; font-size: clamp(32px, 3.6vw, 52px); line-height: 1.02; letter-spacing: -0.04em; color: var(--on-dark); margin: 0; max-width: 13ch; }
+.auth-side h1 { font-family: var(--font-display); font-weight: 650; font-size: clamp(32px, 3.6vw, 52px); line-height: 1.08; letter-spacing: -0.02em; color: var(--on-dark); margin: 0; max-width: 13ch; }
 .auth-side p { color: var(--on-dark-3); max-width: 46ch; margin: 18px 0 0; font-size: 15px; }
 .auth-ledger { position: absolute; right: -40px; bottom: 120px; width: 380px; opacity: .9; pointer-events: none; }
 .auth-main { display: grid; place-items: center; padding: 32px 20px; }
@@ -619,7 +622,7 @@ dialog.dlg.dlg-wide { width: min(760px, calc(100vw - 24px)); }
 .brand-plate--bare { background: transparent; box-shadow: none; }
 .brand-plate img { max-height: 36px; }
 .brand-plate--lg img { max-height: 52px; }
-.monogram--lg { width: 56px; height: 56px; border-radius: 16px 16px 16px 5px; font-size: 21px; }
+.monogram--lg { width: 56px; height: 56px; border-radius: 10px; font-size: 21px; }
 .wordmark { font-family: var(--font-wordmark); }
 .member-top-club { font-family: var(--font-wordmark); font-weight: 650; color: var(--on-dark); font-size: 15px; }
 .member-top-sub { font-size: 12.5px; color: var(--on-dark-3); }
@@ -687,9 +690,9 @@ dialog.dlg.dlg-wide { width: min(760px, calc(100vw - 24px)); }
 .bp-app { display: grid; grid-template-columns: 112px minmax(0, 1fr); border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--mist); min-height: 250px; }
 .bp-rail { background: var(--pine); color: var(--on-dark-2); padding: 10px 7px; display: flex; flex-direction: column; gap: 2px; }
 .bp-brand { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 0 4px 10px; }
-.bp-brand .brand-plate, .bp-portal-top .brand-plate { width: 32px; height: 32px; border-radius: 10px 10px 10px 3px; }
+.bp-brand .brand-plate, .bp-portal-top .brand-plate { width: 32px; height: 32px; border-radius: 8px; }
 .bp-brand .brand-plate img, .bp-portal-top .brand-plate img { width: 26px; max-height: 26px; }
-.bp-brand .monogram, .bp-portal-top .monogram { width: 30px; height: 30px; font-size: 12px; border-radius: 9px 9px 9px 3px; }
+.bp-brand .monogram, .bp-portal-top .monogram { width: 30px; height: 30px; font-size: 12px; border-radius: 7px; }
 .bp-club { font-weight: 650; font-size: 11.5px; line-height: 1.15; color: var(--on-dark); font-family: var(--font-wordmark); }
 .bp[data-gotico] .bp-club { font-weight: 400; font-size: 14px; }
 .bp[data-estilo="afiche"]:not([data-gotico]) .bp-club { text-transform: uppercase; }

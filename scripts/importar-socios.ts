@@ -136,7 +136,7 @@ const FILAS: Fila[] = [
 ];
 
 const MODALIDAD_TXT: Record<Modalidad, string> = {
-  RETIRO: "Retiro por sede social San Telmo",
+  RETIRO: "Retiro por sede social",
   ENVIO_AMBA: "Envío local (AMBA)",
   ENVIO_NACIONAL: "Envío nacional (todo el país)",
 };

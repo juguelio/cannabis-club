@@ -18,12 +18,20 @@ const hex = z
 
 const optionalText = (max: number) => z.string().trim().max(max).default("");
 
+const SISTEMA = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+/**
+ * Tipografías disponibles. La de sistema es la default: no descarga nada y hace que el template se
+ * vea neutro; las demás son opt-in del club (se sirven desde `@fontsource` y las importa el layout).
+ */
 export const FUENTES_TITULO = {
+  sistema: { label: "Sistema (sin descarga)", css: SISTEMA },
   bricolage: { label: "Bricolage Grotesque", css: '"Bricolage Grotesque Variable", "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif' },
   montserrat: { label: "Montserrat", css: '"Montserrat Variable", "Montserrat", ui-sans-serif, system-ui, sans-serif' },
 } as const;
 
 export const FUENTES_TEXTO = {
+  sistema: { label: "Sistema (sin descarga)", css: SISTEMA },
   instrument: { label: "Instrument Sans", css: '"Instrument Sans Variable", "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif' },
   montserrat: { label: "Montserrat", css: '"Montserrat Variable", "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif' },
 } as const;
@@ -50,8 +58,8 @@ export const brandSchema = z.object({
     /** Color de firma del club: monograma, sitio público, detalles de identidad. */
     firma: hex,
   }),
-  fuenteTitulos: z.enum(["bricolage", "montserrat"]).default("bricolage"),
-  fuenteTexto: z.enum(["instrument", "montserrat"]).default("instrument"),
+  fuenteTitulos: z.enum(["sistema", "bricolage", "montserrat"]).default("sistema"),
+  fuenteTexto: z.enum(["sistema", "instrument", "montserrat"]).default("sistema"),
   /** Nombre del club en letra gótica (como en un afiche o una remera). */
   nombreGotico: z.boolean().default(false),
   /** Sobrio: la app tal cual. Afiche: títulos en mayúscula, botones con trazo, más contraste. */
@@ -86,20 +94,20 @@ export const brandSchema = z.object({
 export type Brand = z.infer<typeof brandSchema>;
 export type BrandInput = z.input<typeof brandSchema>;
 
-/** El aspecto original de la app: un club sin marca configurada se ve exactamente así. */
+/** El aspecto base del template: un club sin marca configurada se ve exactamente así. */
 export const DEFAULT_COLORS: Brand["colores"] = {
-  primario: "#1f5a3f",
-  acento: "#6f42c1",
-  oscuro: "#10231b",
-  claro: "#edf0ec",
-  firma: "#2c6a4c",
+  primario: "#2f6f4f",
+  acento: "#2b6cb0",
+  oscuro: "#1f2933",
+  claro: "#f4f5f7",
+  firma: "#2f6f4f",
 };
 
 export const DEFAULT_BRAND: Brand = brandSchema.parse({ colores: DEFAULT_COLORS });
 
 /** Paletas de partida para el editor; después cada color se ajusta a mano. */
 export const PALETAS: { key: string; label: string; colores: Brand["colores"] }[] = [
-  { key: "invernadero", label: "Invernadero", colores: DEFAULT_COLORS },
+  { key: "invernadero", label: "Neutra", colores: DEFAULT_COLORS },
   { key: "afiche", label: "Afiche", colores: { primario: "#111111", acento: "#f3c4d3", oscuro: "#111111", claro: "#f2ece2", firma: "#e8412a" } },
   { key: "rio", label: "Río", colores: { primario: "#1d4e89", acento: "#f59a1d", oscuro: "#0d1b2a", claro: "#eef2f6", firma: "#c9e3f1" } },
   { key: "terracota", label: "Terracota", colores: { primario: "#9a3b1f", acento: "#2f7d6d", oscuro: "#2a1712", claro: "#f4eee8", firma: "#e07a4f" } },
@@ -168,21 +176,21 @@ const sameColors = (a: Brand["colores"], b: Brand["colores"]) =>
   (Object.keys(a) as (keyof Brand["colores"])[]).every((k) => a[k] === b[k]);
 
 /**
- * Copia exacta de la paleta por defecto de globals.css. Solo la usa la vista previa del editor
+ * Copia exacta de la paleta por defecto de globals.css (si cambia una, cambia la otra). Solo la usa la vista previa del editor
  * (`complete`), que tiene que poder mostrar "volver al original" aunque el club ya tenga otra marca.
  */
 export const DEFAULT_THEME_VARS: Record<string, string> = {
-  "--pine": "#10231b", "--pine-2": "#17342a", "--pine-3": "#23493a",
-  "--on-dark": "#f4f8f5", "--on-dark-2": "#d5e2da", "--on-dark-3": "#9fb8aa",
-  "--dark-line": "#23413a", "--dark-line-2": "#355a4b", "--dark-raised": "#183a2e", "--dark-track": "#23453a", "--dark-used": "#6e9c83",
-  "--accent-on-dark": "#b99cf0", "--accent-on-dark-2": "#cbb5f5", "--accent-on-dark-ink": "#10231b",
-  "--mist": "#edf0ec", "--mist-2": "#e4e9e3", "--paper-2": "#f7f9f6",
-  "--line": "#d9e0d8", "--line-soft": "#e8ece6", "--line-strong": "#cfd8ce", "--line-hover": "#b7c2b6",
-  "--ink": "#142019", "--ink-2": "#3c4a42", "--muted": "#637068", "--muted-2": "#94a097",
-  "--leaf": "#1f5a3f", "--leaf-2": "#184a33", "--leaf-soft": "#e3eee6", "--leaf-ink": "#f2f8f4", "--leaf-text": "#1f5a3f",
-  "--avatar": "#d5e5d9", "--bar": "#b9d0bf",
-  "--violet": "#6f42c1", "--violet-2": "#5a33a3", "--violet-soft": "#efe9fa", "--violet-faint": "#fcfaff", "--violet-ink": "#ffffff",
-  "--firma": "#2c6a4c", "--firma-ink": "#f1f7f3",
+  "--pine": "#1f2933", "--pine-2": "#27333f", "--pine-3": "#33404d",
+  "--on-dark": "#eef1f5", "--on-dark-2": "#cbd3dc", "--on-dark-3": "#98a3b1",
+  "--dark-line": "#313d4a", "--dark-line-2": "#44515f", "--dark-raised": "#28333f", "--dark-track": "#33404d", "--dark-used": "#6f7f8c",
+  "--accent-on-dark": "#7fb0e0", "--accent-on-dark-2": "#a3c8ec", "--accent-on-dark-ink": "#1f2933",
+  "--mist": "#f4f5f7", "--mist-2": "#e9ebef", "--paper-2": "#fafbfc",
+  "--line": "#dfe3e8", "--line-soft": "#eceff2", "--line-strong": "#d2d7dd", "--line-hover": "#b8c0c9",
+  "--ink": "#1a2027", "--ink-2": "#3d4652", "--muted": "#64707d", "--muted-2": "#97a1ad",
+  "--leaf": "#2f6f4f", "--leaf-2": "#275c41", "--leaf-soft": "#e7efe9", "--leaf-ink": "#ffffff", "--leaf-text": "#2f6f4f",
+  "--avatar": "#dfe7e2", "--bar": "#a9bfb2",
+  "--violet": "#2b6cb0", "--violet-2": "#1f5490", "--violet-soft": "#e8f1fa", "--violet-faint": "#f7fafd", "--violet-ink": "#ffffff",
+  "--firma": "#2f6f4f", "--firma-ink": "#ffffff",
 };
 
 /**
@@ -192,8 +200,8 @@ export const DEFAULT_THEME_VARS: Record<string, string> = {
  */
 export function themeVars(brand: Brand, opts: { complete?: boolean } = {}): Record<string, string> {
   const v: Record<string, string> = {};
-  if (opts.complete || brand.fuenteTitulos !== "bricolage") v["--font-display"] = FUENTES_TITULO[brand.fuenteTitulos].css;
-  if (opts.complete || brand.fuenteTexto !== "instrument") v["--font-body"] = FUENTES_TEXTO[brand.fuenteTexto].css;
+  if (opts.complete || brand.fuenteTitulos !== "sistema") v["--font-display"] = FUENTES_TITULO[brand.fuenteTitulos].css;
+  if (opts.complete || brand.fuenteTexto !== "sistema") v["--font-body"] = FUENTES_TEXTO[brand.fuenteTexto].css;
   v["--font-wordmark"] = brand.nombreGotico ? FUENTE_GOTICA : "var(--font-display)";
   if (sameColors(brand.colores, DEFAULT_COLORS)) return opts.complete ? { ...DEFAULT_THEME_VARS, ...v } : v;
 

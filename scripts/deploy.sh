@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Deploy a Vercel (proyecto patagonia-sounds/cannabis-club) con la base que se le pase.
-# Uso: DATABASE_URL="postgresql://..." bash scripts/deploy.sh
+# Deploy a Vercel con la base que se le pase.
+# Uso: DATABASE_URL="postgresql://..." APP_BASE_URL="https://tudominio.com" bash scripts/deploy.sh
+# El proyecto de Vercel lo resuelve el CLI desde `.vercel/` o `--scope`: uno por club.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -20,7 +21,7 @@ printf '%s' "$DATABASE_URL" | npx vercel env add DATABASE_URL production --force
 if ! npx vercel env ls production 2>/dev/null | grep -q AUTH_SECRET; then
   openssl rand -hex 32 | npx vercel env add AUTH_SECRET production --force >/dev/null
 fi
-printf '%s' "https://cannabis-club.vercel.app" | npx vercel env add APP_BASE_URL production --force >/dev/null
+printf '%s' "${APP_BASE_URL:?Falta APP_BASE_URL}" | npx vercel env add APP_BASE_URL production --force >/dev/null
 
 echo "== deploy =="
 npx vercel deploy --prod --yes

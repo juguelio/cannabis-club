@@ -53,7 +53,7 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
   const canRetire = member.status === "ACTIVO" && issue.tone !== "danger";
   const days = daysToExpiry(member.reprocannExpiresAt);
   const base = process.env.APP_BASE_URL?.replace(/\/$/, "") ?? "";
-  const qr = await QRCode.toString(`${base}/dispensario?socio=${member.id}`, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#10231b", light: "#ffffff" } });
+  const qr = await QRCode.toString(`${base}/dispensario?socio=${member.id}`, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#1f2933", light: "#ffffff" } });
   const pickup = member.pickups[0];
 
   return (

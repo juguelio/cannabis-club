@@ -1,4 +1,4 @@
--- Traslados a distancia (República entrega fuera de sede) y episodios de aviso. Todo aditivo.
+-- Traslados a distancia (el club entrega fuera de sede) y episodios de aviso. Todo aditivo.
 
 CREATE TYPE "ShipmentMode" AS ENUM ('AEREO', 'TERRESTRE');
 CREATE TYPE "ShipmentStatus" AS ENUM ('PREPARACION', 'DESPACHADO', 'ENTREGADO', 'CANCELADO');

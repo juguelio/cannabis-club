@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { getBrandView } from "@/lib/brand-db";
+import { siteUrl } from "@/lib/site";
 
 export const metadata = {
   title: "Términos y Condiciones",
   description:
-    "Condiciones de la relación asociativa de República Cannabis: requisitos para asociarse, aportes de costo, membresías y límites, retiro y envíos, reservas y cancelaciones, baja, datos personales y jurisdicción. Ley 24.240 y Ley 25.326.",
+    "Condiciones de la relación asociativa del club: requisitos para asociarse, aportes de costo, membresías y límites, retiro y envíos, reservas y cancelaciones, baja, datos personales y jurisdicción. Ley 24.240 y Ley 25.326.",
   robots: { index: true, follow: true },
-  alternates: { canonical: "https://republicacannabis.com.ar/terminos" },
+  alternates: { canonical: `${siteUrl()}/terminos` },
 };
 
 const VERSION = "2026-11-03 · revisión 2";
@@ -42,7 +43,7 @@ export default async function TerminosPage() {
         Una asociación civil sin fines de lucro que organiza el cultivo de cannabis para sus propias personas socias,
         en el marco de la Ley 27.350, sus reglamentaciones y el Registro del Programa Cannabis (REPROCANN)
         {view.reprocannNumber ? `, donde está inscripta con el número ${view.reprocannNumber}` : ""}. Funciona con
-        sede en San Telmo, Ciudad Autónoma de Buenos Aires, y acompaña a pacientes de todo el país.
+        sede en {view.brand.contacto.zona || "la localidad que el club declara"} y acompaña a pacientes de todo el país.
       </p>
 
       {view.domicilioLegal ? <p>Domicilio legal de la asociación: {view.domicilioLegal}.</p> :

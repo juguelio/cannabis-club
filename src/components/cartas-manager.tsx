@@ -214,7 +214,7 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
           </label>
           <label className="text-sm">
             Botón: dirección
-            <input className={input} placeholder="https://republicacannabis.com.ar/portal" value={form.ctaUrl} onChange={(e) => setForm({ ...form, ctaUrl: e.target.value })} />
+            <input className={input} placeholder="https://tudominio.com/portal" value={form.ctaUrl} onChange={(e) => setForm({ ...form, ctaUrl: e.target.value })} />
           </label>
         </div>
 

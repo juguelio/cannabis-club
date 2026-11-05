@@ -1,7 +1,7 @@
 # Informe semestral — declaración jurada (Res. 1780/2025)
 
 La resolución pide un **informe semestral en carácter de declaración jurada** con la **cantidad de plantas totales y
-en floración** y la **variedad genética registrada**. Antes de esto, República lo armaba a mano contando plantas y
+en floración** y la **variedad genética registrada**. Antes de esto, el club lo armaba a mano contando plantas y
 revisando planillas: el dato existía en la app, pero no había documento.
 
 ## Qué declara la app

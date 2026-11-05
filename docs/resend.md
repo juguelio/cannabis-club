@@ -7,7 +7,7 @@ asiento en la base y responde `mailer: false`: no inventa que envió.
 
 ### 1. Dominio en Resend
 
-1. Entrar a resend.com y agregar el dominio `republicacannabis.com.ar` (la cuenta puede ser la misma de
+1. Entrar a resend.com y agregar el dominio `tudominio.com.ar` (la cuenta puede ser la misma de
    Patagonia Sounds; el dominio se agrega aparte y tiene su propia clave DKIM).
 2. Resend devuelve **tres registros DNS**. No son secretos: son públicos y hay que cargarlos en **Vercel DNS**
    (el dominio ya está delegado a `ns1/ns2.vercel-dns.com`). Resend los pide así, aunque los valores exactos salen
@@ -26,8 +26,8 @@ asiento en la base y responde `mailer: false`: no inventa que envió.
 | Variable | Valor | Para qué |
 |---|---|---|
 | `RESEND_API_KEY` | `re_...` (secreta) | autentica el envío |
-| `CLUB_MAIL_FROM` | `República Cannabis <avisos@republicacannabis.com.ar>` | remitente técnico |
-| `CLUB_MAIL_REPLY_TO` | `republicacannabisclub@gmail.com` | a dónde cae la respuesta del socio |
+| `CLUB_MAIL_FROM` | `Club de Cultivo <avisos@tudominio.com.ar>` | remitente técnico |
+| `CLUB_MAIL_REPLY_TO` | `contacto@tudominio.com.ar` | a dónde cae la respuesta del socio |
 
 Después de cargarlas hay que **redeployar** (las variables se leen al arrancar la función).
 
@@ -35,7 +35,7 @@ Después de cargarlas hay que **redeployar** (las variables se leen al arrancar 
 
 ```bash
 # el cron corre, deja el asiento y ahora tiene que decir mailer: true
-curl -s -X POST https://republicacannabis.com.ar/api/avisos/vencimientos \
+curl -s -X POST https://tudominio.com.ar/api/avisos/vencimientos \
   -H "Authorization: Bearer $CRON_SECRET" | head -c 400
 ```
 
@@ -51,8 +51,8 @@ el remitente se vea como el club.
 
 ## Pendiente de decisión del club
 
-- **Dirección del remitente**: propuesta `avisos@republicacannabis.com.ar`. Alternativas: `club@`, `hola@`.
-- **Buzón de respuesta**: hoy el contacto del sitio está vacío y el club usa `republicacannabisclub@gmail.com`.
+- **Dirección del remitente**: propuesta `avisos@tudominio.com.ar`. Alternativas: `club@`, `hola@`.
+- **Buzón de respuesta**: el email de contacto que el club carga en su marca.
   Cuando haya casilla propia en el dominio, se cambia sólo `CLUB_MAIL_REPLY_TO`.
 - **Qué avisos se mandan**: hoy el cron de vencimientos. Alta aprobada y rechazo ya tienen texto escrito en
   `mailer.ts`; falta activarlos en las rutas de aprobación, y **filtrar por la finalidad COMUNICACIONES** antes de

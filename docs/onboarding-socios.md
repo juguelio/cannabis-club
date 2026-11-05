@@ -74,7 +74,7 @@ Si faltan `RESEND_API_KEY` y `CLUB_MAIL_FROM`, **no se manda nada y el alta func
 remitente: el dominio tiene que estar verificado en Resend.
 
 Pasos para activarlo: crear cuenta en Resend → verificar el dominio del club (registros DNS) → cargar
-`RESEND_API_KEY` y `CLUB_MAIL_FROM` (por ejemplo `República ONG <no-reply@dominio-del-club>`).
+`RESEND_API_KEY` y `CLUB_MAIL_FROM` (por ejemplo `Club <no-reply@dominio-del-club>`).
 
 ## Pendiente
 

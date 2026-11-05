@@ -12,9 +12,10 @@ import { catalogoDelClub } from "@/lib/variedades";
 import { VariedadCard } from "@/components/variedad-card";
 import { BrandMark } from "@/components/brand-mark";
 import { SiteJoinFloat } from "@/components/site-join-float";
+import { siteUrl } from "@/lib/site";
 import "./sitio.css";
 
-const SITE_URL = process.env.APP_BASE_URL?.startsWith("https://republicacannabis") ? process.env.APP_BASE_URL : "https://republicacannabis.com.ar";
+const SITE_URL = siteUrl();
 
 /**
  * El sitio público es la única cara indexable de la app: la consola y el portal del socio quedan fuera.
@@ -24,9 +25,10 @@ const SITE_URL = process.env.APP_BASE_URL?.startsWith("https://republicacannabis
 export async function generateMetadata(): Promise<Metadata> {
   const view = await getBrandView();
   const canonical = `${SITE_URL}/sitio`;
+  const zona = view.brand.contacto.zona ? ` en ${view.brand.contacto.zona}` : "";
   const description =
-    "Club de cultivo solidario de República Cannabis (Asociación Civil inscripta en el REPROCANN, Ley 27.350) en San Telmo, CABA: acompañamiento médico, legajo de socio, retiro en sede y envíos a todo el país. No se vende cannabis: los socios cubren los costos de producción.";
-  const titulo = `${view.nombre} · club de cultivo solidario con REPROCANN en San Telmo, CABA`;
+    `Club de cultivo solidario, ${view.nombreLegal} (asociación civil inscripta en el REPROCANN, Ley 27.350)${zona}: acompañamiento médico, legajo de socio, retiro en sede y envíos a todo el país. No se vende cannabis: los socios cubren los costos de producción.`;
+  const titulo = `${view.nombre} · club de cultivo solidario con REPROCANN${zona}`;
   const images = view.img.portada ? [view.img.portada] : ["/icon-512.png"];
   return {
     title: { absolute: titulo },
@@ -89,7 +91,7 @@ export default async function SitioPage() {
   // La primera frase de la presentación suele ser el lema: repetirlo debajo del H1 no le dice nada a un
   // buscador ni a alguien que entra por primera vez. Si es corta, va esta bajada descriptiva.
   const lead =
-    "Somos una asociación civil sin fines de lucro que cultiva cannabis para sus socios con indicación médica, bajo la Ley 27.350 y el REPROCANN. Retiro en la sede de San Telmo, CABA, y envíos a todo el país.";
+    "Somos una asociación civil sin fines de lucro que cultiva cannabis para sus socios con indicación médica, bajo la Ley 27.350 y el REPROCANN. Retiro en la sede del club y envíos a todo el país.";
   const banda = [view.nombre, brand.lema, "Cultivo solidario", "Sin fines de lucro", "Ley 27.350"].filter(Boolean);
   const mark = { logo: view.img.logo, sigla: view.sigla, placa: brand.logoPlaca };
 
@@ -128,17 +130,16 @@ export default async function SitioPage() {
         "@type": "NGO",
         "@id": `${SITE_URL}/sitio#organizacion`,
         name: razonSocial,
-        alternateName: [view.nombre, "República Cannabis", "Republica Cannabis ONG"],
+        alternateName: [view.nombre, view.nombreLegal].filter((n, i, a) => a.indexOf(n) === i),
         url: `${SITE_URL}/sitio`,
         logo: `${SITE_URL}/icon-512.png`,
         image: `${SITE_URL}/icon-512.png`,
         slogan: brand.lema || undefined,
         description: parrafos[0] || lead,
-        foundingLocation: { "@type": "Place", name: brand.contacto.zona || "San Telmo, Ciudad Autónoma de Buenos Aires" },
+        ...(brand.contacto.zona ? { foundingLocation: { "@type": "Place", name: brand.contacto.zona } } : {}),
         address: {
           "@type": "PostalAddress",
-          addressLocality: "San Telmo",
-          addressRegion: "Ciudad Autónoma de Buenos Aires",
+          ...(brand.contacto.zona ? { addressLocality: brand.contacto.zona } : {}),
           addressCountry: "AR",
         },
         areaServed: { "@type": "Country", name: "Argentina" },

@@ -150,7 +150,7 @@ export default async function PortalPage() {
   }
 
   const base = process.env.APP_BASE_URL?.replace(/\/$/, "") ?? "";
-  const qr = await QRCode.toString(`${base}/dispensario?socio=${session.memberId}`, { type: "svg", margin: 0, color: { dark: "#10231b", light: "#ffffff" } });
+  const qr = await QRCode.toString(`${base}/dispensario?socio=${session.memberId}`, { type: "svg", margin: 0, color: { dark: "#1f2933", light: "#ffffff" } });
 
   return (
     <>

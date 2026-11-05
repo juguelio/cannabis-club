@@ -7,7 +7,8 @@
  * Paleta: los mismos valores de `src/app/globals.css` (pino, papel, antocianina), compartidos con
  * la carta del club en `email-brand.ts`.
  */
-import { esc, FUENTE_TEXTO, FUENTE_TITULO, LOGO_URL, MARCA, SITE_URL } from "./email-brand";
+import { cabecera, esc, FUENTE_TEXTO, FUENTE_TITULO, LOGO_URL, MARCA, SITE_URL } from "./email-brand";
+import { clubNombre, siteHost } from "./site";
 
 export type AvisoEmail = {
   /** Encabezado grande, en mayúscula como en el sitio. */
@@ -107,20 +108,10 @@ export function plantillaEmail(aviso: AvisoEmail): string {
 
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
 
-        <!-- Cabecera: filete de pino con el logo y el nombre del club -->
+        <!-- Cabecera: filete oscuro con el logo (o el monograma) y el nombre del club -->
         <tr>
           <td style="background:${PINO};border-radius:16px 16px 0 0;padding:22px 26px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td width="52" valign="middle" style="padding-right:14px;">
-                  <img src="${LOGO_URL}" width="44" height="50" alt="República Cannabis" style="display:block;border:0;outline:none;text-decoration:none;width:44px;height:auto;">
-                </td>
-                <td valign="middle">
-                  <div style="font:700 17px/1.2 ${FUENTE_TITULO};color:#f4f8f5;letter-spacing:-.01em;">República Cannabis</div>
-                  <div style="font:500 11.5px/1.4 ${FUENTE_TEXTO};color:#9fb8aa;letter-spacing:.06em;text-transform:uppercase;margin-top:3px;">Asociación Civil · REPROCANN</div>
-                </td>
-              </tr>
-            </table>
+            ${cabecera()}
           </td>
         </tr>
 
@@ -140,7 +131,7 @@ ${ctaHtml}
           <td style="background:${PINO_2};border-radius:0 0 16px 16px;padding:22px 26px 26px;">
 ${pieLineas}
             <p style="margin:14px 0 0;font:400 12.5px/1.6 ${FUENTE_TEXTO};color:#9fb8aa;">
-              <a href="${SITE_URL}" style="color:#cbb5f5;text-decoration:none;">republicacannabis.com.ar</a>
+              <a href="${SITE_URL}" style="color:#cbb5f5;text-decoration:none;">${siteHost()}</a>
             </p>
           </td>
         </tr>
@@ -148,7 +139,7 @@ ${pieLineas}
       </table>
 
       <div style="max-width:600px;margin:14px auto 0;font:400 11px/1.5 ${FUENTE_TEXTO};color:${MUTED};text-align:center;">
-        República Cannabis · Club de cultivo inscripto en REPROCANN · San Martín de los Andes, Neuquén
+        ${esc(clubNombre())} · Club de cultivo inscripto en REPROCANN · Argentina
       </div>
 
     </td>

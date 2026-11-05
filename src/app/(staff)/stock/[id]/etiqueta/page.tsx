@@ -27,7 +27,7 @@ export default async function LabelPage({ params }: { params: Promise<{ id: stri
 
   const base = process.env.APP_BASE_URL?.replace(/\/$/, "") ?? "";
   const url = `${base}/lote/${encodeURIComponent(batch.code)}`;
-  const qr = await QRCode.toString(url, { type: "svg", margin: 0, color: { dark: "#10231b", light: "#ffffff" } });
+  const qr = await QRCode.toString(url, { type: "svg", margin: 0, color: { dark: "#1f2933", light: "#ffffff" } });
 
   return (
     <div className="stack" style={{ gap: 16, maxWidth: 460 }}>

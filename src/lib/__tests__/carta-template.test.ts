@@ -32,7 +32,8 @@ describe("carta del club", () => {
   it("no baja recursos de afuera: la única imagen es el logo del propio dominio", () => {
     const html = plantillaCarta(carta);
     const imagenes = [...html.matchAll(/<img[^>]+src="([^"]+)"/g)].map((m) => m[1]);
-    expect(imagenes).toEqual([LOGO_URL]);
+    // Sin logo configurado la cabecera va con monograma: ninguna imagen, y menos una de afuera.
+    for (const src of imagenes) expect(src).toBe(LOGO_URL);
     // Los links a otros lados están bien; lo que no puede haber es CSS ni fuentes externas.
     expect(html).not.toContain("<style");
     expect(html).not.toContain("@font-face");
