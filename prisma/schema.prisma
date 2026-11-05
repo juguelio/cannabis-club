@@ -496,17 +496,36 @@ model Member {
 }
 
 model Strain {
-  id          String   @id @default(cuid())
-  name        String   @unique
+  id          String       @id @default(cuid())
+  name        String       @unique
   genetics    String?
-  thcPct      Decimal? @db.Decimal(5, 2)
-  cbdPct      Decimal? @db.Decimal(5, 2)
-  active      Boolean  @default(true)
+  thcPct      Decimal?     @db.Decimal(5, 2)
+  cbdPct      Decimal?     @db.Decimal(5, 2)
+  active      Boolean      @default(true)
   /// Foto del producto para el catálogo (JPEG/PNG/WEBP). Sin foto se muestra un recuadro provisorio.
   fotoData    Bytes?
   fotoMime    String?
-  fotoVersion Int      @default(0)
+  fotoVersion Int          @default(0)
   batches     Batch[]
+  pickupItems PickupItem[]
+}
+
+/// Qué variedades y cuántos gramos eligió el socio.
+///
+/// La reserva antes guardaba sólo el total («15 g») y el club decidía qué preparar. Con el detalle,
+/// el socio elige su combo y el club arma exactamente eso. El nombre de la cepa se congela: si la
+/// variedad se renombra o se da de baja, la reserva vieja sigue diciendo lo mismo que dijo.
+model PickupItem {
+  id         String        @id @default(cuid())
+  pickupId   String
+  pickup     PickupRequest @relation(fields: [pickupId], references: [id], onDelete: Cascade)
+  strainId   String
+  strain     Strain        @relation(fields: [strainId], references: [id])
+  strainName String
+  grams      Decimal       @db.Decimal(10, 2)
+
+  @@unique([pickupId, strainId])
+  @@index([pickupId])
 }
 
 model Batch {
@@ -786,6 +805,8 @@ model PickupRequest {
   cancelReason          String?
   dispensationId        String?        @unique
   dispensation          Dispensation?  @relation(fields: [dispensationId], references: [id])
+  /// Detalle del pedido: qué variedades y cuántos gramos de cada una. `grams` es el total.
+  items                 PickupItem[]
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
 

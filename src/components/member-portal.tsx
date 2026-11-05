@@ -8,6 +8,7 @@ import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
 import type { Variedad } from "@/lib/variedad-rules";
+import { aEnviar, disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito, type ItemCarrito } from "@/lib/carrito";
 import { VariedadCard } from "@/components/variedad-card";
 import { ComprobantePago } from "@/components/comprobante-pago";
 import { ReasonDialog } from "./dialog";
@@ -125,7 +126,9 @@ export function MemberPortal({
   const [day, setDay] = useState(initialDay);
   const [days, setDays] = useState<Day[]>([]);
   const [slots, setSlots] = useState<Slot[]>(initialSlots);
-  const [grams, setGrams] = useState<string>("");
+  // El combo se arma en el catálogo de variedades, no en un campo de gramos suelto: el socio elige
+  // de qué cepas quiere y el total sale de ahí.
+  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [slot, setSlot] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,9 +161,11 @@ export function MemberPortal({
   }, [day]);
 
   const open = data.member.reprocannOk && data.member.status === "ACTIVO" && data.tope > 0;
-  const gramsNum = Number(grams.replace(",", "."));
-  const validGrams = Number.isFinite(gramsNum) && gramsNum > 0 && gramsNum <= data.tope + 1e-9;
+  const gramsNum = totalCarrito(carrito);
+  const validGrams = gramsNum > 0 && gramsNum <= data.tope + 1e-9;
+  const puedeSubir = (id: string) => gramosDe(carrito, id) > 0 || disponibleCarrito(carrito, data.tope) >= PASO_G;
   const estimated = data.club.aportePorGramo != null && validGrams ? data.club.aportePorGramo * gramsNum : null;
+  const cepaNombre = (id: string) => variedades.find((v) => v.id === id)?.nombre ?? "Variedad";
   const chosen = slots.find((s) => s.startMin === slot);
   const openPickup = data.pickups.find((p) => ["SOLICITADA", "CONFIRMADA"].includes(p.status));
   const zonaElegida = data.club.envios.find((z) => z.zona === zona);
@@ -177,11 +182,11 @@ export function MemberPortal({
       const json = await api<{ overview: Overview }>("/api/portal/pickups", {
         body:
           modo === "ENVIO"
-            ? { mode: "ENVIO", grams: gramsNum, zona, direccion: direccion.trim() }
-            : { mode: "RETIRO", grams: gramsNum, date: day, startMin: slot },
+            ? { mode: "ENVIO", grams: gramsNum, items: aEnviar(carrito), zona, direccion: direccion.trim() }
+            : { mode: "RETIRO", grams: gramsNum, items: aEnviar(carrito), date: day, startMin: slot },
       });
       setData(json.overview);
-      setGrams("");
+      setCarrito([]);
       setSlot(null);
       toast(
         modo === "ENVIO"
@@ -319,8 +324,8 @@ export function MemberPortal({
 
       <section className="panel">
         <div className="panel-head"><div>
-          <h2 className="panel-title" style={{ fontSize: 19 }}>Pedir tu producción</h2>
-          <p className="panel-sub">Reservás gramos de la producción del club y elegís cómo los recibís: retirás en el club con turno, o te los enviamos a tu domicilio. El aporte de cultivo se prorratea al entregar: no es una venta.</p>
+          <h2 className="panel-title" style={{ fontSize: 19 }}>Tu pedido</h2>
+          <p className="panel-sub">Armás el combo en las variedades —5 g por vez, hasta tu tope del mes— y acá elegís cómo lo recibís: en el club con turno, o en tu domicilio. El aporte de cultivo se prorratea al entregar: no es una venta.</p>
         </div></div>
         <div className="panel-body">
           {!open ? (
@@ -338,24 +343,46 @@ export function MemberPortal({
             </div>
           ) : (
             <form className="stack" style={{ gap: 18 }} onSubmit={reserve}>
-              <div>
-                <label className="label" htmlFor="p-grams">¿Cuántos gramos?</label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <div style={{ position: "relative", width: 130 }}>
-                    <input id="p-grams" className="input tnum" inputMode="decimal" placeholder="0" value={grams} onChange={(e) => setGrams(e.target.value.replace(/[^\d.,]/g, ""))} style={{ fontSize: 20, fontWeight: 650, paddingRight: 30 }} aria-describedby="p-grams-hint" />
-                    <span style={{ position: "absolute", right: 12, top: 10, color: "var(--muted)", fontWeight: 600 }}>g</span>
-                  </div>
-                  {[5, 10].filter((v) => v < data.tope).map((v) => (
-                    <button key={v} type="button" className="btn btn-sm btn-quiet" onClick={() => setGrams(String(v))}>{v} g</button>
-                  ))}
-                  <button type="button" className="btn btn-sm btn-quiet" onClick={() => setGrams(String(data.tope))}>Todo ({g(data.tope)})</button>
+              <div className="cart-summary" aria-live="polite">
+                <div className="cart-summary-head">
+                  <span className="label" style={{ margin: 0 }}>Tu combo</span>
+                  <span className="cart-total tnum">
+                    {g(gramsNum)} / {g(data.tope)}
+                  </span>
                 </div>
-                <span className="hint" id="p-grams-hint">
+
+                {carrito.length === 0 ? (
+                  <p className="hint" style={{ margin: "6px 0 0" }}>
+                    Elegí las variedades y los gramos de cada una en «Variedades del club» y el total se arma acá.{" "}
+                    <a href="#variedades" style={{ fontWeight: 650, textDecoration: "underline" }}>
+                      Elegir variedades
+                    </a>
+                  </p>
+                ) : (
+                  <ul className="cart-list">
+                    {carrito.map((i) => (
+                      <li key={i.strainId}>
+                        <span>{cepaNombre(i.strainId)}</span>
+                        <span className="tnum">{g(i.gramos)}</span>
+                        <button
+                          type="button"
+                          className="cart-step-btn"
+                          onClick={() => setCarrito(moverItem(carrito, i.strainId, -PASO_G, data.tope))}
+                          aria-label={`Sacar 5 gramos de ${cepaNombre(i.strainId)}`}
+                        >
+                          −
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <span className="hint" style={{ marginTop: 8 }}>
                   Hasta {g(data.tope)}{" "}
                   {data.topeMotivo === "dia" ? `por el tope diario de ${g(data.limits.dayLimitG)}` : data.topeMotivo === "mes" ? "de tu saldo del mes" : "según el stock del club"}.
                   {estimated != null ? ` Aporte estimado: ${MONEY.format(estimated)}.` : data.club.aportePorGramo != null ? ` Aporte: ${MONEY.format(data.club.aportePorGramo)} por gramo.` : ""}
                 </span>
-                <span className="cell-meta">El saldo del mes se renueva el día 1 y el tope diario a las 00:00.</span>
+                <span className="cell-meta">El saldo del mes se renueva el día 1 y el tope diario a las 00:00. Se fracciona de a {PASO_G} g.</span>
               </div>
 
               <div>
@@ -559,7 +586,19 @@ export function MemberPortal({
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
               {variedades.map((v) => (
-                <VariedadCard key={v.id} v={v} />
+                <VariedadCard
+                  key={v.id}
+                  v={v}
+                  carrito={
+                    open
+                      ? {
+                          gramos: gramosDe(carrito, v.id),
+                          puedeSubir: puedeSubir(v.id),
+                          onDelta: (paso) => setCarrito(moverItem(carrito, v.id, paso, data.tope)),
+                        }
+                      : undefined
+                  }
+                />
               ))}
             </div>
           )}

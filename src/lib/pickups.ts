@@ -7,7 +7,7 @@
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
-import { conflict, notFound, unprocessable } from "./errors";
+import { badRequest, conflict, notFound, unprocessable } from "./errors";
 import { isClosedDay } from "./closed-days";
 import { getClub, limitsFromClub } from "./club";
 import { balanceOf, periodOf } from "./account";
@@ -198,6 +198,11 @@ export async function createPickup(input: {
   zona?: string;
   direccion?: string;
   notes?: string;
+  /**
+   * Qué variedades y cuántos gramos de cada una. Es opcional para no romper los llamados viejos,
+   * pero el portal siempre lo manda: el club prepara el combo que el socio eligió.
+   */
+  items?: { strainId: string; grams: number }[];
 }) {
   const club = await getClub();
   const config = limitsFromClub(club);
@@ -250,6 +255,31 @@ export async function createPickup(input: {
               select: { id: true, memberId: true, scheduledAt: true, status: true },
             }),
       ]);
+
+      // El detalle tiene que cerrar con el total: si el socio eligió 10 g de una cepa y 5 de otra,
+      // la reserva son 15 g. Un desfasaje acá es un pedido que el club no puede armar.
+      const items = input.items?.filter((i) => i.grams > 0) ?? [];
+      let cepaPorId = new Map<string, string>();
+      if (items.length) {
+        const suma = round2(items.reduce((a, i) => a + i.grams, 0));
+        if (Math.abs(suma - round2(input.grams)) > 0.011)
+          throw badRequest(
+            "ITEMS_NO_CIERRAN",
+            "Los gramos de las variedades no coinciden con el total del pedido. Volvé a armarlo.",
+          );
+        if (new Set(items.map((i) => i.strainId)).size !== items.length)
+          throw badRequest("ITEMS_REPETIDOS", "Hay una variedad repetida en el pedido.");
+
+        const cepas = await tx.strain.findMany({
+          where: { id: { in: items.map((i) => i.strainId) } },
+          select: { id: true, name: true, active: true },
+        });
+        if (cepas.length !== items.length)
+          throw badRequest("ITEMS_INEXISTENTES", "Alguna de las variedades elegidas ya no está en el catálogo.");
+        const inactiva = cepas.find((c) => !c.active);
+        if (inactiva) throw badRequest("ITEMS_INACTIVA", `La variedad ${inactiva.name} ya no está disponible.`);
+        cepaPorId = new Map(cepas.map((c) => [c.id, c.name]));
+      }
 
       const pendingGrams = round2(pendingRows.reduce((a, p) => a + Number(p.grams), 0));
       // Lo que se puede prometer es el stock físico menos lo que ya está reservado por cualquiera:
@@ -344,7 +374,17 @@ export async function createPickup(input: {
             remainingAfterG: decision.remainingAfterG,
           } as Prisma.InputJsonValue,
           notes: input.notes,
+          items: items.length
+            ? {
+                create: items.map((i) => ({
+                  strainId: i.strainId,
+                  strainName: cepaPorId.get(i.strainId) ?? "Variedad",
+                  grams: new Prisma.Decimal(i.grams.toFixed(2)),
+                })),
+              }
+            : undefined,
         },
+        include: { items: true },
       });
 
       await tx.auditLog.create({
