@@ -8,7 +8,7 @@ import { recalledBatchesForMember } from "@/lib/batch-quality";
 import { CONSENT_TEXTS, memberConsents } from "@/lib/privacy";
 import QRCode from "qrcode";
 import Link from "next/link";
-import { ArrowRight, MapPin, Stethoscope, Truck } from "lucide-react";
+import { ArrowRight, MapPin, PackageCheck, Stethoscope, Truck } from "lucide-react";
 import { WizardReprocann } from "@/components/wizard-reprocann";
 import { POR_QUE_LA_GUIA, pantallaDeEntrada } from "@/lib/reprocann-entrada";
 import { MemberPortal } from "@/components/member-portal";
@@ -154,6 +154,14 @@ export default async function PortalPage() {
 
   return (
     <>
+      <Link href="/portal#mis-pedidos" className="member-shortcut-datos">
+        <PackageCheck aria-hidden size={18} />
+        <span>
+          <b>Mis pedidos</b>
+          <small>Retiros y envíos, con su estado y su fecha.</small>
+        </span>
+      </Link>
+
       <Link href="/portal/envios" className="member-shortcut-datos">
         <Truck aria-hidden size={18} />
         <span>

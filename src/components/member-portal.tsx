@@ -3,13 +3,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarCheck2, CircleAlert, Leaf, QrCode } from "lucide-react";
+import { CalendarCheck2, CircleAlert, Leaf, PackageCheck, QrCode, Truck } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
 import type { Variedad } from "@/lib/variedad-rules";
 import { aEnviar, disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito, type ItemCarrito } from "@/lib/carrito";
 import { faltaParaMinimo, type Cobertura } from "@/lib/envios";
+import { esActivo, estadoPedido } from "@/lib/pedidos-estado";
 import { VariedadCard } from "@/components/variedad-card";
 import { ComprobantePago } from "@/components/comprobante-pago";
 import { ReasonDialog } from "./dialog";
@@ -64,9 +65,13 @@ type Overview = {
     deliveryMode?: "RETIRO" | "ENVIO";
     deliveryZona?: string | null;
     deliveryCostoArs?: number | null;
-    pago?: "PENDIENTE" | "EN_REVISION" | "APROBADO" | "RECHAZADO";
-    pagoMotivo?: string | null;
+    pago: "PENDIENTE" | "EN_REVISION" | "APROBADO" | "RECHAZADO";
+    pagoMotivo: string | null;
   }[];
+  /** Totales reales de la base, no de la lista recortada. */
+  pickupTotals?: { todos: number; activos: number; cerrados: number };
+  /** Cuántos pedidos entran en `pickups`: si el total es mayor, la lista es un recorte. */
+  pickupsLimit?: number;
 };
 
 type Slot = { startMin: number; label: string; free: number; past: boolean; full: boolean };
@@ -89,13 +94,7 @@ const dayParts = (key: string) => {
   const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return { wd: WD[wd], long: `${WDL[wd]} ${d}/${m}`, d };
 };
-const PICKUP_LABEL: Record<string, { label: string; tone: string }> = {
-  SOLICITADA: { label: "Reservado", tone: "brand" },
-  CONFIRMADA: { label: "Confirmado por el club", tone: "ok" },
-  RETIRADA: { label: "Retirado", tone: "mute" },
-  VENCIDA: { label: "Venció sin retirar", tone: "warn" },
-  CANCELADA: { label: "Cancelado", tone: "mute" },
-};
+
 
 export type MemberHistory = { id: string; at: string; grams: number; strain: string; batch: string; voided: boolean }[];
 const fmtDay = (iso: string) =>
@@ -134,6 +133,7 @@ export function MemberPortal({
   // El combo se arma en el catálogo de variedades, no en un campo de gramos suelto: el socio elige
   // de qué cepas quiere y el total sale de ahí.
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  const [filtroPedidos, setFiltroPedidos] = useState<"TODOS" | "ACTIVOS" | "CERRADOS">("TODOS");
   const [slot, setSlot] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -176,7 +176,15 @@ export function MemberPortal({
   const estimated = data.club.aportePorGramo != null && validGrams ? data.club.aportePorGramo * gramsNum : null;
   const cepaNombre = (id: string) => variedades.find((v) => v.id === id)?.nombre ?? "Variedad";
   const chosen = slots.find((s) => s.startMin === slot);
-  const openPickup = data.pickups.find((p) => ["SOLICITADA", "CONFIRMADA"].includes(p.status));
+  const activos = data.pickups.filter((p) => esActivo(p.status));
+  const totales = data.pickupTotals ?? {
+    todos: data.pickups.length,
+    activos: activos.length,
+    cerrados: data.pickups.length - activos.length,
+  };
+  const pickupsVisibles = data.pickups.filter((p) =>
+    filtroPedidos === "TODOS" ? true : filtroPedidos === "ACTIVOS" ? esActivo(p.status) : !esActivo(p.status),
+  );
   const zonaElegida = data.club.envios.find((z) => z.zona === zona);
   const cobertura = data.club.cobertura;
   const faltanParaEnvio = faltaParaMinimo(gramsNum, data.club.minimoEnvioG ?? 0);
@@ -330,12 +338,48 @@ export function MemberPortal({
           </div>
       </section>
 
-      {openPickup ? (
+      {activos.length === 1 ? (
         <div className="note note-ok">
-          <CalendarCheck2 aria-hidden />
+          {activos[0].deliveryMode === "ENVIO" ? <Truck aria-hidden /> : <CalendarCheck2 aria-hidden />}
           <div>
-            <b>Tenés un retiro de {g(openPickup.grams)}{openPickup.pickupLabel ? ` el ${openPickup.pickupLabel.replace(" · ", " a las ")}` : ""}.</b>{" "}
-            {openPickup.status === "CONFIRMADA" ? "El club ya lo confirmó." : "El club lo va a confirmar."} Traé tu DNI.
+            <b>
+              {activos[0].deliveryMode === "ENVIO"
+                ? `Tenés un envío de ${g(activos[0].grams)} en camino a prepararse.`
+                : `Tenés un retiro de ${g(activos[0].grams)}${activos[0].pickupLabel ? ` el ${activos[0].pickupLabel.replace(" · ", " a las ")}` : ""}.`}
+            </b>{" "}
+            {activos[0].status === "CONFIRMADA" ? "El club ya lo confirmó." : "El club lo va a confirmar."}{" "}
+            {activos[0].deliveryMode === "ENVIO"
+              ? "Lo despacha el club y te avisamos cuando sale."
+              : "Traé tu DNI para retirarlo."}
+          </div>
+        </div>
+      ) : activos.length > 1 ? (
+        <div className="note note-ok">
+          <PackageCheck aria-hidden />
+          <div>
+            <b>Tenés {activos.length} pedidos activos.</b>{" "}
+            {(() => {
+              const envios = activos.filter((p) => p.deliveryMode === "ENVIO").length;
+              const retiros = activos.length - envios;
+              return [
+                retiros ? `${retiros} para retirar en el club` : null,
+                envios ? `${envios} para despachar a domicilio` : null,
+              ]
+                .filter(Boolean)
+                .join(" y ")
+                .concat(". Si vas a retirar, traé tu DNI.");
+            })()}{" "}
+            <button
+              type="button"
+              className="btn btn-sm btn-quiet"
+              style={{ marginLeft: 4 }}
+              onClick={() => {
+                setFiltroPedidos("ACTIVOS");
+                document.getElementById("mis-pedidos")?.scrollIntoView({ block: "start", behavior: "smooth" });
+              }}
+            >
+              Ver mis pedidos
+            </button>
           </div>
         </div>
       ) : null}
@@ -647,32 +691,96 @@ export function MemberPortal({
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="mis-pedidos" aria-labelledby="mis-pedidos-title">
         <div className="panel-head"><div>
-          <h2 className="panel-title">Tus reservas</h2>
-          <p className="panel-sub">Al entregar —en el club o por envío— el club vuelve a verificar tu REPROCANN y tus topes.</p>
+          <h2 className="panel-title" id="mis-pedidos-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            Mis pedidos
+            {totales.activos > 0 ? (
+              <Chip tone="brand">
+                {totales.activos} activo{totales.activos === 1 ? "" : "s"}
+              </Chip>
+            ) : null}
+          </h2>
+          <p className="panel-sub">
+            Retiros y envíos, cada uno con lo que el club sabe: fecha, modalidad y estado. Al entregar —en el club o por
+            envío— vuelve a verificar tu REPROCANN y tus topes.
+          </p>
         </div></div>
-        {data.pickups.length === 0 ? (
-          <div className="empty">Todavía no reservaste ningún retiro.</div>
+        {totales.todos === 0 ? (
+          <div className="empty">Todavía no hiciste ningún pedido. Elegí tus variedades arriba y armá el primero.</div>
         ) : (
+          <>
+            <div className="filtros" role="group" aria-label="Filtrar pedidos">
+              {(
+                [
+                  ["TODOS", `Todos (${totales.todos})`],
+                  ["ACTIVOS", `Activos (${totales.activos})`],
+                  ["CERRADOS", `Cerrados (${totales.cerrados})`],
+                ] as const
+              ).map(([valor, etiqueta]) => (
+                <button
+                  key={valor}
+                  type="button"
+                  className="filtro-btn"
+                  aria-pressed={filtroPedidos === valor}
+                  onClick={() => setFiltroPedidos(valor)}
+                >
+                  {etiqueta}
+                </button>
+              ))}
+            </div>
+            {data.pickups.length < totales.todos ? (
+              <p className="cell-meta" style={{ margin: "0 0 8px" }}>
+                Mostrando los últimos {data.pickups.length} de {totales.todos}. Los contadores son del total real.
+              </p>
+            ) : null}
+            {pickupsVisibles.length === 0 ? (
+              <div className="empty">
+                {filtroPedidos === "ACTIVOS"
+                  ? "No tenés pedidos activos ahora."
+                  : filtroPedidos === "CERRADOS"
+                    ? "Todavía no tenés pedidos cerrados."
+                    : "No hay pedidos para mostrar."}
+              </div>
+            ) : (
           <ul className="rows">
-            {data.pickups.map((p) => {
-              const st = PICKUP_LABEL[p.status] ?? { label: p.status, tone: "mute" };
-              const isOpen = ["SOLICITADA", "CONFIRMADA"].includes(p.status);
+            {pickupsVisibles.map((p) => {
+              const st = estadoPedido(p.status, p.deliveryMode);
+              const isOpen = esActivo(p.status);
               return (
                 <li key={p.id}>
                   <div className="grow">
                     <div className="flex items-center gap-2 flex-wrap">
                       <b className="tnum">{g(p.grams)}</b>
                       <span className={st.tone === "mute" ? "chip" : `chip chip-${st.tone}`}>{st.label}</span>
+                      <span className="chip">
+                        {p.deliveryMode === "ENVIO" ? "Envío a domicilio" : "Retiro en el club"}
+                      </span>
                     </div>
-                    <div className="cell-meta">
-                      {p.deliveryMode === "ENVIO"
-                        ? `Envío a ${p.deliveryZona ?? "tu domicilio"}${p.deliveryCostoArs != null ? ` · envío ${MONEY.format(p.deliveryCostoArs)}` : ""}`
-                        : p.pickupLabel ?? "sin horario"}
-                      {p.aporteEstimado != null ? ` · aporte ${p.status === "RETIRADA" ? "" : "estimado "}${MONEY.format(p.aporteEstimado)}` : ""}
-                      {p.cancelReason ? ` · ${p.cancelReason}` : ""}
+                    <div className="pedido-datos">
+                      <span>Pedido el {fmtDay(p.createdAt)}</span>
+                      {p.deliveryMode === "ENVIO" ? (
+                        <span>
+                          {p.deliveryZona ?? "zona a confirmar"}
+                          {p.deliveryCostoArs != null ? ` · envío ${MONEY.format(p.deliveryCostoArs)}` : ""}
+                        </span>
+                      ) : (
+                        <span>{p.pickupLabel ? `Turno: ${p.pickupLabel.replace(" · ", " a las ")}` : "Sin turno asignado"}</span>
+                      )}
+                      {p.aporteEstimado != null ? (
+                        <span>
+                          {p.status === "RETIRADA" && p.deliveryMode !== "ENVIO" ? "Aporte" : "Aporte estimado"}{" "}
+                          {MONEY.format(p.aporteEstimado)}
+                        </span>
+                      ) : null}
+                      {st.nota ? <span className="pedido-nota">{st.nota}</span> : null}
                     </div>
+                    {p.cancelReason ? (
+                      <div className="pedido-motivo">
+                        <b>Motivo de la cancelación</b>
+                        <span>{p.cancelReason}</span>
+                      </div>
+                    ) : null}
                     {/* El aporte se transfiere y el comprobante cierra el pedido: sin eso el club no lo confirma. */}
                     {["SOLICITADA", "CONFIRMADA"].includes(p.status) && p.aporteEstimado != null ? (
                       <ComprobantePago
@@ -691,6 +799,8 @@ export function MemberPortal({
               );
             })}
           </ul>
+            )}
+          </>
         )}
       </section>
 

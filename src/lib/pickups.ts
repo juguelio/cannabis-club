@@ -66,7 +66,7 @@ export async function portalOverview(memberId: string) {
   const config = limitsFromClub(club);
   const limits = limitsForMember(member, config);
   const precios = preciosDeClub(club);
-  const [usage, pending, stockFisico, reservadoGlobal, pickups] = await Promise.all([
+  const [usage, pending, stockFisico, reservadoGlobal, pickups, porEstado] = await Promise.all([
     memberUsage(prisma, member.id, club.timezone),
     prisma.pickupRequest.findMany({
       where: { memberId: member.id, status: { in: [...OPEN_STATUSES] } },
@@ -79,6 +79,13 @@ export async function portalOverview(memberId: string) {
       orderBy: { createdAt: "desc" },
       take: 12,
       include: { appointment: { select: { scheduledAt: true } } },
+    }),
+    // Cuántos pedidos tiene en total, no cuántos entran en la lista: el portal muestra los últimos 12
+    // y sería mentira presentar ese recorte como el historial completo.
+    prisma.pickupRequest.groupBy({
+      by: ["status"],
+      where: { memberId: member.id },
+      _count: { _all: true },
     }),
   ]);
 
@@ -189,6 +196,18 @@ export async function portalOverview(memberId: string) {
       pago: pagoPorPedido.get(p.id)?.estado ?? "PENDIENTE",
       pagoMotivo: pagoPorPedido.get(p.id)?.motivo ?? null,
     })),
+    // Totales reales por estado (todos, activos, cerrados) y cuántos pedidos hay por detrás de la lista.
+    pickupTotals: {
+      todos: porEstado.reduce((n, r) => n + r._count._all, 0),
+      activos: porEstado
+        .filter((r) => (OPEN_STATUSES as readonly string[]).includes(r.status))
+        .reduce((n, r) => n + r._count._all, 0),
+      cerrados: porEstado
+        .filter((r) => !(OPEN_STATUSES as readonly string[]).includes(r.status))
+        .reduce((n, r) => n + r._count._all, 0),
+    },
+    /** El panel lista los últimos `take`; el total real está en `pickupTotals`. */
+    pickupsLimit: 12,
   };
 }
 
