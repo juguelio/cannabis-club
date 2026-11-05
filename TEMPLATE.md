@@ -143,3 +143,24 @@ Y en la app, con datos del club:
   `@fontsource` (ya instalado) y se activa desde el editor de marca.
 - Los correos usan la paleta base del template, no la del club: los clientes de correo no cargan variables
   CSS ni fuentes web. Si hace falta que un club tenga correos con su paleta, se ajusta `src/lib/email-brand.ts`.
+
+## Instancia demo (así queda cableado un despliegue real)
+
+Referencia del 05-nov-2026, útil como plantilla mental para el primer club que compre:
+
+| Pieza | Cómo se resolvió |
+|---|---|
+| Repo | uno por club, privado, historia propia (`git init` desde el template, sin la historia del piloto) |
+| Vercel | proyecto nuevo + `vercel git connect` al repo: cada push a `main` deploya a producción |
+| Base | proyecto Neon propio (`aws-sa-east-1`), `DATABASE_URL` **pooled** con `pgbouncer=true&connection_limit=1` |
+| Migraciones | `DATABASE_URL=<directa> npx prisma migrate deploy` (34/34) y `npm run db:seed` para la demo |
+| Variables | production **y** preview: `DATABASE_URL`, `AUTH_SECRET`, `DOC_HASH_KEY`, `DOC_ENC_KEY`, `BAJA_SECRET`, `CRON_SECRET`, `APP_BASE_URL`, `CLUB_NOMBRE`, `CLUB_SIGLA` |
+| Dominio | `https://<proyecto>.vercel.app` primero; el dominio del club después, con `APP_BASE_URL` actualizado |
+| Sitio público | apagado por defecto (`Club.marca.sitio.publico`); se enciende desde Configuración › Marca |
+
+Verificación mínima tras el primer deploy (todo sin sesión): `GET /api/health` con `db:true`, `/login` 200,
+`/sitio` 200 si el sitio está encendido, `/llms.txt` con el nombre real del club, y `POST /api/auth/login` con el
+usuario admin. Si `/llms.txt` muestra datos de demo, falta cargar el club.
+
+**Antes de mostrarlo a un tercero:** rotar las credenciales del seed (`admin@club.test`), porque están publicadas en
+`README.md` y en el seed.
