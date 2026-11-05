@@ -225,7 +225,7 @@ export async function createPickup(input: {
       if (esEnvio && faltaDomicilioParaEnvio(member))
         throw conflict(
           "ENVIO_SIN_DOMICILIO",
-          "Para pedir un envío necesitamos tu domicilio y código postal: completalos en «Validá tus datos».",
+          "Para pedir un envío necesitamos tu domicilio y código postal: completalos en «Mis datos», en tu portal.",
         );
 
       const limits = limitsForMember(member, config);

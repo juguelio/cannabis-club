@@ -2,6 +2,7 @@
 
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { CalendarCheck2, CircleAlert, Leaf, QrCode } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
@@ -385,9 +386,15 @@ export function MemberPortal({
                   <span className="hint">El club todavía no cargó zonas de envío: por ahora sólo retiro en el club.</span>
                 ) : null}
                 {!data.member.postalCode ? (
-                  <span className="hint">
-                    Para pedir envío falta tu domicilio y código postal: completalos en «Validá tus datos».
-                  </span>
+                  <div className="note note-warn" role="status">
+                    <CircleAlert aria-hidden />
+                    <div>
+                      Para pedir envío falta tu código postal.{" "}
+                      <Link href="/portal/datos" style={{ fontWeight: 650, textDecoration: "underline" }}>
+                        Completar mis datos
+                      </Link>
+                    </div>
+                  </div>
                 ) : null}
               </div>
 

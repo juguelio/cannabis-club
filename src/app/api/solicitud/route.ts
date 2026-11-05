@@ -7,6 +7,7 @@ import { clientIp } from "@/lib/http";
 import { leerSesionSolicitud } from "@/lib/onboarding";
 import { docFingerprint } from "@/lib/privacy";
 import { encryptText } from "@/lib/docs-crypto";
+import { normalizarCp } from "@/lib/verificacion-rules";
 import {
   AFFIDAVIT_VERSION,
   esDocumentoDelMismoLegajo,
@@ -21,6 +22,10 @@ const schema = z.object({
   phone: z.string().trim().min(1),
   address: z.string().trim().min(1),
   locality: z.string().trim().optional().nullable(),
+  // Opcional: el que sólo retira en el club no lo necesita, pero sin él no hay envío. Se pide acá
+  // —una vez, al entrar— y no tres semanas después, cuando el socio ya está verificado y el portal
+  // no le ofrece dónde completarlo.
+  postalCode: z.string().trim().optional().nullable(),
   docNumber: z.string().trim().min(1),
   reprocannNumber: z.string().trim().min(1),
   reprocannExpiresAt: z.string().min(8),
@@ -103,6 +108,7 @@ export const POST = route(async (req) => {
     phone: input.phone,
     address: input.address,
     locality: input.locality ?? null,
+    postalCode: input.postalCode ? normalizarCp(input.postalCode) : null,
     docHash: huella.docHash,
     docLast4: huella.docLast4,
     docNumberCipher: encryptText(input.docNumber.replace(/\D/g, "")),
