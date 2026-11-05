@@ -12,6 +12,7 @@ import { aEnviar, disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito, 
 import { faltaParaMinimo, type Cobertura } from "@/lib/envios";
 import { esActivo, estadoPedido } from "@/lib/pedidos-estado";
 import { VariedadCard } from "@/components/variedad-card";
+import { CarritoDrawer } from "@/components/carrito-drawer";
 import { ComprobantePago } from "@/components/comprobante-pago";
 import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
@@ -134,6 +135,7 @@ export function MemberPortal({
   // de qué cepas quiere y el total sale de ahí.
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [filtroPedidos, setFiltroPedidos] = useState<"TODOS" | "ACTIVOS" | "CERRADOS">("TODOS");
+  const [drawerAbierto, setDrawerAbierto] = useState(false);
   const [slot, setSlot] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -188,6 +190,7 @@ export function MemberPortal({
   const zonaElegida = data.club.envios.find((z) => z.zona === zona);
   const cobertura = data.club.cobertura;
   const faltanParaEnvio = faltaParaMinimo(gramsNum, data.club.minimoEnvioG ?? 0);
+  const gramosFaltanEnvio = faltanParaEnvio;
   const costoEnvio = modo === "ENVIO" ? (zonaElegida?.precioArs ?? 0) : 0;
   const totalACubrir = (estimated ?? 0) + costoEnvio;
   const envioValido =
@@ -439,7 +442,7 @@ export function MemberPortal({
               </div>
             </div>
           ) : (
-            <form className="stack" style={{ gap: 18 }} onSubmit={reserve}>
+            <form className="stack" style={{ gap: 18 }} onSubmit={reserve} id="confirmar-pedido">
               <div className="cart-summary" aria-live="polite">
                 <div className="cart-summary-head">
                   <span className="label" style={{ margin: 0 }}>Tu combo</span>
@@ -450,25 +453,12 @@ export function MemberPortal({
 
                 {carrito.length === 0 ? (
                   <p className="hint" style={{ margin: "6px 0 0" }}>
-                    Elegí arriba las variedades y los gramos de cada una: el total se arma solo y aparece acá.
+                    Elegí arriba las variedades y los gramos de cada una: el total se arma solo.
                   </p>
                 ) : (
-                  <ul className="cart-list">
-                    {carrito.map((i) => (
-                      <li key={i.strainId}>
-                        <span>{cepaNombre(i.strainId)}</span>
-                        <span className="tnum">{g(i.gramos)}</span>
-                        <button
-                          type="button"
-                          className="cart-step-btn"
-                          onClick={() => setCarrito(moverItem(carrito, i.strainId, -PASO_G, data.tope))}
-                          aria-label={`Sacar 5 gramos de ${cepaNombre(i.strainId)}`}
-                        >
-                          −
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <button type="button" className="btn btn-quiet btn-block" style={{ marginTop: 8 }} onClick={() => setDrawerAbierto(true)}>
+                    Revisar los {carrito.length} renglones del pedido
+                  </button>
                 )}
 
                 <span className="hint" style={{ marginTop: 8 }}>
@@ -937,6 +927,41 @@ export function MemberPortal({
             setBusy(false);
           }
         }}
+      />
+
+      {/* Barra fija: con el carrito cerrado el socio ve cuánto lleva sin scrollear. */}
+      {carrito.length > 0 ? (
+        <div className="cartbar" role="status">
+          <button type="button" className="cartbar-btn" onClick={() => setDrawerAbierto(true)}>
+            <span className="cartbar-total tnum">
+              {g(gramsNum)} · {estimated != null ? MONEY.format(estimated) : "—"}
+            </span>
+            <span className="cartbar-cta">Ver pedido</span>
+          </button>
+        </div>
+      ) : null}
+
+      <CarritoDrawer
+        abierto={drawerAbierto}
+        items={carrito}
+        tope={data.tope}
+        aportePorGramo={data.club.aportePorGramo}
+        nombre={cepaNombre}
+        onCerrar={() => setDrawerAbierto(false)}
+        onDelta={(id, paso) => setCarrito(moverItem(carrito, id, paso, data.tope))}
+        onQuitar={(id) => setCarrito(carrito.filter((i) => i.strainId !== id))}
+        onContinuar={() => {
+          setDrawerAbierto(false);
+          document.getElementById("confirmar-pedido")?.scrollIntoView({ block: "start", behavior: "smooth" });
+        }}
+        puedeContinuar={gramsNum > 0}
+        nota={
+          gramosFaltanEnvio > 0
+            ? `El envío sale desde ${g(data.club.minimoEnvioG)}: te faltan ${g(gramosFaltanEnvio)}.`
+            : gramsNum >= data.tope
+              ? `Llegaste a tu tope de ${g(data.tope)}.`
+              : null
+        }
       />
     </>
   );

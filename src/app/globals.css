@@ -855,3 +855,44 @@ details.card > div { min-width: 0; max-width: 100%; }
   .rows > li { flex-direction: column; align-items: stretch; }
   .rows > li > .btn { width: 100%; min-height: 44px; }
 }
+
+/* ── Carrito deslizante (estilo Amazon) ─────────────────────────────────────── */
+.drawer { position: fixed; inset: 0; z-index: 60; }
+.drawer-overlay { position: absolute; inset: 0; border: 0; padding: 0; background: rgba(8, 20, 15, .45); cursor: pointer; }
+.drawer-panel {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 100%);
+  background: var(--surface, #fff); display: flex; flex-direction: column;
+  box-shadow: -18px 0 40px rgba(8, 20, 15, .22); animation: drawer-in .22s ease-out;
+}
+@keyframes drawer-in { from { transform: translateX(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+.drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.drawer-x { min-height: 36px; min-width: 36px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: transparent; cursor: pointer; }
+.drawer-x:hover { border-color: var(--ink); }
+.drawer-body { flex: 1; overflow-y: auto; padding: 6px 18px 12px; }
+.drawer-items { list-style: none; margin: 0; padding: 0; }
+.drawer-items > li { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+.drawer-item-nombre { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.drawer-item-acciones { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.drawer-quitar { background: none; border: 0; padding: 6px 2px; color: var(--muted); font: inherit; font-size: 12.5px; text-decoration: underline; cursor: pointer; min-height: 32px; }
+.drawer-foot { padding: 14px 18px 20px; border-top: 1px solid var(--line); background: var(--surface, #fff); }
+
+/* Barra fija: sin el carrito abierto, el socio ve lo que lleva. */
+.cartbar { display: none; }
+@media (max-width: 640px) {
+  .drawer-panel { top: auto; left: 0; right: 0; width: 100%; height: 84vh; border-radius: 18px 18px 0 0; animation: drawer-up .22s ease-out; }
+  @keyframes drawer-up { from { transform: translateY(40px); opacity: .7; } to { transform: none; opacity: 1; } }
+  .cartbar {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--surface, #fff) 92%, transparent);
+    backdrop-filter: blur(10px); border-top: 1px solid var(--line);
+  }
+  .cartbar-btn {
+    width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 0 16px; border: 0; border-radius: 12px; background: var(--firma); color: #fff; font: inherit; font-weight: 650; cursor: pointer;
+  }
+  .cartbar-total { font-size: 14.5px; }
+  .cartbar-cta { font-size: 14px; }
+  /* que la barra no tape el final del contenido */
+  main { padding-bottom: 84px; }
+}
