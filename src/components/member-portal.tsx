@@ -322,6 +322,41 @@ export function MemberPortal({
         </div>
       ) : null}
 
+      <section className="panel" id="variedades" aria-labelledby="variedades-title">
+        <div className="panel-head"><div>
+          <h2 className="panel-title" style={{ fontSize: 19 }} id="variedades-title">Variedades del club</h2>
+          <p className="panel-sub">Lo que el club tiene cultivado. No se vende: el aporte de cultivo se prorratea al retirar y lo ves en tu cuenta.</p>
+        </div></div>
+        <div className="panel-body">
+          {variedades.length === 0 ? (
+            <div className="note note-mute">
+              <Leaf aria-hidden />
+              <div>Todavía no hay variedades publicadas. Cuando el club cierre una cosecha, aparecen acá.</div>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
+              {variedades.map((v) => (
+                <VariedadCard
+                  key={v.id}
+                  v={v}
+                  carrito={
+                    open
+                      ? {
+                          gramos: gramosDe(carrito, v.id),
+                          puedeSubir: puedeSubir(v.id),
+                          onDelta: (paso) => setCarrito(moverItem(carrito, v.id, paso, data.tope)),
+                        }
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+          <p className="panel-sub" style={{ marginTop: 12, marginBottom: 0 }}>
+            Para llevarte algo, reservá un retiro arriba: elegís gramos y horario, y el club lo prepara.
+          </p>
+        </div>
+      </section>
       <section className="panel">
         <div className="panel-head"><div>
           <h2 className="panel-title" style={{ fontSize: 19 }}>Tu pedido</h2>
@@ -353,10 +388,7 @@ export function MemberPortal({
 
                 {carrito.length === 0 ? (
                   <p className="hint" style={{ margin: "6px 0 0" }}>
-                    Elegí las variedades y los gramos de cada una en «Variedades del club» y el total se arma acá.{" "}
-                    <a href="#variedades" style={{ fontWeight: 650, textDecoration: "underline" }}>
-                      Elegir variedades
-                    </a>
+                    Elegí arriba las variedades y los gramos de cada una: el total se arma solo y aparece acá.
                   </p>
                 ) : (
                   <ul className="cart-list">
@@ -572,41 +604,6 @@ export function MemberPortal({
         )}
       </section>
 
-      <section className="panel" id="variedades" aria-labelledby="variedades-title">
-        <div className="panel-head"><div>
-          <h2 className="panel-title" style={{ fontSize: 19 }} id="variedades-title">Variedades del club</h2>
-          <p className="panel-sub">Lo que el club tiene cultivado. No se vende: el aporte de cultivo se prorratea al retirar y lo ves en tu cuenta.</p>
-        </div></div>
-        <div className="panel-body">
-          {variedades.length === 0 ? (
-            <div className="note note-mute">
-              <Leaf aria-hidden />
-              <div>Todavía no hay variedades publicadas. Cuando el club cierre una cosecha, aparecen acá.</div>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
-              {variedades.map((v) => (
-                <VariedadCard
-                  key={v.id}
-                  v={v}
-                  carrito={
-                    open
-                      ? {
-                          gramos: gramosDe(carrito, v.id),
-                          puedeSubir: puedeSubir(v.id),
-                          onDelta: (paso) => setCarrito(moverItem(carrito, v.id, paso, data.tope)),
-                        }
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-          )}
-          <p className="panel-sub" style={{ marginTop: 12, marginBottom: 0 }}>
-            Para llevarte algo, reservá un retiro arriba: elegís gramos y horario, y el club lo prepara.
-          </p>
-        </div>
-      </section>
 
       <section className="panel" id="historial" aria-labelledby="history-title">
         <div className="panel-head"><div>
