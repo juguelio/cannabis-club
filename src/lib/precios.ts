@@ -24,6 +24,12 @@ export type Precios = {
   cotizacion: Cotizacion;
   /** Tope de membresías por envío o retiro. */
   maxMembresiasPorEnvio: number;
+  /**
+   * Mínimo de gramos para que un envío salga. No es un tope: es el piso que hace que el despacho
+   * valga la pena. Lo decide el club (hoy 5 g, media membresía) y se dice en el carrito antes de
+   * confirmar, no después.
+   */
+  minimoEnvioG: number;
   envios: Envio[];
   productos: Producto[];
 };
@@ -35,6 +41,7 @@ export const PRECIOS_POR_DEFECTO: Precios = {
   aporteMembresiaUsd: 0,
   cotizacion: COTIZACION_VACIA,
   maxMembresiasPorEnvio: 4,
+  minimoEnvioG: 5,
   envios: [],
   productos: [],
 };
@@ -64,6 +71,7 @@ export function preciosDeClub(club: { precios?: unknown; aportePorGramo?: unknow
       actualizadaAt: cotizacionCruda.actualizadaAt ?? null,
     },
     maxMembresiasPorEnvio: maxEnv,
+    minimoEnvioG: num(crudo.minimoEnvioG, PRECIOS_POR_DEFECTO.minimoEnvioG),
     envios: Array.isArray(crudo.envios) ? crudo.envios.map((e) => ({
       zona: String(e?.zona ?? "").trim(),
       precioArs: num(e?.precioArs, 0),

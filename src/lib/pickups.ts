@@ -19,6 +19,7 @@ import { addDaysKey, dayKeyOf, evaluateBooking, labelOf, slotInstant, type Rule 
 import { daysToExpiry } from "./labels";
 import { availableStock } from "./stock";
 import { faltaDomicilioParaEnvio } from "./verificacion-rules";
+import { faltaParaMinimo, zonaPorCp } from "./envios";
 
 type Tx = Prisma.TransactionClient | typeof prisma;
 
@@ -146,6 +147,10 @@ export async function portalOverview(memberId: string) {
       // Envío: zonas con su costo y demora, y cuántos gramos entran en una caja.
       envios: precios.envios,
       topeEnvioG: gramosPorEnvio(precios),
+      // El piso del envío y la zona que le corresponde a su código postal, para que el socio lo sepa
+      // antes de armar el pedido y no al confirmar.
+      minimoEnvioG: precios.minimoEnvioG,
+      cobertura: zonaPorCp(member.postalCode, precios.envios),
       // A dónde transferir el aporte: lo carga el club, no se inventa acá.
       cobro: leerCobro(club.cobro),
     },
@@ -310,6 +315,12 @@ export async function createPickup(input: {
           topeEnvioG: gramosPorEnvio(precios),
         });
         if (!decisionEnvio.ok) throw unprocessable(decisionEnvio.code, decisionEnvio.message);
+        const falta = faltaParaMinimo(input.grams, precios.minimoEnvioG);
+        if (falta > 0)
+          throw unprocessable(
+            "ENVIO_MINIMO",
+            `El envío sale desde ${precios.minimoEnvioG} g: te faltan ${falta} g. Si no llegás, podés retirar en el club.`,
+          );
         envio = decisionEnvio;
       }
 

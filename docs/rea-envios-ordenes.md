@@ -150,6 +150,10 @@ usuario y hora. Como California: el envío no es un estado, es un registro.
 
 ## 5. Plan en tres cortes
 
+> **Corte 1: hecho el 5-nov-2026.** Mínimo de envío **5 g** (decisión del club), cobertura por código
+> postal en el portal y en la página «Envíos», costo del envío y total a cubrir en el resumen, y la
+> puerta del servidor (`ENVIO_MINIMO`) para que la regla no viva sólo en la pantalla.
+
 **Corte 1 — que se vea (medio día).**
 Cobertura por CP en el resumen, costo del envío en el resumen, mínimo por envío con «te faltan N g»,
 y página «Envíos» del portal con las cuatro zonas de producción.

@@ -9,6 +9,7 @@ import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
 import type { Variedad } from "@/lib/variedad-rules";
 import { aEnviar, disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito, type ItemCarrito } from "@/lib/carrito";
+import { faltaParaMinimo, type Cobertura } from "@/lib/envios";
 import { VariedadCard } from "@/components/variedad-card";
 import { ComprobantePago } from "@/components/comprobante-pago";
 import { ReasonDialog } from "./dialog";
@@ -38,6 +39,10 @@ type Overview = {
     cobro?: { alias: string | null; cbu: string | null; titular: string | null; banco: string | null; nota: string | null };
     /** Cuántos gramos entran en un envío (membresías por caja × gramos de la membresía). */
     topeEnvioG: number;
+    /** Piso del envío: por debajo no se despacha. Lo decide el club. */
+    minimoEnvioG: number;
+    /** Qué zona le toca según su código postal (o por qué no le toca ninguna). */
+    cobertura?: Cobertura;
   };
   limits: { monthLimitG: number; dayLimitG: number; isMinor: boolean; thcMaxPct: number | null };
   usage: { dayGrams: number; monthGrams: number };
@@ -141,7 +146,11 @@ export function MemberPortal({
   // La carta del club la decide el socio, no la secretaría: se pide y se retira desde acá.
   const [carta, setCarta] = useState<boolean>(consents.some((c) => c.purpose === "COMUNICACIONES" && c.granted));
   const [cartaBusy, setCartaBusy] = useState(false);
-  const [zona, setZona] = useState<string>(data.club.envios[0]?.zona ?? "");
+  // La zona arranca en la que corresponde a su código postal, no en la primera de la lista: el socio
+  // de Neuquén no debería ver «CABA $20.000» preseleccionado y descubrirlo al pagar.
+  const [zona, setZona] = useState<string>(
+    data.club.cobertura?.estado === "CUBIERTA" ? data.club.cobertura.zona.zona : (data.club.envios[0]?.zona ?? ""),
+  );
   const [direccion, setDireccion] = useState<string>(data.member.address ?? "");
   const documentStatus = memberDocumentStatus(data.member);
   const visibleHistory = history.filter((item) => historyFilter === "all" || (historyFilter === "voided" ? item.voided : !item.voided));
@@ -169,8 +178,17 @@ export function MemberPortal({
   const chosen = slots.find((s) => s.startMin === slot);
   const openPickup = data.pickups.find((p) => ["SOLICITADA", "CONFIRMADA"].includes(p.status));
   const zonaElegida = data.club.envios.find((z) => z.zona === zona);
+  const cobertura = data.club.cobertura;
+  const faltanParaEnvio = faltaParaMinimo(gramsNum, data.club.minimoEnvioG ?? 0);
+  const costoEnvio = modo === "ENVIO" ? (zonaElegida?.precioArs ?? 0) : 0;
+  const totalACubrir = (estimated ?? 0) + costoEnvio;
   const envioValido =
-    modo === "ENVIO" && validGrams && zonaElegida != null && direccion.trim().length >= 8 && gramsNum <= data.club.topeEnvioG + 1e-9;
+    modo === "ENVIO" &&
+    validGrams &&
+    zonaElegida != null &&
+    direccion.trim().length >= 8 &&
+    gramsNum <= data.club.topeEnvioG + 1e-9 &&
+    faltanParaEnvio === 0;
   const puedePedir = validGrams && (modo === "RETIRO" ? slot != null : envioValido);
 
   async function reserve(event: React.FormEvent) {
@@ -414,8 +432,74 @@ export function MemberPortal({
                   {data.topeMotivo === "dia" ? `por el tope diario de ${g(data.limits.dayLimitG)}` : data.topeMotivo === "mes" ? "de tu saldo del mes" : "según el stock del club"}.
                   {estimated != null ? ` Aporte estimado: ${MONEY.format(estimated)}.` : data.club.aportePorGramo != null ? ` Aporte: ${MONEY.format(data.club.aportePorGramo)} por gramo.` : ""}
                 </span>
+                {modo === "ENVIO" ? (
+                  <div className="cart-lineas">
+                    {zonaElegida ? (
+                      <div className="cart-linea">
+                        <span>Envío a {zonaElegida.zona}</span>
+                        <span className="tnum">{MONEY.format(zonaElegida.precioArs)}</span>
+                      </div>
+                    ) : (
+                      <div className="cart-linea">
+                        <span>Envío</span>
+                        <span>Elegí la zona</span>
+                      </div>
+                    )}
+                    {faltanParaEnvio > 0 ? (
+                      <p className="note note-warn" style={{ marginTop: 6 }}>
+                        <CircleAlert aria-hidden />
+                        <span>
+                          El envío sale desde {g(data.club.minimoEnvioG)}: te faltan {g(faltanParaEnvio)}. Sumá otra
+                          variedad o retirá en el club.
+                        </span>
+                      </p>
+                    ) : null}
+                    {totalACubrir > 0 ? (
+                      <div className="cart-linea cart-linea--total">
+                        <span>A cubrir al entregar</span>
+                        <span className="tnum">{MONEY.format(totalACubrir)}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 <span className="cell-meta">El saldo del mes se renueva el día 1 y el tope diario a las 00:00. Se fracciona de a {PASO_G} g.</span>
               </div>
+
+              {cobertura ? (
+                <div className={`note ${cobertura.estado === "CUBIERTA" ? "note-ok" : cobertura.estado === "SIN_COBERTURA" ? "note-warn" : "note"}`} role="status">
+                  <CircleAlert aria-hidden />
+                  <div>
+                    {cobertura.estado === "CUBIERTA" ? (
+                      <>
+                        <b>Enviamos a tu zona: {cobertura.zona.zona}.</b> {MONEY.format(cobertura.zona.precioArs)} ·{" "}
+                        {cobertura.zona.demora}
+                        {cobertura.zona.transportista ? ` · ${cobertura.zona.transportista}` : ""}.{" "}
+                        {cobertura.aproximada ? <span className="cell-meta">{cobertura.motivo}. </span> : null}
+                        Mínimo {g(data.club.minimoEnvioG)}.{" "}
+                        <Link href="/portal/envios" style={{ fontWeight: 650, textDecoration: "underline" }}>
+                          Ver todos los envíos
+                        </Link>
+                      </>
+                    ) : cobertura.estado === "SIN_CP" ? (
+                      <>
+                        <b>Falta tu código postal para saber si llegamos.</b>{" "}
+                        <Link href="/portal/datos" style={{ fontWeight: 650, textDecoration: "underline" }}>
+                          Completar mis datos
+                        </Link>
+                      </>
+                    ) : cobertura.estado === "SIN_ZONAS" ? (
+                      <>
+                        <b>Por ahora sólo retiro en el club</b>: todavía no hay zonas de envío cargadas.
+                      </>
+                    ) : (
+                      <>
+                        <b>No llegamos con envío a tu código postal ({cobertura.cp}).</b> {cobertura.motivo}. Podés retirar
+                        en el club o escribirnos para coordinar.
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : null}
 
               <div>
                 <span className="label">¿Cómo lo recibís?</span>
@@ -443,6 +527,12 @@ export function MemberPortal({
                 </div>
                 {data.club.envios.length === 0 ? (
                   <span className="hint">El club todavía no cargó zonas de envío: por ahora sólo retiro en el club.</span>
+                ) : null}
+                {modo === "ENVIO" && cobertura?.estado === "CUBIERTA" && zonaElegida && zonaElegida.zona !== cobertura.zona.zona ? (
+                  <span className="hint" style={{ display: "block", marginTop: 6, color: "var(--warn-ink, #7a4b00)" }}>
+                    Tu código postal ({cobertura.cp}) corresponde a <b>{cobertura.zona.zona}</b> y elegiste{" "}
+                    <b>{zonaElegida.zona}</b>. Si no coincide con tu domicilio, revisá la zona o tus datos.
+                  </span>
                 ) : null}
                 {!data.member.postalCode ? (
                   <div className="note note-warn" role="status">
