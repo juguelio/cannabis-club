@@ -13,6 +13,11 @@ const Body = z.object({
   zona: z.string().max(80).optional(),
   direccion: z.string().max(200).optional(),
   notes: z.string().max(300).optional(),
+  /** El combo por variedad. `grams` sigue siendo el total; esto dice de qué está hecho. */
+  items: z
+    .array(z.object({ strainId: z.string().min(1), grams: z.number().positive().max(500) }))
+    .max(20)
+    .optional(),
 });
 
 export async function POST(req: Request) {
@@ -28,6 +33,7 @@ export async function POST(req: Request) {
       zona: body.zona,
       direccion: body.direccion,
       notes: body.notes,
+      items: body.items,
     });
     return json(
       {

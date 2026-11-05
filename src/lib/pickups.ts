@@ -7,7 +7,7 @@
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
-import { conflict, notFound, unprocessable } from "./errors";
+import { badRequest, conflict, notFound, unprocessable } from "./errors";
 import { isClosedDay } from "./closed-days";
 import { getClub, limitsFromClub } from "./club";
 import { balanceOf, periodOf } from "./account";
@@ -19,6 +19,7 @@ import { addDaysKey, dayKeyOf, evaluateBooking, labelOf, slotInstant, type Rule 
 import { daysToExpiry } from "./labels";
 import { availableStock } from "./stock";
 import { faltaDomicilioParaEnvio } from "./verificacion-rules";
+import { faltaParaMinimo, zonaPorCp } from "./envios";
 
 type Tx = Prisma.TransactionClient | typeof prisma;
 
@@ -65,7 +66,7 @@ export async function portalOverview(memberId: string) {
   const config = limitsFromClub(club);
   const limits = limitsForMember(member, config);
   const precios = preciosDeClub(club);
-  const [usage, pending, stockFisico, reservadoGlobal, pickups] = await Promise.all([
+  const [usage, pending, stockFisico, reservadoGlobal, pickups, porEstado] = await Promise.all([
     memberUsage(prisma, member.id, club.timezone),
     prisma.pickupRequest.findMany({
       where: { memberId: member.id, status: { in: [...OPEN_STATUSES] } },
@@ -78,6 +79,13 @@ export async function portalOverview(memberId: string) {
       orderBy: { createdAt: "desc" },
       take: 12,
       include: { appointment: { select: { scheduledAt: true } } },
+    }),
+    // Cuántos pedidos tiene en total, no cuántos entran en la lista: el portal muestra los últimos 12
+    // y sería mentira presentar ese recorte como el historial completo.
+    prisma.pickupRequest.groupBy({
+      by: ["status"],
+      where: { memberId: member.id },
+      _count: { _all: true },
     }),
   ]);
 
@@ -146,6 +154,10 @@ export async function portalOverview(memberId: string) {
       // Envío: zonas con su costo y demora, y cuántos gramos entran en una caja.
       envios: precios.envios,
       topeEnvioG: gramosPorEnvio(precios),
+      // El piso del envío y la zona que le corresponde a su código postal, para que el socio lo sepa
+      // antes de armar el pedido y no al confirmar.
+      minimoEnvioG: precios.minimoEnvioG,
+      cobertura: zonaPorCp(member.postalCode, precios.envios),
       // A dónde transferir el aporte: lo carga el club, no se inventa acá.
       cobro: leerCobro(club.cobro),
     },
@@ -184,6 +196,18 @@ export async function portalOverview(memberId: string) {
       pago: pagoPorPedido.get(p.id)?.estado ?? "PENDIENTE",
       pagoMotivo: pagoPorPedido.get(p.id)?.motivo ?? null,
     })),
+    // Totales reales por estado (todos, activos, cerrados) y cuántos pedidos hay por detrás de la lista.
+    pickupTotals: {
+      todos: porEstado.reduce((n, r) => n + r._count._all, 0),
+      activos: porEstado
+        .filter((r) => (OPEN_STATUSES as readonly string[]).includes(r.status))
+        .reduce((n, r) => n + r._count._all, 0),
+      cerrados: porEstado
+        .filter((r) => !(OPEN_STATUSES as readonly string[]).includes(r.status))
+        .reduce((n, r) => n + r._count._all, 0),
+    },
+    /** El panel lista los últimos `take`; el total real está en `pickupTotals`. */
+    pickupsLimit: 12,
   };
 }
 
@@ -198,6 +222,11 @@ export async function createPickup(input: {
   zona?: string;
   direccion?: string;
   notes?: string;
+  /**
+   * Qué variedades y cuántos gramos de cada una. Es opcional para no romper los llamados viejos,
+   * pero el portal siempre lo manda: el club prepara el combo que el socio eligió.
+   */
+  items?: { strainId: string; grams: number }[];
 }) {
   const club = await getClub();
   const config = limitsFromClub(club);
@@ -225,7 +254,7 @@ export async function createPickup(input: {
       if (esEnvio && faltaDomicilioParaEnvio(member))
         throw conflict(
           "ENVIO_SIN_DOMICILIO",
-          "Para pedir un envío necesitamos tu domicilio y código postal: completalos en «Validá tus datos».",
+          "Para pedir un envío necesitamos tu domicilio y código postal: completalos en «Mis datos», en tu portal.",
         );
 
       const limits = limitsForMember(member, config);
@@ -250,6 +279,31 @@ export async function createPickup(input: {
               select: { id: true, memberId: true, scheduledAt: true, status: true },
             }),
       ]);
+
+      // El detalle tiene que cerrar con el total: si el socio eligió 10 g de una cepa y 5 de otra,
+      // la reserva son 15 g. Un desfasaje acá es un pedido que el club no puede armar.
+      const items = input.items?.filter((i) => i.grams > 0) ?? [];
+      let cepaPorId = new Map<string, string>();
+      if (items.length) {
+        const suma = round2(items.reduce((a, i) => a + i.grams, 0));
+        if (Math.abs(suma - round2(input.grams)) > 0.011)
+          throw badRequest(
+            "ITEMS_NO_CIERRAN",
+            "Los gramos de las variedades no coinciden con el total del pedido. Volvé a armarlo.",
+          );
+        if (new Set(items.map((i) => i.strainId)).size !== items.length)
+          throw badRequest("ITEMS_REPETIDOS", "Hay una variedad repetida en el pedido.");
+
+        const cepas = await tx.strain.findMany({
+          where: { id: { in: items.map((i) => i.strainId) } },
+          select: { id: true, name: true, active: true },
+        });
+        if (cepas.length !== items.length)
+          throw badRequest("ITEMS_INEXISTENTES", "Alguna de las variedades elegidas ya no está en el catálogo.");
+        const inactiva = cepas.find((c) => !c.active);
+        if (inactiva) throw badRequest("ITEMS_INACTIVA", `La variedad ${inactiva.name} ya no está disponible.`);
+        cepaPorId = new Map(cepas.map((c) => [c.id, c.name]));
+      }
 
       const pendingGrams = round2(pendingRows.reduce((a, p) => a + Number(p.grams), 0));
       // Lo que se puede prometer es el stock físico menos lo que ya está reservado por cualquiera:
@@ -280,6 +334,12 @@ export async function createPickup(input: {
           topeEnvioG: gramosPorEnvio(precios),
         });
         if (!decisionEnvio.ok) throw unprocessable(decisionEnvio.code, decisionEnvio.message);
+        const falta = faltaParaMinimo(input.grams, precios.minimoEnvioG);
+        if (falta > 0)
+          throw unprocessable(
+            "ENVIO_MINIMO",
+            `El envío sale desde ${precios.minimoEnvioG} g: te faltan ${falta} g. Si no llegás, podés retirar en el club.`,
+          );
         envio = decisionEnvio;
       }
 
@@ -344,7 +404,17 @@ export async function createPickup(input: {
             remainingAfterG: decision.remainingAfterG,
           } as Prisma.InputJsonValue,
           notes: input.notes,
+          items: items.length
+            ? {
+                create: items.map((i) => ({
+                  strainId: i.strainId,
+                  strainName: cepaPorId.get(i.strainId) ?? "Variedad",
+                  grams: new Prisma.Decimal(i.grams.toFixed(2)),
+                })),
+              }
+            : undefined,
         },
+        include: { items: true },
       });
 
       await tx.auditLog.create({
