@@ -47,11 +47,27 @@ acciones destructivas o diferidas (borrar, guardar para después) **separadas** 
 toquen por error. El precio unitario al lado del total existe porque el socio compara por gramo/unidad,
 no por paquete.
 
-### Mercado Libre — no se pudo observar en vivo (y se dice)
+### Mercado Libre — bloqueado con evidencia (403), no observado
 
-Intenté `/cart`, una ficha de producto y el centro de ayuda, en navegador en la nube y en copia del
-perfil local: **Mercado Libre devuelve su página anti-bot** («Hubo un error accediendo a esta página»)
-en todas las variantes. No voy a describir su UI como si la hubiera visto.
+Intenté `/cart`, una ficha de producto y el centro de ayuda, en navegador en la nube, en copia del
+perfil local y **en el Chrome del usuario con su sesión abierta**. En todas: la misma pantalla «Hubo un
+error accediendo a esta página».
+
+Medido desde su propio navegador, con `XMLHttpRequest` sincrónico a la ruta real del carrito:
+
+```
+GET /gz/cart/v2  →  403  ·  2584 bytes de HTML de error
+```
+
+Tres datos que sí quedaron verificados:
+
+- `/cart` **no existe** en Mercado Libre: responde **404**. La ruta del carrito es `/gz/cart/v2`.
+- La home por `curl` (sin cookies) responde **200 con 508 KB** y trae el header completo: buscador,
+  `Mis compras`, `Carrito` con atajo `Alt / Opción + Mayús + C`, y 14 menciones de «Envíos Gratis en el día».
+- El 403 aparece **sólo con la sesión del navegador**: el bloqueo es de Mercado Libre hacia esa sesión,
+  no de la red (el mismo equipo llega por curl sin cookies).
+
+No voy a describir su UI como si la hubiera visto: no pude pasar del bloqueo.
 
 Lo único que puedo sostener como **inferido de su comportamiento público conocido** —y que hay que
 confirmar con una captura del usuario antes de tomarlo como fuente—:
