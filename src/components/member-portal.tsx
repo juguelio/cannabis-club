@@ -1,18 +1,21 @@
 "use client";
 
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CalendarCheck2, CircleAlert, Leaf, PackageCheck, QrCode, Truck } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
 import type { Variedad } from "@/lib/variedad-rules";
-import { aEnviar, disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito, type ItemCarrito } from "@/lib/carrito";
+import { aEnviar, disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito } from "@/lib/carrito";
 import { faltaParaMinimo, type Cobertura } from "@/lib/envios";
 import { esActivo, estadoPedido } from "@/lib/pedidos-estado";
 import { VariedadCard } from "@/components/variedad-card";
 import { CarritoDrawer } from "@/components/carrito-drawer";
+import { PortalHeader } from "@/components/portal-header";
+import { useCarrito } from "@/lib/carrito-cliente";
 import { ComprobantePago } from "@/components/comprobante-pago";
 import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
@@ -31,6 +34,7 @@ type Overview = {
     reprocannDays: number | null;
     address: string | null;
     locality: string | null;
+    province: string | null;
     postalCode: string | null;
   };
   club: {
@@ -133,7 +137,8 @@ export function MemberPortal({
   const [slots, setSlots] = useState<Slot[]>(initialSlots);
   // El combo se arma en el catálogo de variedades, no en un campo de gramos suelto: el socio elige
   // de qué cepas quiere y el total sale de ahí.
-  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  const { items: carrito, setItems: setCarrito } = useCarrito(data.tope);
+  const router = useRouter();
   const [filtroPedidos, setFiltroPedidos] = useState<"TODOS" | "ACTIVOS" | "CERRADOS">("TODOS");
   const [drawerAbierto, setDrawerAbierto] = useState(false);
   const [slot, setSlot] = useState<number | null>(null);
@@ -153,7 +158,17 @@ export function MemberPortal({
   const [zona, setZona] = useState<string>(
     data.club.cobertura?.estado === "CUBIERTA" ? data.club.cobertura.zona.zona : (data.club.envios[0]?.zona ?? ""),
   );
-  const [direccion, setDireccion] = useState<string>(data.member.address ?? "");
+  // La dirección se arma por partes: el CP resuelve localidad y provincia, y el socio sólo escribe
+  // calle y número. Es lo que evita el «Calle 123, San Martín» sin provincia ni CP.
+  const [calle, setCalle] = useState<string>(data.member.address ?? "");
+  const [cpEnvio, setCpEnvio] = useState<string>(data.member.postalCode ?? "");
+  const [localidad, setLocalidad] = useState<string>(data.member.locality ?? "");
+  const [provincia, setProvincia] = useState<string>(data.member.province ?? "");
+  const [localidades, setLocalidades] = useState<string[]>([]);
+  const [cpEstado, setCpEstado] = useState<"idle" | "buscando" | "ok" | "no-resuelto">("idle");
+  // Evita repetir la consulta del mismo código en cada tecla.
+  const ultimoCp = useRef<string>("");
+  const direccion = [calle.trim(), localidad.trim(), provincia.trim(), cpEnvio.trim()].filter(Boolean).join(", ");
   const documentStatus = memberDocumentStatus(data.member);
   const visibleHistory = history.filter((item) => historyFilter === "all" || (historyFilter === "voided" ? item.voided : !item.voided));
 
@@ -170,6 +185,23 @@ export function MemberPortal({
       .catch(() => undefined);
     return () => { alive = false; };
   }, [day]);
+
+  /** Pregunta al club/CP qué localidad corresponde; no inventa nada si no lo puede resolver. */
+  const resolverCp = async (valor: string) => {
+    const limpio = valor.replace(/\D/g, "");
+    if (limpio.length < 4) return;
+    setCpEstado("buscando");
+    try {
+      const r = await api<{ estado: string; localidades: string[]; provincia: string | null }>(`/api/portal/cp?cp=${limpio}`);
+      setLocalidades(r.localidades ?? []);
+      if (r.provincia) setProvincia(r.provincia);
+      if (r.localidades?.length === 1) setLocalidad(r.localidades[0]);
+      else if (r.localidades?.length > 1 && !r.localidades.includes(localidad)) setLocalidad("");
+      setCpEstado(r.estado === "OK" ? "ok" : "no-resuelto");
+    } catch {
+      setCpEstado("no-resuelto");
+    }
+  };
 
   const open = data.member.reprocannOk && data.member.status === "ACTIVO" && data.tope > 0;
   const gramsNum = totalCarrito(carrito);
@@ -243,6 +275,14 @@ export function MemberPortal({
 
   return (
     <>
+      <PortalHeader
+        nombre={data.member.firstName}
+        localidad={data.member.locality ?? null}
+        cp={data.member.postalCode ?? null}
+        tope={data.tope}
+        activos={totales.activos}
+      />
+
       <header className="member-intro">
         <div className="flex items-center gap-3">
           <div><p className="panel-sub" style={{ margin: 0 }}>{data.club.nombre}</p><h1 style={{ margin: 0 }}>Tu espacio de socio</h1></div>
@@ -456,9 +496,9 @@ export function MemberPortal({
                     Elegí arriba las variedades y los gramos de cada una: el total se arma solo.
                   </p>
                 ) : (
-                  <button type="button" className="btn btn-quiet btn-block" style={{ marginTop: 8 }} onClick={() => setDrawerAbierto(true)}>
-                    Revisar los {carrito.length} renglones del pedido
-                  </button>
+                  <a href="/portal/basket" className="btn btn-quiet btn-block" style={{ marginTop: 8 }}>
+                    Revisar los {carrito.length} renglones en el basket
+                  </a>
                 )}
 
                 <span className="hint" style={{ marginTop: 8 }}>
@@ -642,16 +682,79 @@ export function MemberPortal({
                 </div>
 
                 <div>
-                  <label className="label" htmlFor="p-dir">¿A qué dirección lo mandamos?</label>
-                  <textarea
+                  <span className="label">¿A qué dirección lo mandamos?</span>
+                  <div className="dir-grid">
+                    <div>
+                      <label className="label" htmlFor="p-cp">Código postal</label>
+                      <input
+                        id="p-cp"
+                        className="input tnum"
+                        inputMode="numeric"
+                        value={cpEnvio}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
+                          setCpEnvio(v);
+                          // Apenas hay cuatro dígitos se resuelve: no hace falta salir del campo para
+                          // que aparezca la ciudad.
+                          if (v.length === 4 && v !== ultimoCp.current) {
+                            ultimoCp.current = v;
+                            void resolverCp(v);
+                          }
+                        }}
+                        onBlur={(e) => void resolverCp(e.target.value)}
+                        placeholder="8370"
+                        maxLength={4}
+                      />
+                    </div>
+                    <div>
+                      <label className="label" htmlFor="p-loc">
+                        Localidad {cpEstado === "buscando" ? <span className="cell-meta">buscando…</span> : null}
+                      </label>
+                      {localidades.length > 1 ? (
+                        <select id="p-loc" className="input" value={localidad} onChange={(e) => setLocalidad(e.target.value)}>
+                          <option value="">Elegí tu localidad</option>
+                          {localidades.map((l) => (
+                            <option key={l} value={l}>{l}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          id="p-loc"
+                          className="input"
+                          value={localidad}
+                          onChange={(e) => setLocalidad(e.target.value)}
+                          placeholder="Sale del código postal"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label className="label" htmlFor="p-prov">Provincia</label>
+                      <input
+                        id="p-prov"
+                        className="input"
+                        value={provincia}
+                        onChange={(e) => setProvincia(e.target.value)}
+                        placeholder="Sale del código postal"
+                      />
+                    </div>
+                  </div>
+                  <label className="label" htmlFor="p-dir" style={{ marginTop: 10 }}>Calle y número</label>
+                  <input
                     id="p-dir"
                     className="input"
-                    rows={2}
-                    value={direccion}
-                    onChange={(e) => setDireccion(e.target.value)}
-                    placeholder="Calle y número, localidad, provincia, código postal"
+                    value={calle}
+                    onChange={(e) => setCalle(e.target.value)}
+                    placeholder="Los Notros 195, piso 2 depto B"
                   />
-                  <span className="hint">Tiene que ser una dirección donde haya alguien para recibir. Lo despachamos en un solo envío.</span>
+                  <span className="hint">
+                    Con el código postal ya te proponemos la localidad y la provincia: revisalas, no las cambiamos por vos.
+                    Tiene que haber alguien para recibir; lo despachamos en un solo envío.
+                  </span>
+                  {cpEstado === "no-resuelto" ? (
+                    <span className="hint" style={{ display: "block", marginTop: 4, color: "var(--warn-ink, #7a4b00)" }}>
+                      No pudimos resolver ese código postal: completá localidad y provincia a mano.
+                    </span>
+                  ) : null}
                 </div>
 
                 {validGrams && gramsNum > data.club.topeEnvioG + 1e-9 ? (
@@ -952,7 +1055,7 @@ export function MemberPortal({
         onQuitar={(id) => setCarrito(carrito.filter((i) => i.strainId !== id))}
         onContinuar={() => {
           setDrawerAbierto(false);
-          document.getElementById("confirmar-pedido")?.scrollIntoView({ block: "start", behavior: "smooth" });
+          router.push("/portal/basket");
         }}
         puedeContinuar={gramsNum > 0}
         nota={

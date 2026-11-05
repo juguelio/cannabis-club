@@ -145,6 +145,7 @@ export async function portalOverview(memberId: string) {
       monthlyForecastG: member.monthlyForecastG == null ? null : Number(member.monthlyForecastG),
       address: member.address,
       locality: member.locality,
+      province: member.province,
       postalCode: member.postalCode,
     },
     club: {
