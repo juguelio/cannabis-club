@@ -27,6 +27,8 @@ export function PortalHeader({
 }) {
   const { contar, total, listo } = useCarrito(tope);
   const ruta = usePathname();
+  // En el cambio de clave obligatorio el socio no puede navegar a ningún lado todavía.
+  if (ruta === "/portal/clave") return null;
 
   const secciones = [
     { href: "/portal", label: "Catálogo", activa: ruta === "/portal" },

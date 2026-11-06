@@ -14,7 +14,6 @@ import { faltaParaMinimo, type Cobertura } from "@/lib/envios";
 import { esActivo, estadoPedido } from "@/lib/pedidos-estado";
 import { VariedadCard } from "@/components/variedad-card";
 import { CarritoDrawer } from "@/components/carrito-drawer";
-import { PortalHeader } from "@/components/portal-header";
 import { useCarrito } from "@/lib/carrito-cliente";
 import { ComprobantePago } from "@/components/comprobante-pago";
 import { ReasonDialog } from "./dialog";
@@ -275,14 +274,6 @@ export function MemberPortal({
 
   return (
     <>
-      <PortalHeader
-        nombre={data.member.firstName}
-        localidad={data.member.locality ?? null}
-        cp={data.member.postalCode ?? null}
-        tope={data.tope}
-        activos={totales.activos}
-      />
-
       <header className="member-intro">
         <div className="flex items-center gap-3">
           <div><p className="panel-sub" style={{ margin: 0 }}>{data.club.nombre}</p><h1 style={{ margin: 0 }}>Tu espacio de socio</h1></div>
