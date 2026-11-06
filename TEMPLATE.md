@@ -164,3 +164,18 @@ usuario admin. Si `/llms.txt` muestra datos de demo, falta cargar el club.
 
 **Antes de mostrarlo a un tercero:** rotar las credenciales del seed (`admin@club.test`), porque están publicadas en
 `README.md` y en el seed.
+
+### Íconos del club (paso que se olvida)
+
+El template trae íconos neutros. Cada instancia tiene que reemplazarlos o la pestaña y el home screen
+del celular muestran el logo de otro club. Regla que funcionó:
+
+| Archivo | Qué va | Por qué |
+|---|---|---|
+| `src/app/favicon.ico` (16/32/48) | **monograma** (sigla del club sobre el color de firma) | el logo completo a 16 px es una mancha: no se lee |
+| `public/icon-32.png` | el mismo monograma | `<link rel="icon">` de 32 px |
+| `public/icon-192.png`, `icon-512.png` | logo o emblema completo | home screen / manifest, ahí sí hay lugar para el detalle |
+| `public/apple-touch-icon.png` (180) | logo compuesto sobre color **opaco** | iOS ignora la transparencia y la vuelve negra |
+
+Ojo: `manifest.ts` y `layout.tsx` ya declaran `/apple-touch-icon.png`. Si no existe, devuelve 404 y el
+manifest queda con un ícono roto.
