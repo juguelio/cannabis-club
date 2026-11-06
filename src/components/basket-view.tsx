@@ -132,7 +132,7 @@ export function BasketView({
           ) : null}
 
           <Link
-            href={items.length > 0 ? "/portal#confirmar-pedido" : "/portal"}
+            href={items.length > 0 ? "/portal/pedido" : "/portal"}
             className="btn btn-lg btn-block"
             aria-disabled={items.length === 0}
             style={{ marginTop: 4 }}

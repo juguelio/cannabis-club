@@ -453,14 +453,26 @@ export function MemberPortal({
           </p>
         </div>
       </section>
-      <section className="panel">
-        <div className="panel-head"><div>
-          <h2 className="panel-title" style={{ fontSize: 19 }}>Tu pedido</h2>
-          <p className="panel-sub">Armás el combo en las variedades —5 g por vez, hasta tu tope del mes— y acá elegís cómo lo recibís: en el club con turno, o en tu domicilio. El aporte de cultivo se prorratea al entregar: no es una venta.</p>
-        </div></div>
+      <section className="panel" id="tu-pedido" aria-labelledby="tu-pedido-title">
         <div className="panel-body">
+          <div className="flex items-center justify-between" style={{ flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <b id="tu-pedido-title" style={{ fontFamily: "var(--font-display)", fontSize: 17 }}>Tu pedido</b>
+              <div className="cell-meta">
+                {carrito.length
+                  ? `${carrito.length} ${carrito.length === 1 ? "variedad" : "variedades"} · ${g(gramsNum)} de ${g(data.tope)}${estimated != null ? ` · ${MONEY.format(estimated)}` : ""}`
+                  : "Vacío: sumá 5 g desde las variedades."}
+              </div>
+            </div>
+            <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+              <Link href="/portal/basket" className="btn btn-quiet">Ver basket</Link>
+              <Link href="/portal/pedido" className="btn" aria-disabled={carrito.length === 0}>
+                Hacer el pedido
+              </Link>
+            </div>
+          </div>
           {!open ? (
-            <div className="note note-warn">
+            <div className="note note-warn" style={{ marginTop: 10 }}>
               <CircleAlert aria-hidden />
               <div>
                 {!data.member.reprocannOk
@@ -472,306 +484,7 @@ export function MemberPortal({
                       : "Ya usaste todo tu saldo disponible. Se renueva el mes que viene."}
               </div>
             </div>
-          ) : (
-            <form className="stack" style={{ gap: 18 }} onSubmit={reserve} id="confirmar-pedido">
-              <div className="cart-summary" aria-live="polite">
-                <div className="cart-summary-head">
-                  <span className="label" style={{ margin: 0 }}>Tu combo</span>
-                  <span className="cart-total tnum">
-                    {g(gramsNum)} / {g(data.tope)}
-                  </span>
-                </div>
-
-                {carrito.length === 0 ? (
-                  <p className="hint" style={{ margin: "6px 0 0" }}>
-                    Elegí arriba las variedades y los gramos de cada una: el total se arma solo.
-                  </p>
-                ) : (
-                  <a href="/portal/basket" className="btn btn-quiet btn-block" style={{ marginTop: 8 }}>
-                    Revisar los {carrito.length} renglones en el basket
-                  </a>
-                )}
-
-                <span className="hint" style={{ marginTop: 8 }}>
-                  Hasta {g(data.tope)}{" "}
-                  {data.topeMotivo === "dia" ? `por el tope diario de ${g(data.limits.dayLimitG)}` : data.topeMotivo === "mes" ? "de tu saldo del mes" : "según el stock del club"}.
-                  {estimated != null ? ` Aporte estimado: ${MONEY.format(estimated)}.` : data.club.aportePorGramo != null ? ` Aporte: ${MONEY.format(data.club.aportePorGramo)} por gramo.` : ""}
-                </span>
-                {modo === "ENVIO" ? (
-                  <div className="cart-lineas">
-                    {zonaElegida ? (
-                      <div className="cart-linea">
-                        <span>Envío a {zonaElegida.zona}</span>
-                        <span className="tnum">{MONEY.format(zonaElegida.precioArs)}</span>
-                      </div>
-                    ) : (
-                      <div className="cart-linea">
-                        <span>Envío</span>
-                        <span>Elegí la zona</span>
-                      </div>
-                    )}
-                    {faltanParaEnvio > 0 ? (
-                      <p className="note note-warn" style={{ marginTop: 6 }}>
-                        <CircleAlert aria-hidden />
-                        <span>
-                          El envío sale desde {g(data.club.minimoEnvioG)}: te faltan {g(faltanParaEnvio)}. Sumá otra
-                          variedad o retirá en el club.
-                        </span>
-                      </p>
-                    ) : null}
-                    {totalACubrir > 0 ? (
-                      <div className="cart-linea cart-linea--total">
-                        <span>A cubrir al entregar</span>
-                        <span className="tnum">{MONEY.format(totalACubrir)}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-                <span className="cell-meta">El saldo del mes se renueva el día 1 y el tope diario a las 00:00. Se fracciona de a {PASO_G} g.</span>
-              </div>
-
-              {cobertura ? (
-                <div className={`note ${cobertura.estado === "CUBIERTA" ? "note-ok" : cobertura.estado === "SIN_COBERTURA" ? "note-warn" : "note"}`} role="status">
-                  <CircleAlert aria-hidden />
-                  <div>
-                    {cobertura.estado === "CUBIERTA" ? (
-                      <>
-                        <b>Enviamos a tu zona: {cobertura.zona.zona}.</b> {MONEY.format(cobertura.zona.precioArs)} ·{" "}
-                        {cobertura.zona.demora}
-                        {cobertura.zona.transportista ? ` · ${cobertura.zona.transportista}` : ""}.{" "}
-                        {cobertura.aproximada ? <span className="cell-meta">{cobertura.motivo}. </span> : null}
-                        Mínimo {g(data.club.minimoEnvioG)}.{" "}
-                        <Link href="/portal/envios" style={{ fontWeight: 650, textDecoration: "underline" }}>
-                          Ver todos los envíos
-                        </Link>
-                      </>
-                    ) : cobertura.estado === "SIN_CP" ? (
-                      <>
-                        <b>Falta tu código postal para saber si llegamos.</b>{" "}
-                        <Link href="/portal/datos" style={{ fontWeight: 650, textDecoration: "underline" }}>
-                          Completar mis datos
-                        </Link>
-                      </>
-                    ) : cobertura.estado === "SIN_ZONAS" ? (
-                      <>
-                        <b>Por ahora sólo retiro en el club</b>: todavía no hay zonas de envío cargadas.
-                      </>
-                    ) : (
-                      <>
-                        <b>No llegamos con envío a tu código postal ({cobertura.cp}).</b> {cobertura.motivo}. Podés retirar
-                        en el club o escribirnos para coordinar.
-                      </>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-
-              <div>
-                <span className="label">¿Cómo lo recibís?</span>
-                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Forma de entrega">
-                  {([
-                    { id: "RETIRO" as const, t: "Retiro en el club", d: "Con turno, el día que elijas" },
-                    { id: "ENVIO" as const, t: "Envío a domicilio", d: "A tu casa, por transporte" },
-                  ]).map((op) => (
-                    <button
-                      key={op.id}
-                      type="button"
-                      className={modo === op.id ? "btn btn-quiet" : "btn btn-quiet"}
-                      aria-pressed={modo === op.id}
-                      onClick={() => setModo(op.id)}
-                      style={
-                        modo === op.id
-                          ? { borderColor: "var(--ink)", boxShadow: "inset 0 0 0 1px var(--ink)", textAlign: "left" }
-                          : { textAlign: "left", opacity: 0.75 }
-                      }
-                    >
-                      <span style={{ display: "block", fontWeight: 650 }}>{op.t}</span>
-                      <span className="cell-meta">{op.d}</span>
-                    </button>
-                  ))}
-                </div>
-                {data.club.envios.length === 0 ? (
-                  <span className="hint">El club todavía no cargó zonas de envío: por ahora sólo retiro en el club.</span>
-                ) : null}
-                {modo === "ENVIO" && cobertura?.estado === "CUBIERTA" && zonaElegida && zonaElegida.zona !== cobertura.zona.zona ? (
-                  <span className="hint" style={{ display: "block", marginTop: 6, color: "var(--warn-ink, #7a4b00)" }}>
-                    Tu código postal ({cobertura.cp}) corresponde a <b>{cobertura.zona.zona}</b> y elegiste{" "}
-                    <b>{zonaElegida.zona}</b>. Si no coincide con tu domicilio, revisá la zona o tus datos.
-                  </span>
-                ) : null}
-                {!data.member.postalCode ? (
-                  <div className="note note-warn" role="status">
-                    <CircleAlert aria-hidden />
-                    <div>
-                      Para pedir envío falta tu código postal.{" "}
-                      <Link href="/portal/datos" style={{ fontWeight: 650, textDecoration: "underline" }}>
-                        Completar mis datos
-                      </Link>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
-              {modo === "RETIRO" ? (<>
-              <div>
-                <span className="label">¿Qué día?</span>
-                <div className="days" role="radiogroup" aria-label="Día del retiro">
-                  {(days.length ? days : [{ key: initialDay, weekday: 0, estado: "abierto" as EstadoDia }]).map((d) => {
-                    const p = dayParts(d.key);
-                    const cerrado = (d.estado ?? "abierto") !== "abierto";
-                    return (
-                      <button
-                        key={d.key}
-                        type="button"
-                        className="day"
-                        aria-pressed={d.key === day}
-                        aria-disabled={cerrado}
-                        title={cerrado ? MOTIVO_DIA[d.estado ?? "abierto"] : undefined}
-                        style={cerrado ? { opacity: 0.45 } : undefined}
-                        onClick={() => setDay(d.key)}
-                      >
-                        <small>{p.wd}</small><b className="tnum">{p.d}</b>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <span className="label">¿A qué hora?</span>
-                {slots.length === 0 ? (
-                  <p className="muted" style={{ margin: 0 }}>
-                    {closedDay
-                      ? "El club cerró ese día. Elegí otra fecha."
-                      : MOTIVO_DIA[days.find((d) => d.key === day)?.estado ?? "sin-franja"] || "Ese día el club no atiende."}
-                  </p>
-                ) : (
-                  <div className="slot-grid" role="radiogroup" aria-label="Horario del retiro">
-                    {slots.map((s) => (
-                      <button key={s.startMin} type="button" className="slot" disabled={s.full || s.past} aria-pressed={s.startMin === slot} onClick={() => setSlot(s.startMin)}>
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              </>) : (<>
-                <div>
-                  <label className="label" htmlFor="p-zona">¿A qué zona?</label>
-                  <select id="p-zona" className="input" value={zona} onChange={(e) => setZona(e.target.value)}>
-                    {data.club.envios.map((z) => (
-                      <option key={z.zona} value={z.zona}>
-                        {z.zona} · {MONEY.format(z.precioArs)} · {z.demora}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="hint">
-                    El envío lo paga el socio y se cobra aparte del aporte de cultivo.{" "}
-                    {zonaElegida ? `Sale por ${zonaElegida.transportista ?? "el transporte del club"}, ${zonaElegida.demora.toLowerCase()}.` : ""}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="label">¿A qué dirección lo mandamos?</span>
-                  <div className="dir-grid">
-                    <div>
-                      <label className="label" htmlFor="p-cp">Código postal</label>
-                      <input
-                        id="p-cp"
-                        className="input tnum"
-                        inputMode="numeric"
-                        value={cpEnvio}
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
-                          setCpEnvio(v);
-                          // Apenas hay cuatro dígitos se resuelve: no hace falta salir del campo para
-                          // que aparezca la ciudad.
-                          if (v.length === 4 && v !== ultimoCp.current) {
-                            ultimoCp.current = v;
-                            void resolverCp(v);
-                          }
-                        }}
-                        onBlur={(e) => void resolverCp(e.target.value)}
-                        placeholder="8370"
-                        maxLength={4}
-                      />
-                    </div>
-                    <div>
-                      <label className="label" htmlFor="p-loc">
-                        Localidad {cpEstado === "buscando" ? <span className="cell-meta">buscando…</span> : null}
-                      </label>
-                      {localidades.length > 1 ? (
-                        <select id="p-loc" className="input" value={localidad} onChange={(e) => setLocalidad(e.target.value)}>
-                          <option value="">Elegí tu localidad</option>
-                          {localidades.map((l) => (
-                            <option key={l} value={l}>{l}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          id="p-loc"
-                          className="input"
-                          value={localidad}
-                          onChange={(e) => setLocalidad(e.target.value)}
-                          placeholder="Sale del código postal"
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <label className="label" htmlFor="p-prov">Provincia</label>
-                      <input
-                        id="p-prov"
-                        className="input"
-                        value={provincia}
-                        onChange={(e) => setProvincia(e.target.value)}
-                        placeholder="Sale del código postal"
-                      />
-                    </div>
-                  </div>
-                  <label className="label" htmlFor="p-dir" style={{ marginTop: 10 }}>Calle y número</label>
-                  <input
-                    id="p-dir"
-                    className="input"
-                    value={calle}
-                    onChange={(e) => setCalle(e.target.value)}
-                    placeholder="Los Notros 195, piso 2 depto B"
-                  />
-                  <span className="hint">
-                    Con el código postal ya te proponemos la localidad y la provincia: revisalas, no las cambiamos por vos.
-                    Tiene que haber alguien para recibir; lo despachamos en un solo envío.
-                  </span>
-                  {cpEstado === "no-resuelto" ? (
-                    <span className="hint" style={{ display: "block", marginTop: 4, color: "var(--warn-ink, #7a4b00)" }}>
-                      No pudimos resolver ese código postal: completá localidad y provincia a mano.
-                    </span>
-                  ) : null}
-                </div>
-
-                {validGrams && gramsNum > data.club.topeEnvioG + 1e-9 ? (
-                  <div className="note note-warn">
-                    <CircleAlert aria-hidden />
-                    <div>Por envío salen hasta {g(data.club.topeEnvioG)}. Si querés más, dividilo en dos pedidos.</div>
-                  </div>
-                ) : null}
-              </>)}
-
-              {error ? <div className="note note-danger" role="alert">{error}</div> : null}
-              <button className="btn btn-lg btn-block" disabled={busy || !puedePedir}>
-                {busy
-                  ? "Enviando…"
-                  : modo === "ENVIO"
-                    ? envioValido
-                      ? `Pedir envío de ${g(gramsNum)} a ${zona}`
-                      : direccion.trim().length < 8
-                        ? "Completá la dirección"
-                        : "Pedir envío"
-                    : validGrams && chosen
-                      ? `Reservar ${g(gramsNum)} el ${dayParts(day).long} a las ${chosen.label}`
-                      : "Reservar retiro"}
-              </button>
-            </form>
-          )}
+          ) : null}
         </div>
       </section>
 
@@ -889,7 +602,8 @@ export function MemberPortal({
       </section>
 
 
-      <section className="panel" id="historial" aria-labelledby="history-title">
+      <details className="panel plegable">
+        <summary>Lo que retiraste</summary>
         <div className="panel-head"><div>
           <h2 className="panel-title" id="history-title">Lo que retiraste</h2>
           <p className="panel-sub">Tus últimas entregas en el club. Si una figura anulada, el club la corrigió y no cuenta para tu tope.</p>
@@ -920,82 +634,20 @@ export function MemberPortal({
             ))}
           </ul>
         )}
-      </section>
+      </details>
 
-      <section className="panel" id="privacidad">
-        <div className="panel-head"><div>
-          <h2 className="panel-title">Privacidad y permisos</h2>
-          <p className="panel-sub">
-            Esto es lo que el club tiene registrado que autorizaste, por separado. La carta del club la manejás vos
-            desde acá; para el resto, pedilo en la secretaría: queda registrado con fecha, no se borra.
+            <details className="panel plegable">
+        <summary>Privacidad y documentación</summary>
+        <div className="panel-body" style={{ display: "grid", gap: 8 }}>
+          <p className="hint" style={{ margin: 0 }}>
+            Tus permisos por finalidad, el texto que aceptaste y el estado de tu documentación están en
+            «Mis datos», en una pantalla propia.
           </p>
-        </div></div>
-        <div className="panel-body">
-          <ul className="stack" style={{ gap: 12, listStyle: "none", padding: 0, margin: 0 }}>
-            {consents.map((c) => (
-              <li key={c.purpose} style={{ display: "grid", gap: 4 }}>
-                <div className="flex flex-wrap items-center gap-2">
-                  <b>{c.label}</b>
-                  <Chip tone={c.granted ? "ok" : c.revokedAt ? "warn" : "mute"}>
-                    {c.granted ? "Autorizado" : c.revokedAt ? "Revocado" : "Sin registrar"}
-                  </Chip>
-                  {c.granted && c.grantedAt ? <span className="cell-meta">{fmtDate(c.grantedAt)}</span> : null}
-                  {c.version ? <span className="cell-meta">texto {c.version}</span> : null}
-                </div>
-                <span className="cell-meta">
-                  {(c.version && consentTexts[c.version]?.[c.purpose]) ?? c.detail}
-                </span>
-                {c.purpose === "COMUNICACIONES" ? (
-                  <div className="flex flex-wrap items-center gap-2" style={{ marginTop: 4 }}>
-                    <button
-                      type="button"
-                      className={carta ? "btn btn-sm btn-quiet" : "btn btn-sm"}
-                      disabled={cartaBusy}
-                      onClick={async () => {
-                        setCartaBusy(true);
-                        try {
-                          const r = await api("/api/portal/comunicaciones", { method: "POST", body: { quiere: !carta } });
-                          setCarta(!carta);
-                          toast({ tone: "ok", title: (r as { mensaje?: string })?.mensaje ?? "Listo." });
-                        } catch (e) {
-                          toast({ tone: "bad", title: "No se pudo cambiar", text: errMsg(e) });
-                        } finally {
-                          setCartaBusy(false);
-                        }
-                      }}
-                    >
-                      {carta ? "No quiero recibir la carta" : "Quiero recibir la carta"}
-                    </button>
-                    <span className="cell-meta">Es la carta mensual, no los avisos de tu trámite.</span>
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          <div>
+            <Link href="/portal/datos" className="btn btn-sm">Ver privacidad y documentación</Link>
+          </div>
         </div>
-      </section>
-
-      <section className="panel" id="documentacion">
-        <div className="panel-head"><div>
-          <h2 className="panel-title">Tu documentación</h2>
-          <p className="panel-sub">Si algo no coincide con tus papeles, avisá en la secretaría: el club lo corrige en tu legajo.</p>
-        </div></div>
-        <div className="panel-body">
-          {documentStatus.attention ? (
-            <div className="note note-warn" style={{ marginBottom: 16 }}>
-              <CircleAlert aria-hidden /><div><b>REPROCANN: {documentStatus.label}.</b> Revisá los datos con la secretaría del club.</div>
-            </div>
-          ) : null}
-          <dl className="dl">
-            <dt>Estado de la ficha</dt><dd>{{ ACTIVO: "Activo", PENDIENTE: "Pendiente", SUSPENDIDO: "Suspendido", BAJA: "De baja" }[data.member.status] ?? "Consultar en secretaría"}</dd>
-            <dt>Estado REPROCANN</dt><dd>{documentStatus.label}</dd>
-            <dt>Legajo</dt><dd className="tnum">{data.member.legajo}</dd>
-            <dt>REPROCANN</dt><dd>{data.member.reprocannNumber ?? "Sin número cargado"}</dd>
-            <dt>Vence</dt><dd>{fmtDate(data.member.reprocannExpiresAt)}</dd>
-            <dt>Consentimiento</dt><dd>{consentDate ? `Firmado el ${fmtDate(consentDate)}` : "Falta firmar en el club"}</dd>
-          </dl>
-        </div>
-      </section>
+      </details>
 
       <ReasonDialog
         open={cancelId != null}

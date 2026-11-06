@@ -942,3 +942,35 @@ details.card > div { min-width: 0; max-width: 100%; }
 /* Dirección del envío: CP primero, después localidad y provincia resueltas. */
 .dir-grid { display: grid; grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 @media (max-width: 640px) { .dir-grid { grid-template-columns: 1fr; gap: 8px; } }
+
+/* ── Checkout en pasos ──────────────────────────────────────────────────────── */
+.pasos { display: flex; gap: 6px; list-style: none; margin: 0 0 14px; padding: 0; flex-wrap: wrap; }
+.paso { display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.paso-num { width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; background: var(--line); color: var(--ink); font-size: 11.5px; font-weight: 700; }
+.paso--actual { border-color: var(--firma); color: var(--ink); font-weight: 650; background: color-mix(in srgb, var(--firma) 8%, transparent); }
+.paso--actual .paso-num { background: var(--firma); color: #fff; }
+.paso--hecho { color: var(--ink); }
+.paso--hecho .paso-num { background: var(--firma); color: #fff; }
+
+.checkout-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.checkout-resumen { position: sticky; top: 96px; }
+@media (max-width: 900px) { .checkout-grid { grid-template-columns: 1fr; } .checkout-resumen { position: static; order: -1; } }
+
+.entrega-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 520px) { .entrega-opciones { grid-template-columns: 1fr; } }
+.entrega-op {
+  display: grid; gap: 3px; justify-items: start; padding: 14px; border-radius: 12px; border: 1px solid var(--line);
+  background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-height: 76px;
+}
+.entrega-op[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.entrega-op small { color: var(--muted); font-size: 12.5px; }
+
+.cuenta { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cuenta li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13.5px; }
+.cuenta-total { border-top: 1px solid var(--line); padding-top: 8px; font-weight: 750; font-size: 15px !important; }
+
+.cobro-caja { display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; background: var(--soft, #f5f7f5); border: 1px solid var(--line); }
+.cobro-dato { display: flex; align-items: center; gap: 10px; font-size: 13.5px; flex-wrap: wrap; }
+.cobro-dato > span { color: var(--muted); min-width: 58px; }
+.cobro-dato code { font-family: var(--font-mono, ui-monospace); font-size: 13.5px; background: #fff; padding: 3px 7px; border-radius: 6px; border: 1px solid var(--line); }
+.cobro-copiar { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 4px 2px; color: var(--firma); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; text-decoration: underline; min-height: 32px; }
