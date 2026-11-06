@@ -11,7 +11,7 @@ import { Chip } from "./ui";
 import type { Variedad } from "@/lib/variedad-rules";
 import { aEnviar, disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito } from "@/lib/carrito";
 import { faltaParaMinimo, type Cobertura } from "@/lib/envios";
-import { esActivo, estadoPedido } from "@/lib/pedidos-estado";
+import { esActivo, esperaComprobante, estadoPedido } from "@/lib/pedidos-estado";
 import { VariedadCard } from "@/components/variedad-card";
 import { CarritoDrawer } from "@/components/carrito-drawer";
 import { useCarrito } from "@/lib/carrito-cliente";
@@ -550,6 +550,9 @@ export function MemberPortal({
                     <div className="flex items-center gap-2 flex-wrap">
                       <b className="tnum">{g(p.grams)}</b>
                       <span className={st.tone === "mute" ? "chip" : `chip chip-${st.tone}`}>{st.label}</span>
+                      {esperaComprobante(p.status, p.pago) ? (
+                        <span className="chip chip-warn">Falta el comprobante</span>
+                      ) : null}
                       <span className="chip">
                         {p.deliveryMode === "ENVIO" ? "Envío a domicilio" : "Retiro en el club"}
                       </span>

@@ -573,6 +573,18 @@ export async function confirmPickup(input: { id: string; actorId: string }) {
     const pickup = await tx.pickupRequest.findUnique({ where: { id: input.id } });
     if (!pickup) throw notFound("Reserva inexistente");
     if (pickup.status !== "SOLICITADA") throw conflict("PICKUP_NOT_PENDING", "Esa reserva ya fue confirmada o cerrada.");
+
+    // Sin comprobante no se confirma: el club estaría dando por pagado un aporte que no puede rendir.
+    // Un comprobante rechazado tampoco cuenta; hay que subir uno nuevo.
+    const comprobante = await tx.paymentProof.findFirst({
+      where: { pickupId: pickup.id, status: { in: ["EN_REVISION", "APROBADO"] } },
+      select: { id: true },
+    });
+    if (!comprobante)
+      throw conflict(
+        "SIN_COMPROBANTE",
+        "El pedido no tiene comprobante de la transferencia. Pedile al socio que lo suba antes de confirmar.",
+      );
     const updated = await tx.pickupRequest.update({
       where: { id: pickup.id },
       data: { status: "CONFIRMADA", confirmedAt: new Date() },

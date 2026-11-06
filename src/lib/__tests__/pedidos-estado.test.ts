@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { esActivo, estadoPedido } from "../pedidos-estado";
+import { esActivo, esperaComprobante, estadoPedido, faltaComprobante } from "../pedidos-estado";
 
 describe("estadoPedido", () => {
   it("un envío RETIRADA se llama «Despachado», nunca «entregado»: la entrega no la sabemos", () => {
@@ -36,5 +36,25 @@ describe("esActivo", () => {
     expect(esActivo("RETIRADA")).toBe(false);
     expect(esActivo("VENCIDA")).toBe(false);
     expect(esActivo("CANCELADA")).toBe(false);
+  });
+});
+
+describe("comprobante", () => {
+  it("un pedido sin comprobante no está cerrado", () => {
+    expect(faltaComprobante("PENDIENTE")).toBe(true);
+    expect(faltaComprobante(null)).toBe(true);
+    expect(faltaComprobante(undefined)).toBe(true);
+  });
+
+  it("en revisión o aprobado ya no falta", () => {
+    expect(faltaComprobante("EN_REVISION")).toBe(false);
+    expect(faltaComprobante("APROBADO")).toBe(false);
+  });
+
+  it("sólo se le pide a un pedido abierto: uno cancelado o retirado no debe nada", () => {
+    expect(esperaComprobante("SOLICITADA", "PENDIENTE")).toBe(true);
+    expect(esperaComprobante("CONFIRMADA", null)).toBe(true);
+    expect(esperaComprobante("CANCELADA", "PENDIENTE")).toBe(false);
+    expect(esperaComprobante("RETIRADA", null)).toBe(false);
   });
 });

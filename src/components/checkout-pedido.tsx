@@ -146,6 +146,22 @@ export function CheckoutPedido({
     return d && chosen ? `${d.label ?? day} a las ${chosen.label}` : null;
   })();
 
+  /** Sin comprobante no hay pedido cerrado: si el socio se arrepiente, se deshace entero. */
+  async function cancelar() {
+    if (!creado) return;
+    setBusy(true);
+    try {
+      await api(`/api/portal/pickups/${creado.id}/cancel`, {
+        body: { reason: "El socio no completó el comprobante" },
+      });
+      toast({ tone: "ok", title: "Pedido cancelado" });
+      router.push("/portal");
+    } catch (e) {
+      setError(errMsg(e));
+      setBusy(false);
+    }
+  }
+
   async function confirmar() {
     setBusy(true);
     setError(null);
@@ -460,7 +476,13 @@ export function CheckoutPedido({
                       router.refresh();
                     }}
                   />
-                  <Link href="/portal#mis-pedidos" className="btn btn-quiet btn-block">Lo subo después</Link>
+                  <button type="button" className="btn btn-quiet btn-block" onClick={cancelar} disabled={busy}>
+                    {busy ? "Cancelando…" : "Cancelar el pedido"}
+                  </button>
+                  <span className="cell-meta">
+                    Sin el comprobante el pedido no se cierra: si lo cancelás, el horario y los gramos
+                    vuelven a quedar disponibles.
+                  </span>
                 </div>
               )}
             </section>

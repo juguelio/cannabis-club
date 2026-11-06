@@ -45,3 +45,15 @@ export function estadoPedido(status: string, mode?: ModoPedido | null): Etiqueta
 
 /** Un pedido está activo mientras el club todavía tiene algo que hacer con él. */
 export const esActivo = (status: string) => status === "SOLICITADA" || status === "CONFIRMADA";
+
+/**
+ * Un pedido sin comprobante no está cerrado, aunque exista.
+ *
+ * El pedido se crea cuando el socio confirma la cuenta, pero la transferencia se prueba con el
+ * comprobante. Mientras no haya uno recibido, el club no tiene cómo rendir ese aporte: se muestra
+ * como pendiente para que nadie lo prepare ni lo entregue por error.
+ */
+export const faltaComprobante = (pago?: string | null) => pago !== "EN_REVISION" && pago !== "APROBADO";
+
+/** Sólo se le pide comprobante a un pedido que sigue abierto. */
+export const esperaComprobante = (status: string, pago?: string | null) => esActivo(status) && faltaComprobante(pago);
