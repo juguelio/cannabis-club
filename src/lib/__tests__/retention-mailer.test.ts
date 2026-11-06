@@ -45,12 +45,12 @@ describe("avisos por email", () => {
 
   it("con clave y remitente se considera configurado", () => {
     process.env.RESEND_API_KEY = "re_test";
-    process.env.CLUB_MAIL_FROM = "República ONG <no-reply@club.test>";
+    process.env.CLUB_MAIL_FROM = "Club El Bosque <no-reply@club.test>";
     expect(mailerConfigured()).toBe(true);
   });
 
   it("el aviso de aprobación dice el legajo y a dónde entrar", () => {
-    const texto = textoAprobado({ nombre: "María", legajo: 14, club: "República ONG", url: "https://club.test/login" });
+    const texto = textoAprobado({ nombre: "María", legajo: 14, club: "Club El Bosque", url: "https://club.test/login" });
     expect(texto).toContain("legajo es el 14");
     expect(texto).toContain("https://club.test/login");
     expect(texto).toContain("María");
@@ -60,7 +60,7 @@ describe("avisos por email", () => {
     const texto = textoRechazado({
       nombre: "María",
       motivo: "El DNI está ilegible",
-      club: "República ONG",
+      club: "Club El Bosque",
       url: "https://club.test/login",
     });
     expect(texto).toContain("Motivo: El DNI está ilegible");

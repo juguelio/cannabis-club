@@ -145,6 +145,7 @@ export async function portalOverview(memberId: string) {
       monthlyForecastG: member.monthlyForecastG == null ? null : Number(member.monthlyForecastG),
       address: member.address,
       locality: member.locality,
+      province: member.province,
       postalCode: member.postalCode,
     },
     club: {
@@ -350,6 +351,23 @@ export async function createPickup(input: {
         : dayRows.find((r) => r.memberId === member.id && ["PENDIENTE", "CONFIRMADO"].includes(r.status));
 
       let appointment: { id: string } | null = existing ?? null;
+
+      // Un turno no puede sostener dos pedidos: el índice de `PickupRequest.appointmentId` es único y,
+      // más importante, el socio estaría reservando dos veces lo mismo. Se dice con esas palabras en
+      // vez de dejar que reviente la base con un «ya existe un registro».
+      if (appointment) {
+        const yaTiene = await tx.pickupRequest.findFirst({
+          where: { appointmentId: appointment.id, status: { in: ["SOLICITADA", "CONFIRMADA"] } },
+          select: { id: true },
+        });
+        if (yaTiene) {
+          throw unprocessable(
+            "PEDIDO_DUPLICADO",
+            "Ya tenés un pedido para ese día y horario. Podés verlo en «Mis pedidos».",
+          );
+        }
+      }
+
       if (!esEnvio && !appointment) {
         const rules = (await tx.scheduleRule.findMany({ orderBy: [{ weekday: "asc" }, { startMin: "asc" }] })) as Rule[];
         const slot = evaluateBooking({
@@ -362,15 +380,33 @@ export async function createPickup(input: {
         });
         if (!slot.ok) throw unprocessable(slot.code, slot.message);
 
-        appointment = await tx.appointment.create({
-          data: {
-            memberId: member.id,
-            scheduledAt: slot.at,
-            status: "PENDIENTE",
-            channel: "WEB",
-            notes: "Reserva de retiro del portal",
-          },
+        // Un turno cancelado sigue ocupando el lugar: el índice único es (memberId, scheduledAt) y no
+        // distingue estados. Si el socio vuelve a elegir esa hora, se reactiva el turno que había
+        // cancelado en vez de intentar crear otro y chocar contra la base.
+        const cancelado = await tx.appointment.findFirst({
+          where: { memberId: member.id, scheduledAt: slot.at, status: "CANCELADO" },
+          select: { id: true },
         });
+        if (cancelado) {
+          await tx.pickupRequest.updateMany({
+            where: { appointmentId: cancelado.id },
+            data: { appointmentId: null },
+          });
+        }
+        appointment = cancelado
+          ? await tx.appointment.update({
+              where: { id: cancelado.id },
+              data: { status: "PENDIENTE", channel: "WEB", notes: "Reserva de retiro del portal" },
+            })
+          : await tx.appointment.create({
+              data: {
+                memberId: member.id,
+                scheduledAt: slot.at,
+                status: "PENDIENTE",
+                channel: "WEB",
+                notes: "Reserva de retiro del portal",
+              },
+            });
       }
 
       const aportePorGramo = club.aportePorGramo == null ? null : new Prisma.Decimal(Number(club.aportePorGramo).toFixed(2));
@@ -457,7 +493,14 @@ export async function cancelPickup(input: { id: string; actorId: string | null; 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.pickupRequest.update({
       where: { id: pickup.id },
-      data: { status: "CANCELADA", canceledAt: new Date(), cancelReason: input.reason.trim() },
+      data: {
+        status: "CANCELADA",
+        canceledAt: new Date(),
+        cancelReason: input.reason.trim(),
+        // Se suelta el turno: `PickupRequest.appointmentId` es único y el horario tiene que quedar
+        // libre para que el socio pueda volver a pedirlo.
+        appointmentId: null,
+      },
     });
     if (pickup.appointmentId) {
       await tx.appointment.update({

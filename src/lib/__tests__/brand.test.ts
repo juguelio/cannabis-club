@@ -93,7 +93,7 @@ describe("marca", () => {
     expect(contrastNotes({ ...DEFAULT_COLORS, oscuro: "#f3c4d3" }).length).toBeGreaterThan(0);
   });
 
-  it("República: fuente, gótica y afiche", () => {
+  it("afiche: fuente de títulos y gótica del nombre", () => {
     const b = brandSchema.parse({
       colores: PALETAS.find((p) => p.key === "afiche")!.colores,
       fuenteTitulos: "montserrat",
@@ -107,7 +107,7 @@ describe("marca", () => {
   });
 
   it("valida contacto", () => {
-    const ok = brandSchema.safeParse({ colores: DEFAULT_COLORS, contacto: { whatsapp: "5491156160623", instagram: "republica.ong" } });
+    const ok = brandSchema.safeParse({ colores: DEFAULT_COLORS, contacto: { whatsapp: "5491156160623", instagram: "club.ejemplo" } });
     expect(ok.success).toBe(true);
     expect(brandSchema.safeParse({ colores: DEFAULT_COLORS, contacto: { whatsapp: "+54 11" } }).success).toBe(false);
     expect(brandSchema.safeParse({ colores: DEFAULT_COLORS, contacto: { instagram: "@x y" } }).success).toBe(false);
@@ -126,7 +126,7 @@ describe("marca", () => {
   });
 
   it("sigla y WhatsApp", () => {
-    expect(siglaOf(DEFAULT_BRAND, "Asociación Civil República ONG")).toBe("R");
+    expect(siglaOf(DEFAULT_BRAND, "Asociación Civil Ejemplo Verde")).toBe("EV");
     expect(siglaOf({ ...DEFAULT_BRAND, sigla: "rc" }, "x")).toBe("RC");
     expect(siglaOf(DEFAULT_BRAND, "Cultivo del Sur")).toBe("CS");
     expect(whatsappHref("5491100000000", "Hola, quiero info")).toBe("https://wa.me/5491100000000?text=Hola%2C%20quiero%20info");

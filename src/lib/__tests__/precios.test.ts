@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aportePorGramoDe, gramosPorEnvio, preciosDeClub, PRECIOS_POR_DEFECTO, validarPrecios } from "../precios";
 
-const republica = {
+const ejemplo = {
   membresiaGramos: 10,
   aporteMembresiaArs: 130_000,
   maxMembresiasPorEnvio: 4,
@@ -21,11 +21,11 @@ describe("precios del club", () => {
   });
 
   it("el aporte por gramo sale de dividir el aporte por membresía", () => {
-    expect(aportePorGramoDe(preciosDeClub({ precios: republica }))).toBe(13_000);
+    expect(aportePorGramoDe(preciosDeClub({ precios: ejemplo }))).toBe(13_000);
   });
 
   it("los gramos por envío son membresía por máximo", () => {
-    expect(gramosPorEnvio(preciosDeClub({ precios: republica }))).toBe(40);
+    expect(gramosPorEnvio(preciosDeClub({ precios: ejemplo }))).toBe(40);
   });
 
   it("un club viejo sólo con aporte por gramo sigue calculando", () => {
@@ -33,23 +33,23 @@ describe("precios del club", () => {
   });
 
   it("valida lo que manda la pantalla y devuelve el aporte por gramo", () => {
-    const r = validarPrecios(republica);
+    const r = validarPrecios(ejemplo);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.aportePorGramo).toBe(13_000);
   });
 
   it("rechaza una membresía de 0 gramos", () => {
-    const r = validarPrecios({ ...republica, membresiaGramos: 0 });
+    const r = validarPrecios({ ...ejemplo, membresiaGramos: 0 });
     expect(r.ok).toBe(false);
   });
 
   it("rechaza más de 10 membresías por envío", () => {
-    const r = validarPrecios({ ...republica, maxMembresiasPorEnvio: 12 });
+    const r = validarPrecios({ ...ejemplo, maxMembresiasPorEnvio: 12 });
     expect(r.ok).toBe(false);
   });
 
   it("acepta precios con coma decimal", () => {
-    const p = preciosDeClub({ precios: { ...republica, aporteMembresiaArs: "130000,50" } });
+    const p = preciosDeClub({ precios: { ...ejemplo, aporteMembresiaArs: "130000,50" } });
     expect(p.aporteMembresiaArs).toBe(130000.5);
   });
 });

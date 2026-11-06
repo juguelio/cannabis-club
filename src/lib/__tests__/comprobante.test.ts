@@ -101,8 +101,8 @@ describe("analizarMonto", () => {
 
 describe("datos de cobro del club", () => {
   it("acepta alias y CBU de 22 dígitos", () => {
-    const c = leerCobro({ alias: "republica.ong", cbu: "2850590940090418135201", titular: "República ONG", banco: "Macro" });
-    expect(c).toEqual({ alias: "republica.ong", cbu: "2850590940090418135201", titular: "República ONG", banco: "Macro", nota: null });
+    const c = leerCobro({ alias: "club.ejemplo", cbu: "2850590940090418135201", titular: "Club El Bosque", banco: "Macro" });
+    expect(c).toEqual({ alias: "club.ejemplo", cbu: "2850590940090418135201", titular: "Club El Bosque", banco: "Macro", nota: null });
     expect(cobroConfigurado(c)).toBe(true);
   });
 
@@ -117,8 +117,8 @@ describe("datos de cobro del club", () => {
   });
 
   it("normalizar guarda sólo lo que hay", () => {
-    expect(normalizarCobro({ alias: " republica.ong ", nota: "  Transferí antes de las 18 " })).toEqual({
-      alias: "republica.ong",
+    expect(normalizarCobro({ alias: " club.ejemplo ", nota: "  Transferí antes de las 18 " })).toEqual({
+      alias: "club.ejemplo",
       nota: "Transferí antes de las 18",
     });
   });

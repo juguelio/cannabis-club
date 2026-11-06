@@ -642,7 +642,7 @@ enum ShipmentStatus {
   CANCELADO
 }
 
-/// Traslado de materia vegetal a pacientes que no retiran en sede (el club entrega a distancia).
+/// Traslado de materia vegetal a pacientes que no retiran en sede (si el club entrega a distancia).
 /// No crea stock: el traslado mueve lo ya dispensado por `ShipmentItem.dispensationId`.
 model Shipment {
   id          String         @id @default(cuid())

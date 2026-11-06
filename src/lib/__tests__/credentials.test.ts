@@ -39,6 +39,6 @@ describe("política de la clave nueva", () => {
   });
 
   it("acepta una clave razonable", () => {
-    expect(passwordPolicy("republica-2026").ok).toBe(true);
+    expect(passwordPolicy("clave-larga-2026").ok).toBe(true);
   });
 });

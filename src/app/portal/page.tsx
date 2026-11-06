@@ -8,7 +8,7 @@ import { recalledBatchesForMember } from "@/lib/batch-quality";
 import { CONSENT_TEXTS, memberConsents } from "@/lib/privacy";
 import QRCode from "qrcode";
 import Link from "next/link";
-import { ArrowRight, Stethoscope } from "lucide-react";
+import { ArrowRight, MapPin, PackageCheck, Stethoscope, Truck } from "lucide-react";
 import { WizardReprocann } from "@/components/wizard-reprocann";
 import { POR_QUE_LA_GUIA, pantallaDeEntrada } from "@/lib/reprocann-entrada";
 import { MemberPortal } from "@/components/member-portal";
@@ -150,10 +150,34 @@ export default async function PortalPage() {
   }
 
   const base = process.env.APP_BASE_URL?.replace(/\/$/, "") ?? "";
-  const qr = await QRCode.toString(`${base}/dispensario?socio=${session.memberId}`, { type: "svg", margin: 0, color: { dark: "#1f2933", light: "#ffffff" } });
+  const qr = await QRCode.toString(`${base}/dispensario?socio=${session.memberId}`, { type: "svg", margin: 0, color: { dark: "#10231b", light: "#ffffff" } });
 
   return (
     <>
+      <Link href="/portal#mis-pedidos" className="member-shortcut-datos">
+        <PackageCheck aria-hidden size={18} />
+        <span>
+          <b>Mis pedidos</b>
+          <small>Retiros y envíos, con su estado y su fecha.</small>
+        </span>
+      </Link>
+
+      <Link href="/portal/envios" className="member-shortcut-datos">
+        <Truck aria-hidden size={18} />
+        <span>
+          <b>Envíos</b>
+          <small>Zonas, costos, demora y mínimo — antes de armar el pedido.</small>
+        </span>
+      </Link>
+
+      <Link href="/portal/datos" className="member-shortcut-datos">
+        <MapPin aria-hidden size={18} />
+        <span>
+          <b>Mis datos</b>
+          <small>Domicilio, código postal y teléfono — lo que hace falta para un envío.</small>
+        </span>
+      </Link>
+
       <Link href="/portal/reprocann" className="member-shortcut-reprocann">
         <Stethoscope aria-hidden size={18} />
         <span>

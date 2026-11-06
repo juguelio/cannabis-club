@@ -32,13 +32,13 @@ describe("aviso de vencimiento del REPROCANN", () => {
   });
 
   it("el texto dice qué pasa y qué hacer, sin afirmar que ya venció", () => {
-    const t = textoAvisoVencimiento({ nombre: "Ana", dias: 12, club: "República" });
+    const t = textoAvisoVencimiento({ nombre: "Ana", dias: 12, club: "El Bosque" });
     expect(t).toContain("Ana");
     expect(t).toContain("vence en 12 días");
-    expect(t).toContain("República");
+    expect(t).toContain("El Bosque");
     expect(t).not.toContain("venció");
-    expect(textoAvisoVencimiento({ nombre: "Ana", dias: 0, club: "República" })).toContain("vence hoy");
-    expect(textoAvisoVencimiento({ nombre: "Ana", dias: 1, club: "República" })).toContain("vence mañana");
+    expect(textoAvisoVencimiento({ nombre: "Ana", dias: 0, club: "El Bosque" })).toContain("vence hoy");
+    expect(textoAvisoVencimiento({ nombre: "Ana", dias: 1, club: "El Bosque" })).toContain("vence mañana");
   });
 
   it("el tono cambia según cuánto falta: un mes informa, la última semana apura", () => {
@@ -59,7 +59,7 @@ describe("aviso de vencimiento del REPROCANN", () => {
     const aviso = copyAvisoVencimiento({
       nombre: "Ana",
       dias: 30,
-      club: "República",
+      club: "El Bosque",
       expira: new Date("2026-12-30T00:00:00.000Z"),
     });
     expect(aviso.asunto).toBe("Tu REPROCANN vence en un mes");
@@ -76,14 +76,14 @@ describe("aviso de vencimiento del REPROCANN", () => {
   });
 
   it("cuando faltan días el aviso apura y no promete un mes", () => {
-    const aviso = copyAvisoVencimiento({ nombre: "Ana", dias: 3, club: "República", expira: new Date("2026-11-04T00:00:00.000Z") });
+    const aviso = copyAvisoVencimiento({ nombre: "Ana", dias: 3, club: "El Bosque", expira: new Date("2026-11-04T00:00:00.000Z") });
     expect(aviso.asunto).toBe("Tu REPROCANN vence en 3 días");
     expect(aviso.copete).toContain("quedan 3 días");
     expect(aviso.parrafos.join(" ")).not.toContain("con un mes");
   });
 
   it("el texto plano del aviso también lleva la fecha", () => {
-    const t = textoAvisoVencimiento({ nombre: "Ana", dias: 30, club: "República", expira: new Date("2026-12-30T00:00:00.000Z") });
+    const t = textoAvisoVencimiento({ nombre: "Ana", dias: 30, club: "El Bosque", expira: new Date("2026-12-30T00:00:00.000Z") });
     expect(t).toContain("vence en 30 días");
     expect(t).toContain("30 de diciembre de 2026");
     expect(t).toContain("portal del socio");

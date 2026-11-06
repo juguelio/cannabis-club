@@ -1,4 +1,4 @@
-import { Leaf } from "lucide-react";
+import { Leaf, Minus, Plus } from "lucide-react";
 import type { Variedad } from "@/lib/variedad-rules";
 
 /**
@@ -6,7 +6,16 @@ import type { Variedad } from "@/lib/variedad-rules";
  * nombre, genética y estado de stock. No muestra precios: el aporte se prorratea al retirar.
  * Se usa igual en el sitio público y en el portal del socio.
  */
-export function VariedadCard({ v, tone = "light" }: { v: Variedad; tone?: "light" | "site" }) {
+export function VariedadCard({
+  v,
+  tone = "light",
+  carrito,
+}: {
+  v: Variedad;
+  tone?: "light" | "site";
+  /** En el portal la tarjeta suma gramos; en el sitio público sólo muestra el catálogo. */
+  carrito?: { gramos: number; puedeSubir: boolean; onDelta: (paso: number) => void };
+}) {
   const borde = tone === "site" ? "color-mix(in srgb, currentColor 18%, transparent)" : "var(--line)";
   const suave = tone === "site" ? "color-mix(in srgb, currentColor 7%, transparent)" : "var(--surface, #fff)";
 
@@ -68,6 +77,32 @@ export function VariedadCard({ v, tone = "light" }: { v: Variedad; tone?: "light
             {v.thc != null ? <span>THC {v.thc}%</span> : null}
             {v.thc != null && v.cbd != null ? <span>·</span> : null}
             {v.cbd != null ? <span>CBD {v.cbd}%</span> : null}
+          </div>
+        ) : null}
+
+        {carrito ? (
+          <div className="cart-step" role="group" aria-label={`Gramos de ${v.nombre}`}>
+            <button
+              type="button"
+              className="cart-step-btn"
+              onClick={() => carrito.onDelta(-5)}
+              disabled={!v.disponible || carrito.gramos <= 0}
+              aria-label={`Sacar 5 gramos de ${v.nombre}`}
+            >
+              <Minus aria-hidden size={14} />
+            </button>
+            <span className="cart-step-num tnum" aria-live="polite">
+              {carrito.gramos > 0 ? `${carrito.gramos} g` : "—"}
+            </span>
+            <button
+              type="button"
+              className="cart-step-btn"
+              onClick={() => carrito.onDelta(5)}
+              disabled={!v.disponible || !carrito.puedeSubir}
+              aria-label={`Agregar 5 gramos de ${v.nombre}`}
+            >
+              <Plus aria-hidden size={14} />
+            </button>
           </div>
         ) : null}
       </div>

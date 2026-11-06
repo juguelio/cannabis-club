@@ -1,13 +1,20 @@
 "use client";
 
 
-import { useEffect, useState } from "react";
-import { CalendarCheck2, CircleAlert, Leaf, QrCode } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { CalendarCheck2, CircleAlert, Leaf, PackageCheck, QrCode, Truck } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
 import type { Variedad } from "@/lib/variedad-rules";
+import { aEnviar, disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito } from "@/lib/carrito";
+import { faltaParaMinimo, type Cobertura } from "@/lib/envios";
+import { esActivo, estadoPedido } from "@/lib/pedidos-estado";
 import { VariedadCard } from "@/components/variedad-card";
+import { CarritoDrawer } from "@/components/carrito-drawer";
+import { useCarrito } from "@/lib/carrito-cliente";
 import { ComprobantePago } from "@/components/comprobante-pago";
 import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
@@ -26,6 +33,7 @@ type Overview = {
     reprocannDays: number | null;
     address: string | null;
     locality: string | null;
+    province: string | null;
     postalCode: string | null;
   };
   club: {
@@ -36,6 +44,10 @@ type Overview = {
     cobro?: { alias: string | null; cbu: string | null; titular: string | null; banco: string | null; nota: string | null };
     /** Cuántos gramos entran en un envío (membresías por caja × gramos de la membresía). */
     topeEnvioG: number;
+    /** Piso del envío: por debajo no se despacha. Lo decide el club. */
+    minimoEnvioG: number;
+    /** Qué zona le toca según su código postal (o por qué no le toca ninguna). */
+    cobertura?: Cobertura;
   };
   limits: { monthLimitG: number; dayLimitG: number; isMinor: boolean; thcMaxPct: number | null };
   usage: { dayGrams: number; monthGrams: number };
@@ -57,9 +69,13 @@ type Overview = {
     deliveryMode?: "RETIRO" | "ENVIO";
     deliveryZona?: string | null;
     deliveryCostoArs?: number | null;
-    pago?: "PENDIENTE" | "EN_REVISION" | "APROBADO" | "RECHAZADO";
-    pagoMotivo?: string | null;
+    pago: "PENDIENTE" | "EN_REVISION" | "APROBADO" | "RECHAZADO";
+    pagoMotivo: string | null;
   }[];
+  /** Totales reales de la base, no de la lista recortada. */
+  pickupTotals?: { todos: number; activos: number; cerrados: number };
+  /** Cuántos pedidos entran en `pickups`: si el total es mayor, la lista es un recorte. */
+  pickupsLimit?: number;
 };
 
 type Slot = { startMin: number; label: string; free: number; past: boolean; full: boolean };
@@ -82,13 +98,7 @@ const dayParts = (key: string) => {
   const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return { wd: WD[wd], long: `${WDL[wd]} ${d}/${m}`, d };
 };
-const PICKUP_LABEL: Record<string, { label: string; tone: string }> = {
-  SOLICITADA: { label: "Reservado", tone: "brand" },
-  CONFIRMADA: { label: "Confirmado por el club", tone: "ok" },
-  RETIRADA: { label: "Retirado", tone: "mute" },
-  VENCIDA: { label: "Venció sin retirar", tone: "warn" },
-  CANCELADA: { label: "Cancelado", tone: "mute" },
-};
+
 
 export type MemberHistory = { id: string; at: string; grams: number; strain: string; batch: string; voided: boolean }[];
 const fmtDay = (iso: string) =>
@@ -124,7 +134,12 @@ export function MemberPortal({
   const [day, setDay] = useState(initialDay);
   const [days, setDays] = useState<Day[]>([]);
   const [slots, setSlots] = useState<Slot[]>(initialSlots);
-  const [grams, setGrams] = useState<string>("");
+  // El combo se arma en el catálogo de variedades, no en un campo de gramos suelto: el socio elige
+  // de qué cepas quiere y el total sale de ahí.
+  const { items: carrito, setItems: setCarrito } = useCarrito(data.tope);
+  const router = useRouter();
+  const [filtroPedidos, setFiltroPedidos] = useState<"TODOS" | "ACTIVOS" | "CERRADOS">("TODOS");
+  const [drawerAbierto, setDrawerAbierto] = useState(false);
   const [slot, setSlot] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,8 +152,22 @@ export function MemberPortal({
   // La carta del club la decide el socio, no la secretaría: se pide y se retira desde acá.
   const [carta, setCarta] = useState<boolean>(consents.some((c) => c.purpose === "COMUNICACIONES" && c.granted));
   const [cartaBusy, setCartaBusy] = useState(false);
-  const [zona, setZona] = useState<string>(data.club.envios[0]?.zona ?? "");
-  const [direccion, setDireccion] = useState<string>(data.member.address ?? "");
+  // La zona arranca en la que corresponde a su código postal, no en la primera de la lista: el socio
+  // de Neuquén no debería ver «CABA $20.000» preseleccionado y descubrirlo al pagar.
+  const [zona, setZona] = useState<string>(
+    data.club.cobertura?.estado === "CUBIERTA" ? data.club.cobertura.zona.zona : (data.club.envios[0]?.zona ?? ""),
+  );
+  // La dirección se arma por partes: el CP resuelve localidad y provincia, y el socio sólo escribe
+  // calle y número. Es lo que evita el «Calle 123, San Martín» sin provincia ni CP.
+  const [calle, setCalle] = useState<string>(data.member.address ?? "");
+  const [cpEnvio, setCpEnvio] = useState<string>(data.member.postalCode ?? "");
+  const [localidad, setLocalidad] = useState<string>(data.member.locality ?? "");
+  const [provincia, setProvincia] = useState<string>(data.member.province ?? "");
+  const [localidades, setLocalidades] = useState<string[]>([]);
+  const [cpEstado, setCpEstado] = useState<"idle" | "buscando" | "ok" | "no-resuelto">("idle");
+  // Evita repetir la consulta del mismo código en cada tecla.
+  const ultimoCp = useRef<string>("");
+  const direccion = [calle.trim(), localidad.trim(), provincia.trim(), cpEnvio.trim()].filter(Boolean).join(", ");
   const documentStatus = memberDocumentStatus(data.member);
   const visibleHistory = history.filter((item) => historyFilter === "all" || (historyFilter === "voided" ? item.voided : !item.voided));
 
@@ -156,15 +185,52 @@ export function MemberPortal({
     return () => { alive = false; };
   }, [day]);
 
+  /** Pregunta al club/CP qué localidad corresponde; no inventa nada si no lo puede resolver. */
+  const resolverCp = async (valor: string) => {
+    const limpio = valor.replace(/\D/g, "");
+    if (limpio.length < 4) return;
+    setCpEstado("buscando");
+    try {
+      const r = await api<{ estado: string; localidades: string[]; provincia: string | null }>(`/api/portal/cp?cp=${limpio}`);
+      setLocalidades(r.localidades ?? []);
+      if (r.provincia) setProvincia(r.provincia);
+      if (r.localidades?.length === 1) setLocalidad(r.localidades[0]);
+      else if (r.localidades?.length > 1 && !r.localidades.includes(localidad)) setLocalidad("");
+      setCpEstado(r.estado === "OK" ? "ok" : "no-resuelto");
+    } catch {
+      setCpEstado("no-resuelto");
+    }
+  };
+
   const open = data.member.reprocannOk && data.member.status === "ACTIVO" && data.tope > 0;
-  const gramsNum = Number(grams.replace(",", "."));
-  const validGrams = Number.isFinite(gramsNum) && gramsNum > 0 && gramsNum <= data.tope + 1e-9;
+  const gramsNum = totalCarrito(carrito);
+  const validGrams = gramsNum > 0 && gramsNum <= data.tope + 1e-9;
+  const puedeSubir = (id: string) => gramosDe(carrito, id) > 0 || disponibleCarrito(carrito, data.tope) >= PASO_G;
   const estimated = data.club.aportePorGramo != null && validGrams ? data.club.aportePorGramo * gramsNum : null;
+  const cepaNombre = (id: string) => variedades.find((v) => v.id === id)?.nombre ?? "Variedad";
   const chosen = slots.find((s) => s.startMin === slot);
-  const openPickup = data.pickups.find((p) => ["SOLICITADA", "CONFIRMADA"].includes(p.status));
+  const activos = data.pickups.filter((p) => esActivo(p.status));
+  const totales = data.pickupTotals ?? {
+    todos: data.pickups.length,
+    activos: activos.length,
+    cerrados: data.pickups.length - activos.length,
+  };
+  const pickupsVisibles = data.pickups.filter((p) =>
+    filtroPedidos === "TODOS" ? true : filtroPedidos === "ACTIVOS" ? esActivo(p.status) : !esActivo(p.status),
+  );
   const zonaElegida = data.club.envios.find((z) => z.zona === zona);
+  const cobertura = data.club.cobertura;
+  const faltanParaEnvio = faltaParaMinimo(gramsNum, data.club.minimoEnvioG ?? 0);
+  const gramosFaltanEnvio = faltanParaEnvio;
+  const costoEnvio = modo === "ENVIO" ? (zonaElegida?.precioArs ?? 0) : 0;
+  const totalACubrir = (estimated ?? 0) + costoEnvio;
   const envioValido =
-    modo === "ENVIO" && validGrams && zonaElegida != null && direccion.trim().length >= 8 && gramsNum <= data.club.topeEnvioG + 1e-9;
+    modo === "ENVIO" &&
+    validGrams &&
+    zonaElegida != null &&
+    direccion.trim().length >= 8 &&
+    gramsNum <= data.club.topeEnvioG + 1e-9 &&
+    faltanParaEnvio === 0;
   const puedePedir = validGrams && (modo === "RETIRO" ? slot != null : envioValido);
 
   async function reserve(event: React.FormEvent) {
@@ -176,11 +242,11 @@ export function MemberPortal({
       const json = await api<{ overview: Overview }>("/api/portal/pickups", {
         body:
           modo === "ENVIO"
-            ? { mode: "ENVIO", grams: gramsNum, zona, direccion: direccion.trim() }
-            : { mode: "RETIRO", grams: gramsNum, date: day, startMin: slot },
+            ? { mode: "ENVIO", grams: gramsNum, items: aEnviar(carrito), zona, direccion: direccion.trim() }
+            : { mode: "RETIRO", grams: gramsNum, items: aEnviar(carrito), date: day, startMin: slot },
       });
       setData(json.overview);
-      setGrams("");
+      setCarrito([]);
       setSlot(null);
       toast(
         modo === "ENVIO"
@@ -306,24 +372,107 @@ export function MemberPortal({
           </div>
       </section>
 
-      {openPickup ? (
+      {activos.length === 1 ? (
         <div className="note note-ok">
-          <CalendarCheck2 aria-hidden />
+          {activos[0].deliveryMode === "ENVIO" ? <Truck aria-hidden /> : <CalendarCheck2 aria-hidden />}
           <div>
-            <b>Tenés un retiro de {g(openPickup.grams)}{openPickup.pickupLabel ? ` el ${openPickup.pickupLabel.replace(" · ", " a las ")}` : ""}.</b>{" "}
-            {openPickup.status === "CONFIRMADA" ? "El club ya lo confirmó." : "El club lo va a confirmar."} Traé tu DNI.
+            <b>
+              {activos[0].deliveryMode === "ENVIO"
+                ? `Tenés un envío de ${g(activos[0].grams)} en camino a prepararse.`
+                : `Tenés un retiro de ${g(activos[0].grams)}${activos[0].pickupLabel ? ` el ${activos[0].pickupLabel.replace(" · ", " a las ")}` : ""}.`}
+            </b>{" "}
+            {activos[0].status === "CONFIRMADA" ? "El club ya lo confirmó." : "El club lo va a confirmar."}{" "}
+            {activos[0].deliveryMode === "ENVIO"
+              ? "Lo despacha el club y te avisamos cuando sale."
+              : "Traé tu DNI para retirarlo."}
+          </div>
+        </div>
+      ) : activos.length > 1 ? (
+        <div className="note note-ok">
+          <PackageCheck aria-hidden />
+          <div>
+            <b>Tenés {activos.length} pedidos activos.</b>{" "}
+            {(() => {
+              const envios = activos.filter((p) => p.deliveryMode === "ENVIO").length;
+              const retiros = activos.length - envios;
+              return [
+                retiros ? `${retiros} para retirar en el club` : null,
+                envios ? `${envios} para despachar a domicilio` : null,
+              ]
+                .filter(Boolean)
+                .join(" y ")
+                .concat(". Si vas a retirar, traé tu DNI.");
+            })()}{" "}
+            <button
+              type="button"
+              className="btn btn-sm btn-quiet"
+              style={{ marginLeft: 4 }}
+              onClick={() => {
+                setFiltroPedidos("ACTIVOS");
+                document.getElementById("mis-pedidos")?.scrollIntoView({ block: "start", behavior: "smooth" });
+              }}
+            >
+              Ver mis pedidos
+            </button>
           </div>
         </div>
       ) : null}
 
-      <section className="panel">
+      <section className="panel" id="variedades" aria-labelledby="variedades-title">
         <div className="panel-head"><div>
-          <h2 className="panel-title" style={{ fontSize: 19 }}>Pedir tu producción</h2>
-          <p className="panel-sub">Reservás gramos de la producción del club y elegís cómo los recibís: retirás en el club con turno, o te los enviamos a tu domicilio. El aporte de cultivo se prorratea al entregar: no es una venta.</p>
+          <h2 className="panel-title" style={{ fontSize: 19 }} id="variedades-title">Variedades del club</h2>
+          <p className="panel-sub">Lo que el club tiene cultivado. No se vende: el aporte de cultivo se prorratea al retirar y lo ves en tu cuenta.</p>
         </div></div>
         <div className="panel-body">
+          {variedades.length === 0 ? (
+            <div className="note note-mute">
+              <Leaf aria-hidden />
+              <div>Todavía no hay variedades publicadas. Cuando el club cierre una cosecha, aparecen acá.</div>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
+              {variedades.map((v) => (
+                <VariedadCard
+                  key={v.id}
+                  v={v}
+                  carrito={
+                    open
+                      ? {
+                          gramos: gramosDe(carrito, v.id),
+                          puedeSubir: puedeSubir(v.id),
+                          onDelta: (paso) => setCarrito(moverItem(carrito, v.id, paso, data.tope)),
+                        }
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+          <p className="panel-sub" style={{ marginTop: 12, marginBottom: 0 }}>
+            Para llevarte algo, reservá un retiro arriba: elegís gramos y horario, y el club lo prepara.
+          </p>
+        </div>
+      </section>
+      <section className="panel" id="tu-pedido" aria-labelledby="tu-pedido-title">
+        <div className="panel-body">
+          <div className="flex items-center justify-between" style={{ flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <b id="tu-pedido-title" style={{ fontFamily: "var(--font-display)", fontSize: 17 }}>Tu pedido</b>
+              <div className="cell-meta">
+                {carrito.length
+                  ? `${carrito.length} ${carrito.length === 1 ? "variedad" : "variedades"} · ${g(gramsNum)} de ${g(data.tope)}${estimated != null ? ` · ${MONEY.format(estimated)}` : ""}`
+                  : "Vacío: sumá 5 g desde las variedades."}
+              </div>
+            </div>
+            <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+              <Link href="/portal/basket" className="btn btn-quiet">Ver basket</Link>
+              <Link href="/portal/pedido" className="btn" aria-disabled={carrito.length === 0}>
+                Hacer el pedido
+              </Link>
+            </div>
+          </div>
           {!open ? (
-            <div className="note note-warn">
+            <div className="note note-warn" style={{ marginTop: 10 }}>
               <CircleAlert aria-hidden />
               <div>
                 {!data.member.reprocannOk
@@ -335,188 +484,100 @@ export function MemberPortal({
                       : "Ya usaste todo tu saldo disponible. Se renueva el mes que viene."}
               </div>
             </div>
-          ) : (
-            <form className="stack" style={{ gap: 18 }} onSubmit={reserve}>
-              <div>
-                <label className="label" htmlFor="p-grams">¿Cuántos gramos?</label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <div style={{ position: "relative", width: 130 }}>
-                    <input id="p-grams" className="input tnum" inputMode="decimal" placeholder="0" value={grams} onChange={(e) => setGrams(e.target.value.replace(/[^\d.,]/g, ""))} style={{ fontSize: 20, fontWeight: 650, paddingRight: 30 }} aria-describedby="p-grams-hint" />
-                    <span style={{ position: "absolute", right: 12, top: 10, color: "var(--muted)", fontWeight: 600 }}>g</span>
-                  </div>
-                  {[5, 10].filter((v) => v < data.tope).map((v) => (
-                    <button key={v} type="button" className="btn btn-sm btn-quiet" onClick={() => setGrams(String(v))}>{v} g</button>
-                  ))}
-                  <button type="button" className="btn btn-sm btn-quiet" onClick={() => setGrams(String(data.tope))}>Todo ({g(data.tope)})</button>
-                </div>
-                <span className="hint" id="p-grams-hint">
-                  Hasta {g(data.tope)}{" "}
-                  {data.topeMotivo === "dia" ? `por el tope diario de ${g(data.limits.dayLimitG)}` : data.topeMotivo === "mes" ? "de tu saldo del mes" : "según el stock del club"}.
-                  {estimated != null ? ` Aporte estimado: ${MONEY.format(estimated)}.` : data.club.aportePorGramo != null ? ` Aporte: ${MONEY.format(data.club.aportePorGramo)} por gramo.` : ""}
-                </span>
-                <span className="cell-meta">El saldo del mes se renueva el día 1 y el tope diario a las 00:00.</span>
-              </div>
-
-              <div>
-                <span className="label">¿Cómo lo recibís?</span>
-                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Forma de entrega">
-                  {([
-                    { id: "RETIRO" as const, t: "Retiro en el club", d: "Con turno, el día que elijas" },
-                    { id: "ENVIO" as const, t: "Envío a domicilio", d: "A tu casa, por transporte" },
-                  ]).map((op) => (
-                    <button
-                      key={op.id}
-                      type="button"
-                      className={modo === op.id ? "btn btn-quiet" : "btn btn-quiet"}
-                      aria-pressed={modo === op.id}
-                      onClick={() => setModo(op.id)}
-                      style={
-                        modo === op.id
-                          ? { borderColor: "var(--ink)", boxShadow: "inset 0 0 0 1px var(--ink)", textAlign: "left" }
-                          : { textAlign: "left", opacity: 0.75 }
-                      }
-                    >
-                      <span style={{ display: "block", fontWeight: 650 }}>{op.t}</span>
-                      <span className="cell-meta">{op.d}</span>
-                    </button>
-                  ))}
-                </div>
-                {data.club.envios.length === 0 ? (
-                  <span className="hint">El club todavía no cargó zonas de envío: por ahora sólo retiro en el club.</span>
-                ) : null}
-                {!data.member.postalCode ? (
-                  <span className="hint">
-                    Para pedir envío falta tu domicilio y código postal: completalos en «Validá tus datos».
-                  </span>
-                ) : null}
-              </div>
-
-              {modo === "RETIRO" ? (<>
-              <div>
-                <span className="label">¿Qué día?</span>
-                <div className="days" role="radiogroup" aria-label="Día del retiro">
-                  {(days.length ? days : [{ key: initialDay, weekday: 0, estado: "abierto" as EstadoDia }]).map((d) => {
-                    const p = dayParts(d.key);
-                    const cerrado = (d.estado ?? "abierto") !== "abierto";
-                    return (
-                      <button
-                        key={d.key}
-                        type="button"
-                        className="day"
-                        aria-pressed={d.key === day}
-                        aria-disabled={cerrado}
-                        title={cerrado ? MOTIVO_DIA[d.estado ?? "abierto"] : undefined}
-                        style={cerrado ? { opacity: 0.45 } : undefined}
-                        onClick={() => setDay(d.key)}
-                      >
-                        <small>{p.wd}</small><b className="tnum">{p.d}</b>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <span className="label">¿A qué hora?</span>
-                {slots.length === 0 ? (
-                  <p className="muted" style={{ margin: 0 }}>
-                    {closedDay
-                      ? "El club cerró ese día. Elegí otra fecha."
-                      : MOTIVO_DIA[days.find((d) => d.key === day)?.estado ?? "sin-franja"] || "Ese día el club no atiende."}
-                  </p>
-                ) : (
-                  <div className="slot-grid" role="radiogroup" aria-label="Horario del retiro">
-                    {slots.map((s) => (
-                      <button key={s.startMin} type="button" className="slot" disabled={s.full || s.past} aria-pressed={s.startMin === slot} onClick={() => setSlot(s.startMin)}>
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              </>) : (<>
-                <div>
-                  <label className="label" htmlFor="p-zona">¿A qué zona?</label>
-                  <select id="p-zona" className="input" value={zona} onChange={(e) => setZona(e.target.value)}>
-                    {data.club.envios.map((z) => (
-                      <option key={z.zona} value={z.zona}>
-                        {z.zona} · {MONEY.format(z.precioArs)} · {z.demora}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="hint">
-                    El envío lo paga el socio y se cobra aparte del aporte de cultivo.{" "}
-                    {zonaElegida ? `Sale por ${zonaElegida.transportista ?? "el transporte del club"}, ${zonaElegida.demora.toLowerCase()}.` : ""}
-                  </span>
-                </div>
-
-                <div>
-                  <label className="label" htmlFor="p-dir">¿A qué dirección lo mandamos?</label>
-                  <textarea
-                    id="p-dir"
-                    className="input"
-                    rows={2}
-                    value={direccion}
-                    onChange={(e) => setDireccion(e.target.value)}
-                    placeholder="Calle y número, localidad, provincia, código postal"
-                  />
-                  <span className="hint">Tiene que ser una dirección donde haya alguien para recibir. Lo despachamos en un solo envío.</span>
-                </div>
-
-                {validGrams && gramsNum > data.club.topeEnvioG + 1e-9 ? (
-                  <div className="note note-warn">
-                    <CircleAlert aria-hidden />
-                    <div>Por envío salen hasta {g(data.club.topeEnvioG)}. Si querés más, dividilo en dos pedidos.</div>
-                  </div>
-                ) : null}
-              </>)}
-
-              {error ? <div className="note note-danger" role="alert">{error}</div> : null}
-              <button className="btn btn-lg btn-block" disabled={busy || !puedePedir}>
-                {busy
-                  ? "Enviando…"
-                  : modo === "ENVIO"
-                    ? envioValido
-                      ? `Pedir envío de ${g(gramsNum)} a ${zona}`
-                      : direccion.trim().length < 8
-                        ? "Completá la dirección"
-                        : "Pedir envío"
-                    : validGrams && chosen
-                      ? `Reservar ${g(gramsNum)} el ${dayParts(day).long} a las ${chosen.label}`
-                      : "Reservar retiro"}
-              </button>
-            </form>
-          )}
+          ) : null}
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="mis-pedidos" aria-labelledby="mis-pedidos-title">
         <div className="panel-head"><div>
-          <h2 className="panel-title">Tus reservas</h2>
-          <p className="panel-sub">Al entregar —en el club o por envío— el club vuelve a verificar tu REPROCANN y tus topes.</p>
+          <h2 className="panel-title" id="mis-pedidos-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            Mis pedidos
+            {totales.activos > 0 ? (
+              <Chip tone="brand">
+                {totales.activos} activo{totales.activos === 1 ? "" : "s"}
+              </Chip>
+            ) : null}
+          </h2>
+          <p className="panel-sub">
+            Retiros y envíos, cada uno con lo que el club sabe: fecha, modalidad y estado. Al entregar —en el club o por
+            envío— vuelve a verificar tu REPROCANN y tus topes.
+          </p>
         </div></div>
-        {data.pickups.length === 0 ? (
-          <div className="empty">Todavía no reservaste ningún retiro.</div>
+        {totales.todos === 0 ? (
+          <div className="empty">Todavía no hiciste ningún pedido. Elegí tus variedades arriba y armá el primero.</div>
         ) : (
+          <>
+            <div className="filtros" role="group" aria-label="Filtrar pedidos">
+              {(
+                [
+                  ["TODOS", `Todos (${totales.todos})`],
+                  ["ACTIVOS", `Activos (${totales.activos})`],
+                  ["CERRADOS", `Cerrados (${totales.cerrados})`],
+                ] as const
+              ).map(([valor, etiqueta]) => (
+                <button
+                  key={valor}
+                  type="button"
+                  className="filtro-btn"
+                  aria-pressed={filtroPedidos === valor}
+                  onClick={() => setFiltroPedidos(valor)}
+                >
+                  {etiqueta}
+                </button>
+              ))}
+            </div>
+            {data.pickups.length < totales.todos ? (
+              <p className="cell-meta" style={{ margin: "0 0 8px" }}>
+                Mostrando los últimos {data.pickups.length} de {totales.todos}. Los contadores son del total real.
+              </p>
+            ) : null}
+            {pickupsVisibles.length === 0 ? (
+              <div className="empty">
+                {filtroPedidos === "ACTIVOS"
+                  ? "No tenés pedidos activos ahora."
+                  : filtroPedidos === "CERRADOS"
+                    ? "Todavía no tenés pedidos cerrados."
+                    : "No hay pedidos para mostrar."}
+              </div>
+            ) : (
           <ul className="rows">
-            {data.pickups.map((p) => {
-              const st = PICKUP_LABEL[p.status] ?? { label: p.status, tone: "mute" };
-              const isOpen = ["SOLICITADA", "CONFIRMADA"].includes(p.status);
+            {pickupsVisibles.map((p) => {
+              const st = estadoPedido(p.status, p.deliveryMode);
+              const isOpen = esActivo(p.status);
               return (
                 <li key={p.id}>
                   <div className="grow">
                     <div className="flex items-center gap-2 flex-wrap">
                       <b className="tnum">{g(p.grams)}</b>
                       <span className={st.tone === "mute" ? "chip" : `chip chip-${st.tone}`}>{st.label}</span>
+                      <span className="chip">
+                        {p.deliveryMode === "ENVIO" ? "Envío a domicilio" : "Retiro en el club"}
+                      </span>
                     </div>
-                    <div className="cell-meta">
-                      {p.deliveryMode === "ENVIO"
-                        ? `Envío a ${p.deliveryZona ?? "tu domicilio"}${p.deliveryCostoArs != null ? ` · envío ${MONEY.format(p.deliveryCostoArs)}` : ""}`
-                        : p.pickupLabel ?? "sin horario"}
-                      {p.aporteEstimado != null ? ` · aporte ${p.status === "RETIRADA" ? "" : "estimado "}${MONEY.format(p.aporteEstimado)}` : ""}
-                      {p.cancelReason ? ` · ${p.cancelReason}` : ""}
+                    <div className="pedido-datos">
+                      <span>Pedido el {fmtDay(p.createdAt)}</span>
+                      {p.deliveryMode === "ENVIO" ? (
+                        <span>
+                          {p.deliveryZona ?? "zona a confirmar"}
+                          {p.deliveryCostoArs != null ? ` · envío ${MONEY.format(p.deliveryCostoArs)}` : ""}
+                        </span>
+                      ) : (
+                        <span>{p.pickupLabel ? `Turno: ${p.pickupLabel.replace(" · ", " a las ")}` : "Sin turno asignado"}</span>
+                      )}
+                      {p.aporteEstimado != null ? (
+                        <span>
+                          {p.status === "RETIRADA" && p.deliveryMode !== "ENVIO" ? "Aporte" : "Aporte estimado"}{" "}
+                          {MONEY.format(p.aporteEstimado)}
+                        </span>
+                      ) : null}
+                      {st.nota ? <span className="pedido-nota">{st.nota}</span> : null}
                     </div>
+                    {p.cancelReason ? (
+                      <div className="pedido-motivo">
+                        <b>Motivo de la cancelación</b>
+                        <span>{p.cancelReason}</span>
+                      </div>
+                    ) : null}
                     {/* El aporte se transfiere y el comprobante cierra el pedido: sin eso el club no lo confirma. */}
                     {["SOLICITADA", "CONFIRMADA"].includes(p.status) && p.aporteEstimado != null ? (
                       <ComprobantePago
@@ -535,34 +596,14 @@ export function MemberPortal({
               );
             })}
           </ul>
+            )}
+          </>
         )}
       </section>
 
-      <section className="panel" id="variedades" aria-labelledby="variedades-title">
-        <div className="panel-head"><div>
-          <h2 className="panel-title" style={{ fontSize: 19 }} id="variedades-title">Variedades del club</h2>
-          <p className="panel-sub">Lo que el club tiene cultivado. No se vende: el aporte de cultivo se prorratea al retirar y lo ves en tu cuenta.</p>
-        </div></div>
-        <div className="panel-body">
-          {variedades.length === 0 ? (
-            <div className="note note-mute">
-              <Leaf aria-hidden />
-              <div>Todavía no hay variedades publicadas. Cuando el club cierre una cosecha, aparecen acá.</div>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
-              {variedades.map((v) => (
-                <VariedadCard key={v.id} v={v} />
-              ))}
-            </div>
-          )}
-          <p className="panel-sub" style={{ marginTop: 12, marginBottom: 0 }}>
-            Para llevarte algo, reservá un retiro arriba: elegís gramos y horario, y el club lo prepara.
-          </p>
-        </div>
-      </section>
 
-      <section className="panel" id="historial" aria-labelledby="history-title">
+      <details className="panel plegable">
+        <summary>Lo que retiraste</summary>
         <div className="panel-head"><div>
           <h2 className="panel-title" id="history-title">Lo que retiraste</h2>
           <p className="panel-sub">Tus últimas entregas en el club. Si una figura anulada, el club la corrigió y no cuenta para tu tope.</p>
@@ -593,82 +634,20 @@ export function MemberPortal({
             ))}
           </ul>
         )}
-      </section>
+      </details>
 
-      <section className="panel" id="privacidad">
-        <div className="panel-head"><div>
-          <h2 className="panel-title">Privacidad y permisos</h2>
-          <p className="panel-sub">
-            Esto es lo que el club tiene registrado que autorizaste, por separado. La carta del club la manejás vos
-            desde acá; para el resto, pedilo en la secretaría: queda registrado con fecha, no se borra.
+            <details className="panel plegable">
+        <summary>Privacidad y documentación</summary>
+        <div className="panel-body" style={{ display: "grid", gap: 8 }}>
+          <p className="hint" style={{ margin: 0 }}>
+            Tus permisos por finalidad, el texto que aceptaste y el estado de tu documentación están en
+            «Mis datos», en una pantalla propia.
           </p>
-        </div></div>
-        <div className="panel-body">
-          <ul className="stack" style={{ gap: 12, listStyle: "none", padding: 0, margin: 0 }}>
-            {consents.map((c) => (
-              <li key={c.purpose} style={{ display: "grid", gap: 4 }}>
-                <div className="flex flex-wrap items-center gap-2">
-                  <b>{c.label}</b>
-                  <Chip tone={c.granted ? "ok" : c.revokedAt ? "warn" : "mute"}>
-                    {c.granted ? "Autorizado" : c.revokedAt ? "Revocado" : "Sin registrar"}
-                  </Chip>
-                  {c.granted && c.grantedAt ? <span className="cell-meta">{fmtDate(c.grantedAt)}</span> : null}
-                  {c.version ? <span className="cell-meta">texto {c.version}</span> : null}
-                </div>
-                <span className="cell-meta">
-                  {(c.version && consentTexts[c.version]?.[c.purpose]) ?? c.detail}
-                </span>
-                {c.purpose === "COMUNICACIONES" ? (
-                  <div className="flex flex-wrap items-center gap-2" style={{ marginTop: 4 }}>
-                    <button
-                      type="button"
-                      className={carta ? "btn btn-sm btn-quiet" : "btn btn-sm"}
-                      disabled={cartaBusy}
-                      onClick={async () => {
-                        setCartaBusy(true);
-                        try {
-                          const r = await api("/api/portal/comunicaciones", { method: "POST", body: { quiere: !carta } });
-                          setCarta(!carta);
-                          toast({ tone: "ok", title: (r as { mensaje?: string })?.mensaje ?? "Listo." });
-                        } catch (e) {
-                          toast({ tone: "bad", title: "No se pudo cambiar", text: errMsg(e) });
-                        } finally {
-                          setCartaBusy(false);
-                        }
-                      }}
-                    >
-                      {carta ? "No quiero recibir la carta" : "Quiero recibir la carta"}
-                    </button>
-                    <span className="cell-meta">Es la carta mensual, no los avisos de tu trámite.</span>
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          <div>
+            <Link href="/portal/datos" className="btn btn-sm">Ver privacidad y documentación</Link>
+          </div>
         </div>
-      </section>
-
-      <section className="panel" id="documentacion">
-        <div className="panel-head"><div>
-          <h2 className="panel-title">Tu documentación</h2>
-          <p className="panel-sub">Si algo no coincide con tus papeles, avisá en la secretaría: el club lo corrige en tu legajo.</p>
-        </div></div>
-        <div className="panel-body">
-          {documentStatus.attention ? (
-            <div className="note note-warn" style={{ marginBottom: 16 }}>
-              <CircleAlert aria-hidden /><div><b>REPROCANN: {documentStatus.label}.</b> Revisá los datos con la secretaría del club.</div>
-            </div>
-          ) : null}
-          <dl className="dl">
-            <dt>Estado de la ficha</dt><dd>{{ ACTIVO: "Activo", PENDIENTE: "Pendiente", SUSPENDIDO: "Suspendido", BAJA: "De baja" }[data.member.status] ?? "Consultar en secretaría"}</dd>
-            <dt>Estado REPROCANN</dt><dd>{documentStatus.label}</dd>
-            <dt>Legajo</dt><dd className="tnum">{data.member.legajo}</dd>
-            <dt>REPROCANN</dt><dd>{data.member.reprocannNumber ?? "Sin número cargado"}</dd>
-            <dt>Vence</dt><dd>{fmtDate(data.member.reprocannExpiresAt)}</dd>
-            <dt>Consentimiento</dt><dd>{consentDate ? `Firmado el ${fmtDate(consentDate)}` : "Falta firmar en el club"}</dd>
-          </dl>
-        </div>
-      </section>
+      </details>
 
       <ReasonDialog
         open={cancelId != null}
@@ -694,6 +673,41 @@ export function MemberPortal({
             setBusy(false);
           }
         }}
+      />
+
+      {/* Barra fija: con el carrito cerrado el socio ve cuánto lleva sin scrollear. */}
+      {carrito.length > 0 ? (
+        <div className="cartbar" role="status">
+          <button type="button" className="cartbar-btn" onClick={() => setDrawerAbierto(true)}>
+            <span className="cartbar-total tnum">
+              {g(gramsNum)} · {estimated != null ? MONEY.format(estimated) : "—"}
+            </span>
+            <span className="cartbar-cta">Ver pedido</span>
+          </button>
+        </div>
+      ) : null}
+
+      <CarritoDrawer
+        abierto={drawerAbierto}
+        items={carrito}
+        tope={data.tope}
+        aportePorGramo={data.club.aportePorGramo}
+        nombre={cepaNombre}
+        onCerrar={() => setDrawerAbierto(false)}
+        onDelta={(id, paso) => setCarrito(moverItem(carrito, id, paso, data.tope))}
+        onQuitar={(id) => setCarrito(carrito.filter((i) => i.strainId !== id))}
+        onContinuar={() => {
+          setDrawerAbierto(false);
+          router.push("/portal/basket");
+        }}
+        puedeContinuar={gramsNum > 0}
+        nota={
+          gramosFaltanEnvio > 0
+            ? `El envío sale desde ${g(data.club.minimoEnvioG)}: te faltan ${g(gramosFaltanEnvio)}.`
+            : gramsNum >= data.tope
+              ? `Llegaste a tu tope de ${g(data.tope)}.`
+              : null
+        }
       />
     </>
   );

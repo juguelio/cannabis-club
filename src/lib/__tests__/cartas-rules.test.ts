@@ -15,7 +15,7 @@ const base: ContenidoCarta = {
   copete: "Lo que cambió este mes.",
   apertura: ["Primer párrafo."],
   bloques: [{ titulo: "Tu REPROCANN", texto: "Renovalo antes de que venza." }],
-  cta: { texto: "Entrar al portal", url: "https://republicacannabis.com.ar/portal" },
+  cta: { texto: "Entrar al portal", url: "https://club.test/portal" },
 };
 
 describe("contenido de la carta", () => {

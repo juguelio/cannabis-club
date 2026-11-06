@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DATOS_LEGALES, faltantesLegales, recordatorioLegal, valorDeDemo } from "../datos-legales";
 
 const completo = {
-  nombre: "Asociación Civil República ONG",
+  nombre: "Asociación Civil El Bosque",
   cuit: "30-71234567-8",
   personeria: "Res. IGJ 1234 del 12/03/2024",
   reps: "REPS CABA 456",

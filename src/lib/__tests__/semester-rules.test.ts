@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildSemesterPayload, isSemesterPeriod, semesterBounds, semesterCsv, semesterOf } from "../semester-rules";
 
-const club = { nombre: "Asociación Civil República ONG", cuit: "30-00000000-0", reprocannNumber: "R-1", directorMedico: "Dra. X", responsableTecnico: "Ing. Y" };
+const club = { nombre: "Asociación Civil El Bosque", cuit: "30-00000000-0", reprocannNumber: "R-1", directorMedico: "Dra. X", responsableTecnico: "Ing. Y" };
 
 const base = {
   period: "2026-S2",
@@ -84,9 +84,9 @@ describe("armado del informe", () => {
   });
 
   it("el CSV sale con ; y escapa comas", () => {
-    const csv = semesterCsv({ ...payload, club: { ...payload.club, nombre: "República; ONG" } });
+    const csv = semesterCsv({ ...payload, club: { ...payload.club, nombre: "El Bosque; ONG" } });
     expect(csv.split("\r\n").length).toBeGreaterThan(10);
-    expect(csv).toContain('"República; ONG"');
+    expect(csv).toContain('"El Bosque; ONG"');
     expect(csv).toContain("Plantas totales;42");
     expect(csv).toContain("Plantas en floracion;27");
   });

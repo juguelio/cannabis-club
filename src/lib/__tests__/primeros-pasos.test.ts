@@ -29,7 +29,7 @@ describe("primeros pasos del club", () => {
   it("reconoce los dominios de prueba y no los institucionales", () => {
     expect(esEmailDePrueba("admin@club.test")).toBe(true);
     expect(esEmailDePrueba("alguien@example.com")).toBe(true);
-    expect(esEmailDePrueba("presidencia@republicaong.org.ar")).toBe(false);
+    expect(esEmailDePrueba("presidencia@clubong.org.ar")).toBe(false);
     expect(esEmailDePrueba("sin-arroba")).toBe(false);
   });
 });

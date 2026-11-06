@@ -70,7 +70,8 @@ export function SolicitudForm({
     lastName: padron?.lastName ?? "",
     birthDate: "",
     phone: padron?.phone ?? "",
-    address: [padron?.address, padron?.postalCode].filter(Boolean).join(", ") ?? "",
+    address: padron?.address ?? "",
+    postalCode: padron?.postalCode ?? "",
     locality: [padron?.locality, padron?.province].filter(Boolean).join(", ") ?? "",
     docNumber: "",
     reprocannNumber: "",
@@ -310,10 +311,17 @@ export function SolicitudForm({
               <input className="input" placeholder="San Martín de los Andes" {...campos("locality")} />
             </label>
           </div>
-          <label className="label">
-            Domicilio
-            <input className="input" required {...campos("address")} />
-          </label>
+          <div className="field-row">
+            <label className="label">
+              Domicilio
+              <input className="input" required {...campos("address")} />
+            </label>
+            <label className="label">
+              Código postal
+              <input className="input tnum" inputMode="numeric" placeholder="8370" {...campos("postalCode")} />
+              <span className="hint">Lo necesitamos para los envíos. Si sólo retirás en el club, podés dejarlo vacío.</span>
+            </label>
+          </div>
           <div className="field-row">
             <label className="label">
               N° de REPROCANN
