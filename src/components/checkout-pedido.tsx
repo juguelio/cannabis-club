@@ -77,6 +77,7 @@ export function CheckoutPedido({
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [subido, setSubido] = useState(false);
   const [creado, setCreado] = useState<{
     id: string;
     modo: "RETIRO" | "ENVIO";
@@ -325,12 +326,15 @@ export function CheckoutPedido({
                       <input id="c-dir" className="input" value={calle} onChange={(e) => setCalle(e.target.value)} placeholder="Los Notros 195, piso 2 depto B" />
                     </div>
                     <div>
-                      <label className="label" htmlFor="c-zona">Zona</label>
-                      <select id="c-zona" className="input" value={zona} onChange={(e) => setZona(e.target.value)}>
+                      <span className="label">Zona</span>
+                      <div className="zona-grid" role="radiogroup" aria-label="Zona de envío">
                         {data.envios.map((z) => (
-                          <option key={z.zona} value={z.zona}>{z.zona} · {MONEY.format(z.precioArs)} · {z.demora}</option>
+                          <button key={z.zona} type="button" className="zona-op" aria-pressed={zona === z.zona} onClick={() => setZona(z.zona)}>
+                            <b>{z.zona}</b>
+                            <small className="tnum">{MONEY.format(z.precioArs)} · {z.demora}</small>
+                          </button>
                         ))}
-                      </select>
+                      </div>
                     </div>
                   </>
                 )}
@@ -414,23 +418,36 @@ export function CheckoutPedido({
 
           {paso === 3 && creado ? (
             <section className="panel">
-              <div className="panel-body" style={{ display: "grid", gap: 14, justifyItems: "start" }}>
-                <span className="chip chip-ok" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-                  <Check aria-hidden size={14} /> Pedido confirmado
-                </span>
-                <h1 className="panel-title" style={{ fontSize: 21 }}>Listo: {g(creado.gramos)} a {creado.total === 0 ? "confirmar" : MONEY.format(creado.total)}</h1>
-                <p className="hint" style={{ margin: 0 }}>
-                  {creado.modo === "ENVIO"
-                    ? `Lo despachamos a ${creado.cuando ?? "tu domicilio"}.`
-                    : `Te esperamos ${creado.cuando ?? "en el club"}. Traé tu DNI.`}{" "}
-                  El club lo confirma cuando ve el comprobante.
-                </p>
-                <ul className="cuenta" style={{ width: "100%" }}>
-                  <li><span>Aporte</span><span className="tnum">{creado.aporte != null ? MONEY.format(creado.aporte) : "—"}</span></li>
-                  {creado.envio > 0 ? <li><span>Envío</span><span className="tnum">{MONEY.format(creado.envio)}</span></li> : null}
-                  <li className="cuenta-total"><span>Total</span><span className="tnum">{MONEY.format(creado.total)}</span></li>
-                </ul>
-                <div style={{ width: "100%" }}>
+              {subido ? (
+                <div className="panel-body" style={{ display: "grid", gap: 14, justifyItems: "start" }}>
+                  <span className="chip chip-ok" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                    <Check aria-hidden size={14} /> Pedido cerrado
+                  </span>
+                  <h1 className="panel-title" style={{ fontSize: 21 }}>Listo: lo vamos a revisar</h1>
+                  <p className="hint" style={{ margin: 0 }}>
+                    Recibimos tu comprobante por {MONEY.format(creado.total)}. El club lo revisa y te avisa
+                    cuando lo aprueba. Mientras tanto el pedido queda reservado
+                    {creado.cuando ? `: ${creado.cuando}` : ""}.
+                  </p>
+                  <ul className="cuenta" style={{ width: "100%" }}>
+                    <li><span>Aporte</span><span className="tnum">{creado.aporte != null ? MONEY.format(creado.aporte) : "—"}</span></li>
+                    {creado.envio > 0 ? <li><span>Envío</span><span className="tnum">{MONEY.format(creado.envio)}</span></li> : null}
+                    <li className="cuenta-total"><span>Total</span><span className="tnum">{MONEY.format(creado.total)}</span></li>
+                  </ul>
+                  <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+                    <Link href="/portal#mis-pedidos" className="btn">Ver mis pedidos</Link>
+                    <Link href="/portal" className="btn btn-quiet">Cerrar</Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="panel-body" style={{ display: "grid", gap: 14 }}>
+                  <div>
+                    <h1 className="panel-title" style={{ fontSize: 21 }}>Subí el comprobante</h1>
+                    <p className="panel-sub" style={{ marginTop: 4 }}>
+                      Transferí <b>{MONEY.format(creado.total)}</b> y subí la foto o el PDF. Es el último paso:
+                      el club revisa y te avisa.
+                    </p>
+                  </div>
                   <ComprobantePago
                     pickupId={creado.id}
                     aporteEstimado={creado.aporte ?? creado.total}
@@ -438,13 +455,17 @@ export function CheckoutPedido({
                     pago="PENDIENTE"
                     pagoMotivo={null}
                     cobro={data.cobro ?? { alias: null, cbu: null, titular: null, banco: null, nota: null }}
-                    onSubido={() => router.refresh()}
+                    onSubido={() => {
+                      setSubido(true);
+                      router.refresh();
+                    }}
                   />
+                  <Link href="/portal#mis-pedidos" className="btn btn-quiet btn-block">Lo subo después</Link>
                 </div>
-                <Link href="/portal#mis-pedidos" className="btn">Ver mis pedidos</Link>
-              </div>
+              )}
             </section>
           ) : null}
+
         </div>
 
         <aside className="checkout-resumen" aria-label="Resumen del pedido">

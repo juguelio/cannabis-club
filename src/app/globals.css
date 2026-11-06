@@ -974,3 +974,25 @@ details.card > div { min-width: 0; max-width: 100%; }
 .cobro-dato > span { color: var(--muted); min-width: 58px; }
 .cobro-dato code { font-family: var(--font-mono, ui-monospace); font-size: 13.5px; background: #fff; padding: 3px 7px; border-radius: 6px; border: 1px solid var(--line); }
 .cobro-copiar { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 4px 2px; color: var(--firma); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; text-decoration: underline; min-height: 32px; }
+
+/* ── Nada se sale del marco: los contenedores de grilla deben poder encogerse ── */
+.checkout-grid > * { min-width: 0; }
+.panel, .panel-body, .checkout-resumen { min-width: 0; }
+.entrega-opciones { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.entrega-op { min-width: 0; overflow-wrap: anywhere; }
+.entrega-op b { font-size: 15px; line-height: 1.25; }
+.entrega-op small { overflow-wrap: anywhere; }
+.dir-grid { grid-template-columns: minmax(0, 92px) minmax(0, 1fr) minmax(0, 1fr); }
+.input, select.input, textarea.input { min-width: 0; width: 100%; }
+.note, .note span, .cuenta li span { min-width: 0; overflow-wrap: anywhere; }
+
+/* Zona: tarjetas en vez de un select que corta el nombre */
+.zona-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.zona-op {
+  display: grid; gap: 2px; justify-items: start; min-width: 0; padding: 10px 12px; text-align: left;
+  border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); font: inherit; cursor: pointer;
+}
+.zona-op[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.zona-op b { font-size: 13.5px; font-weight: 650; overflow-wrap: anywhere; }
+.zona-op small { color: var(--muted); font-size: 12px; }
+@media (max-width: 520px) { .zona-grid { grid-template-columns: 1fr; } }
