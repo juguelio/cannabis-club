@@ -30,6 +30,14 @@ export function PortalHeader({
   // En el cambio de clave obligatorio el socio no puede navegar a ningún lado todavía.
   if (ruta === "/portal/clave") return null;
 
+  // Dentro del pedido, el carrito ya se volcó: el número sería siempre cero.
+  const enPedido = ruta.startsWith("/portal/pedido");
+  const pasoPedido = ruta.startsWith("/portal/pedido/pago")
+    ? "Falta el pago"
+    : ruta.startsWith("/portal/pedido/listo")
+      ? "Cerrado"
+      : "Elegir la entrega";
+
   const secciones = [
     { href: "/portal", label: "Catálogo", activa: ruta === "/portal" },
     { href: "/portal/envios", label: "Envíos", activa: ruta === "/portal/envios" },
@@ -61,6 +69,16 @@ export function PortalHeader({
           ))}
         </nav>
 
+        {/* En el pedido el carrito ya se volcó: mostrarlo vacío sólo confunde. Va el paso en curso. */}
+        {enPedido ? (
+          <span className="ph-basket ph-basket--paso">
+            <ShoppingBasket aria-hidden size={20} />
+            <span className="ph-basket-txt">
+              Tu pedido
+              <small>{pasoPedido}</small>
+            </span>
+          </span>
+        ) : (
         <Link href="/portal/basket" className="ph-basket" aria-label={listo ? `Basket con ${contar} renglones` : "Basket"}>
           <ShoppingBasket aria-hidden size={20} />
           <span className="ph-basket-num tnum" aria-hidden>
@@ -71,6 +89,7 @@ export function PortalHeader({
             <small className="tnum">{listo && total > 0 ? `${total} g` : "vacío"}</small>
           </span>
         </Link>
+        )}
       </div>
     </header>
   );

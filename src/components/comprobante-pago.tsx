@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { errMsg } from "@/lib/client";
+import { formatearCbu } from "@/lib/cbu";
 import { ESTADO_PAGO_LABEL, type EstadoPago } from "@/lib/comprobante-rules";
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -27,6 +28,7 @@ export function ComprobantePago({
   pagoMotivo,
   cobro,
   onSubido,
+  repetirCobro = true,
 }: {
   pickupId: string;
   aporteEstimado: number | null;
@@ -35,6 +37,8 @@ export function ComprobantePago({
   pagoMotivo?: string | null;
   cobro: CobroClub;
   onSubido: () => void;
+  /** `false` cuando la pantalla ya muestra alias y CBU arriba: repetirlos es ruido. */
+  repetirCobro?: boolean;
 }) {
   const [monto, setMonto] = useState(aporteEstimado != null ? String(Math.round(aporteEstimado)) : "");
   const [referencia, setReferencia] = useState("");
@@ -101,18 +105,18 @@ export function ComprobantePago({
         ) : null}
       </div>
 
-      {hayCobro ? (
+      {hayCobro && repetirCobro ? (
         <div className="cell-meta">
           {cobro.alias ? <>Alias <b>{cobro.alias}</b>{" · "}</> : null}
-          {cobro.cbu ? <>CBU <b className="tnum">{cobro.cbu}</b>{" · "}</> : null}
+          {cobro.cbu ? <>CBU <b className="tnum">{formatearCbu(cobro.cbu)}</b>{" · "}</> : null}
           {cobro.titular ? <>{cobro.titular}{" · "}</> : null}
           {cobro.banco ?? ""}
         </div>
-      ) : (
+      ) : !hayCobro ? (
         <p className="muted" style={{ margin: 0 }}>
           El club todavía no cargó los datos para transferir. Pedíselos por WhatsApp y subí el comprobante cuando lo hagas.
         </p>
-      )}
+      ) : null}
       {cobro.nota ? <p className="muted" style={{ margin: 0 }}>{cobro.nota}</p> : null}
 
       <div className="flex items-center gap-2 flex-wrap">
@@ -139,19 +143,35 @@ export function ComprobantePago({
         </label>
       </div>
 
+      {/* El control nativo dice «Choose file / No file chosen» en inglés y rompe el idioma de la
+          pantalla: se usa un botón propio y el input queda sólo para el sistema. */}
       <div className="flex items-center gap-2 flex-wrap">
         <input
           ref={input}
           type="file"
           accept="image/jpeg,image/png,image/webp,application/pdf"
           onChange={(ev) => setArchivo(ev.target.files?.[0] ?? null)}
-          className="input"
-          style={{ maxWidth: 260 }}
+          className="sr-only"
+          id={`comprobante-file-${pickupId}`}
           aria-label="Foto o PDF del comprobante"
         />
-        <button type="button" className="btn btn-sm" disabled={busy} onClick={subir}>
-          <Upload size={14} /> {busy ? "Subiendo…" : "Subir comprobante"}
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={busy}
+          onClick={() => (archivo ? void subir() : input.current?.click())}
+        >
+          <Upload size={14} /> {busy ? "Subiendo…" : archivo ? "Subir comprobante" : "Elegir el comprobante"}
         </button>
+        {archivo ? (
+          <span className="cell-meta">
+            {archivo.name.length > 28 ? `${archivo.name.slice(0, 26)}…` : archivo.name}
+            {" · "}
+            <button type="button" className="cobro-copiar" onClick={() => input.current?.click()}>
+              cambiar
+            </button>
+          </span>
+        ) : null}
       </div>
 
       {error ? <p className="form-error" style={{ margin: 0 }}>{error}</p> : null}

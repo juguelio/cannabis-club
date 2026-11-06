@@ -952,9 +952,17 @@ details.card > div { min-width: 0; max-width: 100%; }
 .paso--hecho { color: var(--ink); }
 .paso--hecho .paso-num { background: var(--firma); color: #fff; }
 
-.checkout-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
-.checkout-resumen { position: sticky; top: 96px; }
-@media (max-width: 900px) { .checkout-grid { grid-template-columns: 1fr; } .checkout-resumen { position: static; order: -1; } }
+/* Un paso por página: una sola columna, ancho de lectura, nada al costado que compita. */
+.checkout-paso { max-width: 640px; display: grid; gap: 18px; }
+.checkout-head { display: grid; gap: 6px; justify-items: start; }
+.checkout-title { margin: 0; font-size: 24px; letter-spacing: -0.01em; line-height: 1.15; }
+.checkout-sub { margin: 0; color: var(--muted); font-size: 14px; }
+.checkout-bloque { display: grid; gap: 14px; }
+.checkout-cta { display: grid; gap: 8px; }
+.checkout-cta .cell-meta { margin: 0; }
+.cuenta-grande li { font-size: 14.5px; }
+.cuenta-grande .cuenta-total { font-size: 17px !important; }
+@media (max-width: 640px) { .checkout-title { font-size: 21px; } }
 
 .entrega-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 520px) { .entrega-opciones { grid-template-columns: 1fr; } }
@@ -976,8 +984,7 @@ details.card > div { min-width: 0; max-width: 100%; }
 .cobro-copiar { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 4px 2px; color: var(--firma); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; text-decoration: underline; min-height: 32px; }
 
 /* ── Nada se sale del marco: los contenedores de grilla deben poder encogerse ── */
-.checkout-grid > * { min-width: 0; }
-.panel, .panel-body, .checkout-resumen { min-width: 0; }
+.panel, .panel-body, .checkout-paso, .checkout-bloque { min-width: 0; }
 .entrega-opciones { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .entrega-op { min-width: 0; overflow-wrap: anywhere; }
 .entrega-op b { font-size: 15px; line-height: 1.25; }
