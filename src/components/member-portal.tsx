@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CalendarCheck2, CircleAlert, Leaf, PackageCheck, QrCode, Truck } from "lucide-react";
@@ -9,7 +9,7 @@ import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
 import type { Variedad } from "@/lib/variedad-rules";
-import { aEnviar, disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito } from "@/lib/carrito";
+import { disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito } from "@/lib/carrito";
 import { faltaParaMinimo, type Cobertura } from "@/lib/envios";
 import { esActivo, esperaComprobante, estadoPedido } from "@/lib/pedidos-estado";
 import { VariedadCard } from "@/components/variedad-card";
@@ -78,28 +78,8 @@ type Overview = {
   pickupsLimit?: number;
 };
 
-type Slot = { startMin: number; label: string; free: number; past: boolean; full: boolean };
-type EstadoDia = "abierto" | "cerrado" | "sin-franja" | "hoy-sin-horario";
-type Day = { key: string; weekday: number; estado?: EstadoDia; label?: string };
-
-const MOTIVO_DIA: Record<EstadoDia, string> = {
-  abierto: "",
-  cerrado: "El club no atiende ese día",
-  "sin-franja": "Ese día el club no atiende",
-  "hoy-sin-horario": "Hoy ya no quedan horarios",
-};
-
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const g = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")} g`;
-const WD = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
-const WDL = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
-const dayParts = (key: string) => {
-  const [y, m, d] = key.split("-").map(Number);
-  const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return { wd: WD[wd], long: `${WDL[wd]} ${d}/${m}`, d };
-};
-
-
 export type MemberHistory = { id: string; at: string; grams: number; strain: string; batch: string; voided: boolean }[];
 const fmtDay = (iso: string) =>
   new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
@@ -108,99 +88,31 @@ const fmtDate = (iso: string | null) =>
 
 export function MemberPortal({
   initial,
-  initialSlots,
-  initialDay,
   recalled = [],
-  consents = [],
-  consentTexts = {},
   qr,
   history,
-  consentDate,
   variedades = [],
 }: {
   initial: Overview;
-  initialSlots: Slot[];
-  initialDay: string;
-  consents?: { purpose: string; label: string; detail: string; granted: boolean; grantedAt: string | null; by: string | null; version: string | null; revokedAt: string | null }[];
-  consentTexts?: Record<string, Record<string, string>>;
   recalled?: { code: string; strain: string; grams: number; occurredAt: string; reason: string | null; recalledAt: string | null }[];
   qr: string;
   history: MemberHistory;
-  consentDate: string | null;
   variedades?: Variedad[];
 }) {
   const toast = useToast();
   const [data, setData] = useState<Overview>(initial);
-  const [day, setDay] = useState(initialDay);
-  const [days, setDays] = useState<Day[]>([]);
-  const [slots, setSlots] = useState<Slot[]>(initialSlots);
   // El combo se arma en el catálogo de variedades, no en un campo de gramos suelto: el socio elige
   // de qué cepas quiere y el total sale de ahí.
   const { items: carrito, setItems: setCarrito } = useCarrito(data.tope);
   const router = useRouter();
   const [filtroPedidos, setFiltroPedidos] = useState<"TODOS" | "ACTIVOS" | "CERRADOS">("TODOS");
   const [drawerAbierto, setDrawerAbierto] = useState(false);
-  const [slot, setSlot] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [showCard, setShowCard] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("all");
-  const [closedDay, setClosedDay] = useState(false);
-  // Cómo llega el producto: al club con turno, o a la casa del socio por envío.
-  const [modo, setModo] = useState<"RETIRO" | "ENVIO">("RETIRO");
-  // La carta del club la decide el socio, no la secretaría: se pide y se retira desde acá.
-  const [carta, setCarta] = useState<boolean>(consents.some((c) => c.purpose === "COMUNICACIONES" && c.granted));
-  const [cartaBusy, setCartaBusy] = useState(false);
-  // La zona arranca en la que corresponde a su código postal, no en la primera de la lista: el socio
-  // de Neuquén no debería ver «CABA $20.000» preseleccionado y descubrirlo al pagar.
-  const [zona, setZona] = useState<string>(
-    data.club.cobertura?.estado === "CUBIERTA" ? data.club.cobertura.zona.zona : (data.club.envios[0]?.zona ?? ""),
-  );
-  // La dirección se arma por partes: el CP resuelve localidad y provincia, y el socio sólo escribe
-  // calle y número. Es lo que evita el «Calle 123, San Martín» sin provincia ni CP.
-  const [calle, setCalle] = useState<string>(data.member.address ?? "");
-  const [cpEnvio, setCpEnvio] = useState<string>(data.member.postalCode ?? "");
-  const [localidad, setLocalidad] = useState<string>(data.member.locality ?? "");
-  const [provincia, setProvincia] = useState<string>(data.member.province ?? "");
-  const [localidades, setLocalidades] = useState<string[]>([]);
-  const [cpEstado, setCpEstado] = useState<"idle" | "buscando" | "ok" | "no-resuelto">("idle");
-  // Evita repetir la consulta del mismo código en cada tecla.
-  const ultimoCp = useRef<string>("");
-  const direccion = [calle.trim(), localidad.trim(), provincia.trim(), cpEnvio.trim()].filter(Boolean).join(", ");
   const documentStatus = memberDocumentStatus(data.member);
   const visibleHistory = history.filter((item) => historyFilter === "all" || (historyFilter === "voided" ? item.voided : !item.voided));
-
-  useEffect(() => {
-    let alive = true;
-    api<{ slots: Slot[]; days: Day[]; closed?: boolean }>(`/api/portal/slots?date=${day}`)
-      .then((d) => {
-        if (!alive) return;
-        setSlots(d.slots ?? []);
-        setDays(d.days ?? []);
-        setClosedDay(Boolean(d.closed));
-        setSlot(null);
-      })
-      .catch(() => undefined);
-    return () => { alive = false; };
-  }, [day]);
-
-  /** Pregunta al club/CP qué localidad corresponde; no inventa nada si no lo puede resolver. */
-  const resolverCp = async (valor: string) => {
-    const limpio = valor.replace(/\D/g, "");
-    if (limpio.length < 4) return;
-    setCpEstado("buscando");
-    try {
-      const r = await api<{ estado: string; localidades: string[]; provincia: string | null }>(`/api/portal/cp?cp=${limpio}`);
-      setLocalidades(r.localidades ?? []);
-      if (r.provincia) setProvincia(r.provincia);
-      if (r.localidades?.length === 1) setLocalidad(r.localidades[0]);
-      else if (r.localidades?.length > 1 && !r.localidades.includes(localidad)) setLocalidad("");
-      setCpEstado(r.estado === "OK" ? "ok" : "no-resuelto");
-    } catch {
-      setCpEstado("no-resuelto");
-    }
-  };
 
   const open = data.member.reprocannOk && data.member.status === "ACTIVO" && data.tope > 0;
   const gramsNum = totalCarrito(carrito);
@@ -208,7 +120,6 @@ export function MemberPortal({
   const puedeSubir = (id: string) => gramosDe(carrito, id) > 0 || disponibleCarrito(carrito, data.tope) >= PASO_G;
   const estimated = data.club.aportePorGramo != null && validGrams ? data.club.aportePorGramo * gramsNum : null;
   const cepaNombre = (id: string) => variedades.find((v) => v.id === id)?.nombre ?? "Variedad";
-  const chosen = slots.find((s) => s.startMin === slot);
   const activos = data.pickups.filter((p) => esActivo(p.status));
   const totales = data.pickupTotals ?? {
     todos: data.pickups.length,
@@ -218,47 +129,8 @@ export function MemberPortal({
   const pickupsVisibles = data.pickups.filter((p) =>
     filtroPedidos === "TODOS" ? true : filtroPedidos === "ACTIVOS" ? esActivo(p.status) : !esActivo(p.status),
   );
-  const zonaElegida = data.club.envios.find((z) => z.zona === zona);
-  const cobertura = data.club.cobertura;
   const faltanParaEnvio = faltaParaMinimo(gramsNum, data.club.minimoEnvioG ?? 0);
   const gramosFaltanEnvio = faltanParaEnvio;
-  const costoEnvio = modo === "ENVIO" ? (zonaElegida?.precioArs ?? 0) : 0;
-  const totalACubrir = (estimated ?? 0) + costoEnvio;
-  const envioValido =
-    modo === "ENVIO" &&
-    validGrams &&
-    zonaElegida != null &&
-    direccion.trim().length >= 8 &&
-    gramsNum <= data.club.topeEnvioG + 1e-9 &&
-    faltanParaEnvio === 0;
-  const puedePedir = validGrams && (modo === "RETIRO" ? slot != null : envioValido);
-
-  async function reserve(event: React.FormEvent) {
-    event.preventDefault();
-    if (!puedePedir) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const json = await api<{ overview: Overview }>("/api/portal/pickups", {
-        body:
-          modo === "ENVIO"
-            ? { mode: "ENVIO", grams: gramsNum, items: aEnviar(carrito), zona, direccion: direccion.trim() }
-            : { mode: "RETIRO", grams: gramsNum, items: aEnviar(carrito), date: day, startMin: slot },
-      });
-      setData(json.overview);
-      setCarrito([]);
-      setSlot(null);
-      toast(
-        modo === "ENVIO"
-          ? { tone: "ok", title: "Pedido de envío tomado", text: "El club lo prepara y lo despacha a tu domicilio. Te avisa cuando sale." }
-          : { tone: "ok", title: "Reserva tomada", text: "El club la confirma y te espera en el horario elegido." },
-      );
-    } catch (err) {
-      setError(errMsg(err));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function recargar() {
     try {

@@ -2,10 +2,7 @@ import { redirect } from "next/navigation";
 import { getMemberSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { portalOverview } from "@/lib/pickups";
-import { addDaysKey, buildSlots, calendarDays, dayKeyOf, slotInstant, type Rule } from "@/lib/appointments";
-import { closedDayKeys } from "@/lib/closed-days";
 import { recalledBatchesForMember } from "@/lib/batch-quality";
-import { CONSENT_TEXTS, memberConsents } from "@/lib/privacy";
 import QRCode from "qrcode";
 import Link from "next/link";
 import { ArrowRight, MapPin, PackageCheck, Stethoscope, Truck } from "lucide-react";
@@ -116,9 +113,8 @@ export default async function PortalPage() {
     );
   }
 
-  const [overview, member, deliveries, recalled, consents, variedades] = await Promise.all([
+  const [overview, deliveries, recalled, variedades] = await Promise.all([
     portalOverview(session.memberId),
-    prisma.member.findUniqueOrThrow({ where: { id: session.memberId }, select: { consentSignedAt: true } }),
     prisma.dispensation.findMany({
       where: { memberId: session.memberId },
       orderBy: { occurredAt: "desc" },
@@ -126,29 +122,8 @@ export default async function PortalPage() {
       select: { id: true, occurredAt: true, grams: true, voidedAt: true, batch: { select: { code: true, strain: { select: { name: true } } } } },
     }),
     recalledBatchesForMember(session.memberId),
-    memberConsents(session.memberId),
     catalogoDelClub(),
   ]);
-  const today = dayKeyOf(new Date());
-
-  // Primer día con algún horario reservable (si hoy ya cerró, arranca en el próximo).
-  const rules = (await prisma.scheduleRule.findMany({ orderBy: [{ weekday: "asc" }, { startMin: "asc" }] })) as Rule[];
-  let day = today;
-  let slots: { startMin: number; label: string; free: number; past: boolean; full: boolean }[] = [];
-  const closed = await closedDayKeys(today, 10);
-  for (const key of calendarDays(rules, closed, today, 10).filter((d) => d.estado === "abierto").map((d) => d.key)) {
-    const appointments = await prisma.appointment.findMany({
-      where: { scheduledAt: { gte: slotInstant(key, 0), lt: slotInstant(addDaysKey(key, 1), 0) } },
-      select: { id: true, memberId: true, scheduledAt: true, status: true },
-    });
-    const built = buildSlots(rules, key, appointments).map((s) => ({ startMin: s.startMin, label: s.label, free: s.free, past: s.past, full: s.full }));
-    if (built.some((s) => !s.past && !s.full)) {
-      day = key;
-      slots = built;
-      break;
-    }
-  }
-
   const base = process.env.APP_BASE_URL?.replace(/\/$/, "") ?? "";
   const qr = await QRCode.toString(`${base}/dispensario?socio=${session.memberId}`, { type: "svg", margin: 0, color: { dark: "#10231b", light: "#ffffff" } });
 
@@ -187,16 +162,11 @@ export default async function PortalPage() {
         <ArrowRight aria-hidden size={18} />
       </Link>
       <MemberPortal
-      initial={overview}
-      recalled={recalled}
-      consents={consents.map((c) => ({ ...c, grantedAt: c.grantedAt ? c.grantedAt.toISOString() : null, revokedAt: c.revokedAt ? c.revokedAt.toISOString() : null }))}
-      consentTexts={CONSENT_TEXTS}
-      initialSlots={slots}
-      initialDay={day}
-      qr={qr}
-      consentDate={member.consentSignedAt?.toISOString() ?? null}
-      history={deliveries.map((d) => ({ id: d.id, at: d.occurredAt.toISOString(), grams: Number(d.grams), strain: d.batch.strain.name, batch: d.batch.code, voided: Boolean(d.voidedAt) }))}
-      variedades={variedades}
+        initial={overview}
+        recalled={recalled}
+        qr={qr}
+        history={deliveries.map((d) => ({ id: d.id, at: d.occurredAt.toISOString(), grams: Number(d.grams), strain: d.batch.strain.name, batch: d.batch.code, voided: Boolean(d.voidedAt) }))}
+        variedades={variedades}
       />
     </>
   );

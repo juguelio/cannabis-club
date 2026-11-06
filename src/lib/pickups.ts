@@ -16,6 +16,7 @@ import { evaluateEnvio, evaluatePickup, round2 } from "./pickup-rules";
 import { gramosPorEnvio, preciosDeClub } from "./precios";
 import { estadoDePago, leerCobro } from "./comprobante-rules";
 import { addDaysKey, dayKeyOf, evaluateBooking, labelOf, slotInstant, type Rule } from "./appointments";
+import { puedeConfirmarSinComprobante } from "./comprobante-reglas";
 import { daysToExpiry } from "./labels";
 import { availableStock } from "./stock";
 import { faltaDomicilioParaEnvio } from "./verificacion-rules";
@@ -568,7 +569,12 @@ export async function listPickups() {
  * El mostrador sólo puede CONFIRMAR una reserva (o cancelarla con motivo).
  * "Retirada" no es un botón: lo marca la entrega real, en la misma transacción.
  */
-export async function confirmPickup(input: { id: string; actorId: string }) {
+export async function confirmPickup(input: {
+  id: string;
+  actorId: string;
+  /** Excepción de ADMIN: confirmar sabiendo que el comprobante falta, con el motivo por escrito. */
+  sinComprobante?: { rol: string; motivo: string } | null;
+}) {
   return prisma.$transaction(async (tx) => {
     const pickup = await tx.pickupRequest.findUnique({ where: { id: input.id } });
     if (!pickup) throw notFound("Reserva inexistente");
@@ -580,11 +586,16 @@ export async function confirmPickup(input: { id: string; actorId: string }) {
       where: { pickupId: pickup.id, status: { in: ["EN_REVISION", "APROBADO"] } },
       select: { id: true },
     });
-    if (!comprobante)
-      throw conflict(
-        "SIN_COMPROBANTE",
-        "El pedido no tiene comprobante de la transferencia. Pedile al socio que lo suba antes de confirmar.",
-      );
+    if (!comprobante) {
+      // La excepción no es «un botón para saltear»: exige ADMIN, motivo escrito y queda en la auditoría.
+      const forzado = input.sinComprobante;
+      if (!puedeConfirmarSinComprobante(forzado?.rol, forzado?.motivo)) {
+        throw conflict(
+          "SIN_COMPROBANTE",
+          "El pedido no tiene comprobante de la transferencia. Pedile al socio que lo suba antes de confirmar.",
+        );
+      }
+    }
     const updated = await tx.pickupRequest.update({
       where: { id: pickup.id },
       data: { status: "CONFIRMADA", confirmedAt: new Date() },
@@ -597,6 +608,17 @@ export async function confirmPickup(input: { id: string; actorId: string }) {
     await tx.auditLog.create({
       data: { actorId: input.actorId, action: "PICKUP_CONFIRM", entity: "PickupRequest", entityId: pickup.id },
     });
+    if (!comprobante) {
+      await tx.auditLog.create({
+        data: {
+          actorId: input.actorId,
+          action: "PICKUP_CONFIRM_SIN_COMPROBANTE",
+          entity: "PickupRequest",
+          entityId: pickup.id,
+          payload: { motivo: input.sinComprobante?.motivo?.trim() ?? null },
+        },
+      });
+    }
     return updated;
   });
 }

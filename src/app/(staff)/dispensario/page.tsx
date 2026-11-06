@@ -104,7 +104,7 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
                       <td className="cell-meta">{p.pickupAt ? fmtWhen(p.pickupAt) : "sin horario"}</td>
                       <td className="tnum hide-sm">{p.aporteEstimado != null ? MONEY.format(p.aporteEstimado) : "—"}</td>
                       <td><Chip tone={p.status === "CONFIRMADA" ? "ok" : "brand"}>{p.status === "CONFIRMADA" ? "Confirmada" : "Por confirmar"}</Chip></td>
-                      <td className="num"><PickupActions id={p.id} status={p.status} memberId={p.memberId} /></td>
+                      <td className="num"><PickupActions id={p.id} status={p.status} memberId={p.memberId} puedeForzar={session.role === "ADMIN"} /></td>
                     </tr>
                   ))}
                 </tbody>
