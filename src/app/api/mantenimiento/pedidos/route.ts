@@ -15,13 +15,14 @@ export const GET = route(async (req) => {
   if (!esCron(req)) {
     return new Response(JSON.stringify(NO_AUTORIZADO), { status: 401, headers: { "Content-Type": "application/json" } });
   }
-  const r = await expireStale();
+  // `force`: el endpoint existe para que alguien lo apriete (o el cron), no para que el throttle lo saltee.
+  const r = await expireStale({ force: true });
   return { ...r, horasSinComprobante: HORAS_SIN_COMPROBANTE, origen: "cron" };
 });
 
 export const POST = route(async () => {
   await requireUser(["ADMIN"]);
-  const r = await expireStale();
+  const r = await expireStale({ force: true });
   return {
     ...r,
     horasSinComprobante: HORAS_SIN_COMPROBANTE,
