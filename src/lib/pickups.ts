@@ -17,6 +17,7 @@ import { gramosPorEnvio, preciosDeClub } from "./precios";
 import { estadoDePago, leerCobro } from "./comprobante-rules";
 import { addDaysKey, dayKeyOf, evaluateBooking, labelOf, slotInstant, type Rule } from "./appointments";
 import { puedeConfirmarSinComprobante } from "./comprobante-reglas";
+import { vencimiento, type EstadoParaVencer } from "./pedido-vencimiento";
 import { daysToExpiry } from "./labels";
 import { availableStock } from "./stock";
 import { faltaDomicilioParaEnvio } from "./verificacion-rules";
@@ -522,19 +523,63 @@ export async function cancelPickup(input: { id: string; actorId: string | null; 
   });
 }
 
-/** Reservas viejas sin retirar: no se borran, se marcan vencidas a los 7 días. */
-export async function expireStale() {
-  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  await prisma.pickupRequest.updateMany({
-    where: {
-      status: { in: [...OPEN_STATUSES] },
-      createdAt: { lt: cutoff },
-      // Un pedido cargado en un traslado no vence por calendario: entre preparación y transporte
-      // pueden pasar más de siete días, y vencerlo deja el paquete sin poder registrar la entrega.
-      shipmentItem: { is: null },
+/**
+ * Los pedidos que se caen solos.
+ *
+ * Antes esto sólo miraba las reservas de siete días y las marcaba vencidas **sin soltar el turno**: el
+ * horario quedaba tomado por un pedido muerto. Ahora se aplican los dos relojes de
+ * `pedido-vencimiento` y, al vencer, se libera el turno y queda el asiento en la auditoría.
+ */
+export async function expireStale(): Promise<{ vencidos: number }> {
+  const abiertos = await prisma.pickupRequest.findMany({
+    where: { status: { in: [...OPEN_STATUSES] } },
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      appointmentId: true,
+      shipmentItem: { select: { id: true } },
+      paymentProofs: { select: { status: true }, orderBy: { createdAt: "asc" } },
     },
-    data: { status: "VENCIDA", canceledAt: new Date(), cancelReason: "Venció sin retirarse" },
   });
+
+  const ahora = Date.now();
+  let vencidos = 0;
+
+  for (const p of abiertos) {
+    const ultimo = p.paymentProofs[p.paymentProofs.length - 1] ?? null;
+    const r = vencimiento({
+      status: p.status,
+      pago: (ultimo?.status ?? "PENDIENTE") as EstadoParaVencer["pago"],
+      minutos: Math.floor((ahora - p.createdAt.getTime()) / 60000),
+      enTraslado: Boolean(p.shipmentItem),
+    });
+    if (!r.vence) continue;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.pickupRequest.update({
+        where: { id: p.id },
+        data: { status: "VENCIDA", canceledAt: new Date(), cancelReason: r.motivo, appointmentId: null },
+      });
+      // El turno se suelta: `appointmentId` es único y el horario tiene que volver a estar disponible.
+      if (p.appointmentId) {
+        // `updateMany` y no `update`: si el turno ya no está, la transacción no se cae por eso.
+        await tx.appointment.updateMany({ where: { id: p.appointmentId }, data: { status: "CANCELADO" } });
+      }
+      await tx.auditLog.create({
+        data: {
+          actorId: null,
+          action: "PICKUP_EXPIRE",
+          entity: "PickupRequest",
+          entityId: p.id,
+          payload: { motivo: r.motivo, turnoLiberado: p.appointmentId != null },
+        },
+      });
+    });
+    vencidos += 1;
+  }
+
+  return { vencidos };
 }
 
 export async function listPickups() {
