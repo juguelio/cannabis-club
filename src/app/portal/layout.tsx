@@ -2,6 +2,7 @@ import { getMemberSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { portalOverview } from "@/lib/pickups";
 import { PortalHeader } from "@/components/portal-header";
+import { getBrandView } from "@/lib/brand-db";
 
 export const dynamic = "force-dynamic";
 
@@ -13,17 +14,23 @@ export default async function PortalLayout({ children }: { children: React.React
   const session = await getMemberSession();
   if (!session) return <>{children}</>;
 
-  const [member, overview] = await Promise.all([
+  const [member, overview, brand] = await Promise.all([
     prisma.member.findUnique({
       where: { id: session.memberId },
       select: { firstName: true, locality: true, province: true, postalCode: true },
     }),
     portalOverview(session.memberId).catch(() => null),
+    getBrandView().catch(() => null),
   ]);
 
   return (
     <>
       <PortalHeader
+        marca={{
+          nombre: brand?.nombre ?? "El club",
+          sigla: brand?.sigla ?? "RC",
+          logo: brand?.img.logo ?? null,
+        }}
         nombre={member?.firstName ?? "socio"}
         localidad={member?.locality ?? null}
         cp={member?.postalCode ?? null}

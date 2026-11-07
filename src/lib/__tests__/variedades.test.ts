@@ -44,9 +44,23 @@ describe("catálogo de variedades del socio", () => {
     expect(v.genetica).toBeNull();
   });
 
-  it("no expone precios ni cantidades: sólo si hay stock", () => {
+  it("no expone ningún precio: el aporte lo pone la pantalla, no el catálogo", () => {
     const [v] = armarCatalogo([cepa("1", "Alfa", { thcPct: 20 })], new Map([["1", 999]])) as unknown as Record<string, unknown>[];
-    expect(Object.keys(v).sort()).toEqual(["cbd", "disponible", "foto", "genetica", "id", "nombre", "thc"]);
+    // El stock sí se muestra («278 g en stock»): le dice al socio si alcanza para lo que quiere.
+    // Lo que nunca viaja en la variedad es un precio, un aporte ni un importe por gramo.
+    expect(Object.keys(v).sort()).toEqual(["cbd", "disponible", "foto", "genetica", "id", "lote", "nombre", "stockG", "thc"]);
+    expect(JSON.stringify(v)).not.toMatch(/\$|precio|aporte|importe/i);
+  });
+
+  it("dice cuánto hay y de qué lote sale, para poder rastrearlo", () => {
+    const [v] = armarCatalogo([cepa("1", "Alfa")], new Map([["1", 278.456]]), new Map([["1", "L-2026-002"]]));
+    expect(v.stockG).toBe(278.5);
+    expect(v.lote).toBe("L-2026-002");
+  });
+
+  it("sin lote cargado no inventa uno", () => {
+    const [v] = armarCatalogo([cepa("1", "Alfa")], new Map([["1", 10]]));
+    expect(v.lote).toBeNull();
   });
 
   it("sin foto cargada el catálogo no inventa una imagen", () => {

@@ -1,18 +1,20 @@
 "use client";
 
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarCheck2, CircleAlert, Leaf, PackageCheck, QrCode, Truck } from "lucide-react";
+import { CalendarCheck2, CircleAlert, Leaf, PackageCheck, Truck } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
 import type { Variedad } from "@/lib/variedad-rules";
-import { disponibleCarrito, gramosDe, moverItem, PASO_G, totalCarrito } from "@/lib/carrito";
+import { disponibleCarrito, fijarItem, gramosDe, moverItem, PASO_G, quitarItem, totalCarrito } from "@/lib/carrito";
 import { faltaParaMinimo, type Cobertura } from "@/lib/envios";
 import { esActivo, esperaComprobante, estadoPedido } from "@/lib/pedidos-estado";
 import { VariedadCard } from "@/components/variedad-card";
+import { FranjaSituacion } from "@/components/franja-situacion";
+import { BasketPanel } from "@/components/basket-panel";
 import { CarritoDrawer } from "@/components/carrito-drawer";
 import { useCarrito } from "@/lib/carrito-cliente";
 import { ComprobantePago } from "@/components/comprobante-pago";
@@ -81,10 +83,10 @@ type Overview = {
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const g = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")} g`;
 export type MemberHistory = { id: string; at: string; grams: number; strain: string; batch: string; voided: boolean }[];
-const fmtDay = (iso: string) =>
-  new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
 const fmtDate = (iso: string | null) =>
   iso ? new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(iso)) : "—";
+const fmtDay = (iso: string) =>
+  new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
 
 export function MemberPortal({
   initial,
@@ -106,11 +108,14 @@ export function MemberPortal({
   const { items: carrito, setItems: setCarrito } = useCarrito(data.tope);
   const router = useRouter();
   const [filtroPedidos, setFiltroPedidos] = useState<"TODOS" | "ACTIVOS" | "CERRADOS">("TODOS");
+  const [filtroCatalogo, setFiltroCatalogo] = useState<"TODAS" | "INDICA" | "SATIVA" | "CBD">("TODAS");
   const [drawerAbierto, setDrawerAbierto] = useState(false);
   const [busy, setBusy] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [showCard, setShowCard] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("all");
+  // Próximo horario con lugar: lo que el socio necesita para decidir retiro sin abrir el checkout.
+  const [proximoTurno, setProximoTurno] = useState<string | null>(null);
   const documentStatus = memberDocumentStatus(data.member);
   const visibleHistory = history.filter((item) => historyFilter === "all" || (historyFilter === "voided" ? item.voided : !item.voided));
 
@@ -120,6 +125,7 @@ export function MemberPortal({
   const puedeSubir = (id: string) => gramosDe(carrito, id) > 0 || disponibleCarrito(carrito, data.tope) >= PASO_G;
   const estimated = data.club.aportePorGramo != null && validGrams ? data.club.aportePorGramo * gramsNum : null;
   const cepaNombre = (id: string) => variedades.find((v) => v.id === id)?.nombre ?? "Variedad";
+  const nombreDe = Object.fromEntries(variedades.map((v) => [v.id, v.nombre]));
   const activos = data.pickups.filter((p) => esActivo(p.status));
   const totales = data.pickupTotals ?? {
     todos: data.pickups.length,
@@ -129,8 +135,35 @@ export function MemberPortal({
   const pickupsVisibles = data.pickups.filter((p) =>
     filtroPedidos === "TODOS" ? true : filtroPedidos === "ACTIVOS" ? esActivo(p.status) : !esActivo(p.status),
   );
+  // Lo que se puede pedir hoy va en la grilla; lo agotado, atenuado al final y sin botones.
+  const conFiltro = variedades.filter((v) => {
+    const gen = (v.genetica ?? "").toLowerCase();
+    if (filtroCatalogo === "INDICA") return gen.includes("indic");
+    if (filtroCatalogo === "SATIVA") return gen.includes("sativ");
+    if (filtroCatalogo === "CBD") return (v.cbd ?? 0) >= 5;
+    return true;
+  });
+  const catalogoVisible = conFiltro.filter((v) => v.disponible);
+  const sinStockVisible = conFiltro.filter((v) => !v.disponible);
   const faltanParaEnvio = faltaParaMinimo(gramsNum, data.club.minimoEnvioG ?? 0);
   const gramosFaltanEnvio = faltanParaEnvio;
+
+  useEffect(() => {
+    let vivo = true;
+    api<{ slots: { label: string; free: number; past: boolean; full: boolean }[]; days: { key: string; label?: string; estado?: string }[] }>(
+      "/api/portal/slots",
+    )
+      .then((d) => {
+        if (!vivo) return;
+        const dia = (d.days ?? []).find((x) => (x.estado ?? "abierto") === "abierto");
+        const slot = (d.slots ?? []).find((s) => !s.past && !s.full && s.free > 0);
+        setProximoTurno(dia && slot ? `${dia.label ?? dia.key} · ${slot.label}` : null);
+      })
+      .catch(() => undefined);
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   async function recargar() {
     try {
@@ -141,22 +174,28 @@ export function MemberPortal({
     }
   }
 
-  const limit = data.limits.monthLimitG;
-  const pct = (v: number) => `${Math.min(100, (v / limit) * 100)}%`;
-
   return (
     <>
-      <header className="member-intro">
-        <div className="flex items-center gap-3">
-          <div><p className="panel-sub" style={{ margin: 0 }}>{data.club.nombre}</p><h1 style={{ margin: 0 }}>Tu espacio de socio</h1></div>
-        </div>
-        <nav aria-label="Secciones de tu portal" className="member-shortcuts">
-          <a href="#mi-carnet" onClick={() => setShowCard(true)}>Mi carnet</a>
-          <a href="#variedades">Variedades</a>
-          <a href="#historial">Historial</a>
-          <a href="#documentacion">Documentación</a>
-        </nav>
-      </header>
+      <FranjaSituacion
+        datos={{
+          firstName: data.member.firstName,
+          disponibleMes: data.disponibleMes,
+          limit: data.limits.monthLimitG,
+          retiradoMes: data.usage.monthGrams,
+          enBasket: gramsNum,
+          reprocannLabel: documentStatus.label,
+          reprocannOk: data.member.reprocannOk,
+          reprocannDays: data.member.reprocannDays,
+          cobertura: data.club.cobertura ?? { estado: "SIN_ZONAS" },
+          localidad: data.member.locality,
+          minimoEnvioG: data.club.minimoEnvioG ?? 0,
+          proximoTurno,
+        }}
+        showCard={showCard}
+        onToggleCard={() => setShowCard((v) => !v)}
+        qr={qr}
+      />
+
       {recalled.length ? (
         <section className="note note-bad" role="alert" style={{ marginBottom: 4 }}>
           <CircleAlert aria-hidden />
@@ -193,56 +232,17 @@ export function MemberPortal({
         </section>
       ) : null}
 
-      <section className="allowance" aria-label="Tu saldo del mes">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div style={{ fontSize: 14, color: "#a9c0b3" }}>Hola, {data.member.firstName}. Te quedan este mes</div>
-            <div className="allowance-big" style={{ marginTop: 8 }}>{String(data.disponibleMes).replace(".", ",")}<small>g</small></div>
-          </div>
-          <button className="rail-out" onClick={() => setShowCard((s) => !s)} aria-expanded={showCard} aria-controls="mi-carnet" aria-label={showCard ? "Ocultar mi carnet" : "Mostrar mi carnet"} title="Mi carnet" style={{ padding: 8 }}>
-            <QrCode size={20} />
-          </button>
-        </div>
-        <div className="gauge-track" style={{ marginTop: 18 }} aria-hidden>
-          <span className="gauge-used" style={{ width: pct(data.usage.monthGrams) }} />
-          <span className="gauge-now" style={{ left: pct(data.usage.monthGrams), width: pct(data.pendingGrams) }} />
-        </div>
-        <div className="gauge-row" style={{ marginTop: 8, marginBottom: 0 }}>
-          <span>Retiraste <b>{g(data.usage.monthGrams)}</b>{data.pendingGrams ? <>, reservaste <b>{g(data.pendingGrams)}</b></> : null}</span>
-          <span>de {g(limit)}</span>
-        </div>
-        <div className="flex flex-wrap gap-2" style={{ marginTop: 14, fontSize: 13, color: "#a9c0b3" }}>
-          <span>Legajo {data.member.legajo}</span>
-          <span>·</span>
-          <span style={{ color: data.member.reprocannOk ? "#a6e8bf" : "#ffb4a6" }}>
-            REPROCANN: {documentStatus.label}
-          </span>
-          {data.limits.isMinor ? <><span>·</span><span>Tope reducido por edad{data.limits.thcMaxPct != null ? `, hasta ${data.limits.thcMaxPct}% THC` : ""}</span></> : null}
-        </div>
-        {data.cuenta ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", fontSize: 13, color: "#a9c0b3", marginTop: 10 }}>
-            <span>Aporte de cultivo de {data.cuenta.periodo}: <b style={{ color: "#fff" }}>{MONEY.format(data.cuenta.aportesDelMes)}</b></span>
-            <span>·</span>
-            <span>
-              Cuenta:{" "}
-              <b style={{ color: data.cuenta.saldo > 0.009 ? "#ffb4a6" : data.cuenta.saldo < -0.009 ? "#a6e8bf" : "#fff" }}>
-                {data.cuenta.saldo > 0.009
-                  ? `adeudás ${MONEY.format(data.cuenta.saldo)}`
-                  : data.cuenta.saldo < -0.009
-                    ? `a favor ${MONEY.format(Math.abs(data.cuenta.saldo))}`
-                    : "al día"}
-              </b>
-            </span>
-          </div>
-        ) : null}
-          <div id="mi-carnet" hidden={!showCard} className="member-card" style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #23453a" }}>
-            <div className="qr-box" style={{ width: 132, height: 132, flex: "none" }} dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label="Código QR de tu carnet" />
-            <div style={{ fontSize: 14 }}>
-              <div style={{ color: "#fff", fontWeight: 650, fontFamily: "var(--font-display)", fontSize: 18 }}>{data.member.lastName}, {data.member.firstName}</div>
-              <div style={{ color: "#a9c0b3" }}>Mostralo en el mostrador: abre tu legajo al instante.</div>
-            </div>
-          </div>
-      </section>
+      {data.cuenta && (data.cuenta.saldo > 0.009 || data.cuenta.saldo < -0.009 || data.cuenta.aportesDelMes > 0) ? (
+        <p className="franja-cuenta">
+          Aporte de cultivo de {data.cuenta.periodo}: <b>{MONEY.format(data.cuenta.aportesDelMes)}</b>
+          {" · "}
+          {data.cuenta.saldo > 0.009
+            ? `adeudás ${MONEY.format(data.cuenta.saldo)}`
+            : data.cuenta.saldo < -0.009
+              ? `a favor ${MONEY.format(Math.abs(data.cuenta.saldo))}`
+              : "al día"}
+        </p>
+      ) : null}
 
       {activos.length === 1 ? (
         <div className="note note-ok">
@@ -290,75 +290,107 @@ export function MemberPortal({
         </div>
       ) : null}
 
+      <div className="catalogo-grid">
       <section className="panel" id="variedades" aria-labelledby="variedades-title">
         <div className="panel-head"><div>
-          <h2 className="panel-title" style={{ fontSize: 19 }} id="variedades-title">Variedades del club</h2>
-          <p className="panel-sub">Lo que el club tiene cultivado. No se vende: el aporte de cultivo se prorratea al retirar y lo ves en tu cuenta.</p>
+          <h2 className="panel-title" style={{ fontSize: 20 }} id="variedades-title">Variedades disponibles</h2>
+          <p className="panel-sub">
+            {data.club.aportePorGramo != null
+              ? `Aporte de cultivo: ${MONEY.format(data.club.aportePorGramo)} por gramo. No es una venta: cubre lo que cuesta cultivar.`
+              : "El club todavía no fijó el aporte de cultivo por gramo."}
+          </p>
         </div></div>
-        <div className="panel-body">
+        <div className="panel-body" style={{ display: "grid", gap: 14 }}>
           {variedades.length === 0 ? (
             <div className="note note-mute">
               <Leaf aria-hidden />
               <div>Todavía no hay variedades publicadas. Cuando el club cierre una cosecha, aparecen acá.</div>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
-              {variedades.map((v) => (
-                <VariedadCard
-                  key={v.id}
-                  v={v}
-                  carrito={
-                    open
-                      ? {
-                          gramos: gramosDe(carrito, v.id),
-                          puedeSubir: puedeSubir(v.id),
-                          onDelta: (paso) => setCarrito(moverItem(carrito, v.id, paso, data.tope)),
-                        }
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
+            <>
+              <div className="filtros" role="group" aria-label="Filtrar variedades">
+                {(
+                  [
+                    ["TODAS", "Todas"],
+                    ["INDICA", "Índica"],
+                    ["SATIVA", "Sativa"],
+                    ["CBD", "Alto CBD"],
+                  ] as const
+                ).map(([valor, etiqueta]) => (
+                  <button
+                    key={valor}
+                    type="button"
+                    className="filtro-btn"
+                    aria-pressed={filtroCatalogo === valor}
+                    onClick={() => setFiltroCatalogo(valor)}
+                  >
+                    {etiqueta}
+                  </button>
+                ))}
+              </div>
+
+              <div className="vcard-grid">
+                {catalogoVisible.map((v) => (
+                  <VariedadCard
+                    key={v.id}
+                    v={v}
+                    carrito={
+                      open
+                        ? {
+                            gramos: gramosDe(carrito, v.id),
+                            puedeSubir: puedeSubir(v.id),
+                            restante: disponibleCarrito(carrito, data.tope),
+                            aportePorGramo: data.club.aportePorGramo,
+                            onDelta: (paso) => setCarrito(moverItem(carrito, v.id, paso, data.tope)),
+                            onSet: (gramos) => setCarrito(fijarItem(carrito, v.id, gramos, data.tope)),
+                            onQuitar: () => setCarrito(quitarItem(carrito, v.id)),
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+
+              {sinStockVisible.length ? (
+                <div className="agotadas">
+                  <b>Próximas cosechas · sin stock ahora</b>
+                  <ul>
+                    {sinStockVisible.map((v) => (
+                      <li key={v.id}>
+                        <span>{v.nombre}</span>
+                        <small>
+                          {[v.genetica, v.thc != null ? `THC ${v.thc} %` : null, v.cbd != null ? `CBD ${v.cbd} %` : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </small>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </>
           )}
-          <p className="panel-sub" style={{ marginTop: 12, marginBottom: 0 }}>
-            Para llevarte algo, reservá un retiro arriba: elegís gramos y horario, y el club lo prepara.
-          </p>
         </div>
       </section>
-      <section className="panel" id="tu-pedido" aria-labelledby="tu-pedido-title">
-        <div className="panel-body">
-          <div className="flex items-center justify-between" style={{ flexWrap: "wrap", gap: 12 }}>
-            <div>
-              <b id="tu-pedido-title" style={{ fontFamily: "var(--font-display)", fontSize: 17 }}>Tu pedido</b>
-              <div className="cell-meta">
-                {carrito.length
-                  ? `${carrito.length} ${carrito.length === 1 ? "variedad" : "variedades"} · ${g(gramsNum)} de ${g(data.tope)}${estimated != null ? ` · ${MONEY.format(estimated)}` : ""}`
-                  : "Vacío: sumá 5 g desde las variedades."}
-              </div>
-            </div>
-            <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
-              <Link href="/portal/basket" className="btn btn-quiet">Ver basket</Link>
-              <Link href="/portal/pedido" className="btn" aria-disabled={carrito.length === 0}>
-                Hacer el pedido
-              </Link>
-            </div>
-          </div>
-          {!open ? (
-            <div className="note note-warn" style={{ marginTop: 10 }}>
-              <CircleAlert aria-hidden />
-              <div>
-                {!data.member.reprocannOk
-                  ? `Tu documentación requiere revisión (${documentStatus.label.toLowerCase()}). Consultá con la secretaría del club.`
-                  : data.member.status !== "ACTIVO"
-                    ? "Tu ficha no está activa. Hablá con la secretaría del club."
-                    : data.topeMotivo === "stock"
-                      ? "En este momento no hay stock para reservar. Probá en unos días."
-                      : "Ya usaste todo tu saldo disponible. Se renueva el mes que viene."}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </section>
+
+      <BasketPanel
+        items={carrito}
+        total={gramsNum}
+        tope={data.tope}
+        aportePorGramo={data.club.aportePorGramo}
+        minimoEnvioG={data.club.minimoEnvioG ?? 0}
+        topeEnvioG={data.club.topeEnvioG}
+        nombreDe={nombreDe}
+        onDelta={(id, paso) => setCarrito(moverItem(carrito, id, paso, data.tope))}
+        onQuitar={(id) => setCarrito(quitarItem(carrito, id))}
+        onVaciar={() => setCarrito([])}
+        envioZona={
+          data.club.cobertura?.estado === "CUBIERTA"
+            ? { zona: data.club.cobertura.zona.zona, precioArs: data.club.cobertura.zona.precioArs }
+            : null
+        }
+      />
+      </div>
 
       <section className="panel" id="mis-pedidos" aria-labelledby="mis-pedidos-title">
         <div className="panel-head"><div>

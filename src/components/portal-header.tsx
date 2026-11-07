@@ -13,12 +13,15 @@ import { useCarrito } from "@/lib/carrito-cliente";
  * todas las pantallas.
  */
 export function PortalHeader({
+  marca,
   nombre,
   localidad,
   cp,
   tope,
   activos,
 }: {
+  /** Marca del club: la misma que usa el sitio, el login y el favicon. No es texto fijo. */
+  marca: { nombre: string; sigla: string; logo: string | null };
   nombre: string;
   localidad: string | null;
   cp: string | null;
@@ -49,8 +52,16 @@ export function PortalHeader({
     <header className="ph">
       <div className="ph-top">
         <div className="ph-marca">
-          <Link href="/portal" className="ph-logo">
-            República<span>cannabis</span>
+          <Link href="/portal" className="ph-logo" aria-label={marca.nombre}>
+            {marca.logo ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={marca.logo} alt={marca.nombre} className="ph-logo-img" />
+            ) : (
+              <>
+                <span className="ph-logo-sigla">{marca.sigla}</span>
+                {marca.nombre}
+              </>
+            )}
           </Link>
           <Link href="/portal/datos" className="ph-dir" title="Cambiar la dirección de entrega">
             <MapPin aria-hidden size={15} />

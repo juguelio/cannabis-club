@@ -45,6 +45,25 @@ export function moverItem(items: ItemCarrito[], strainId: string, paso: number, 
 export const disponibleCarrito = (items: ItemCarrito[], tope: number) => r2(Math.max(0, tope - totalCarrito(items)));
 
 /**
+ * Fija los gramos de una variedad de una vez: es lo que hace la cantidad rápida («20 g»).
+ *
+ * Respeta el tope del socio recortando el resto, y nunca deja un renglón más grande que lo que queda
+ * libre. Si el socio ponía 10 g de una cepa y toca 20 g en otra, la primera no desaparece por arte de
+ * magia: se le descuenta lo que hacía falta.
+ */
+export function fijarItem(items: ItemCarrito[], strainId: string, gramos: number, tope: number): ItemCarrito[] {
+  const otros = items.filter((i) => i.strainId !== strainId);
+  const resto = totalCarrito(otros);
+  const objetivo = r2(Math.max(0, Math.min(gramos, r2(tope - resto))));
+  if (objetivo <= 0) return otros;
+  return [...otros, { strainId, gramos: objetivo }];
+}
+
+/** Saca la variedad del carrito entera. */
+export const quitarItem = (items: ItemCarrito[], strainId: string) =>
+  items.filter((i) => i.strainId !== strainId);
+
+/**
  * Lo que se manda al servidor. El servidor vuelve a validar topes, stock y verificación: esto sólo
  * evita que el socio llegue al final con un pedido que no iba a poder hacerse.
  */
