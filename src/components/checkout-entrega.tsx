@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MapPin, Store, Truck } from "lucide-react";
+import { CalendarCheck2, MapPin, Pencil, Store, Truck } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { aEnviar } from "@/lib/carrito";
 import { useCarrito } from "@/lib/carrito-cliente";
@@ -30,13 +30,17 @@ export type CheckoutData = {
 type Slot = { startMin: number; label: string; free: number; past: boolean; full: boolean };
 type Day = { key: string; label?: string; estado?: string };
 
+/** Cuántos horarios se muestran por franja antes del «+ N más». */
+const POR_FRANJA = 6;
+const MEDIODIA = 13 * 60;
+
 /**
  * Paso 1: la entrega, y nada más.
  *
- * Antes esta pantalla mostraba el resumen del pedido al costado, la cuenta, los datos de transferencia
- * y el comprobante en la misma vista: cinco bloques compitiendo. Acá sólo se elige cómo llega —retiro
- * con turno o envío a domicilio— y se avanza. El pedido se crea al continuar y su número manda: el
- * paso siguiente se abre por esa dirección y se puede recargar sin perder nada.
+ * Un solo trabajo en esta pantalla. Si es retiro, día y horario —agrupados en mañana y tarde, porque
+ * veintisiete botones seguidos no se leen— con el próximo turno libre a un toque. Si es envío, la
+ * dirección que el club ya tiene como tarjeta (no cuatro campos vacíos) y lo que cuesta antes de ir a
+ * pagar. Abajo, el total: el socio sabe desde acá cuánto va a transferir.
  */
 export function CheckoutEntrega({
   data,
@@ -58,6 +62,13 @@ export function CheckoutEntrega({
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slot, setSlot] = useState<number | null>(null);
   const [closedDay, setClosedDay] = useState(false);
+  const [verTodos, setVerTodos] = useState({ manana: false, tarde: false });
+
+  // Envío: la dirección guardada se muestra como tarjeta; el formulario aparece con «Cambiar».
+  const guardada = [data.member.address, data.member.locality, data.member.province, data.member.postalCode]
+    .filter(Boolean)
+    .join(", ");
+  const [editando, setEditando] = useState(!guardada);
 
   const sugerida = data.cobertura.estado === "CUBIERTA" ? data.cobertura.zona.zona : (data.envios[0]?.zona ?? "");
   const [zona, setZona] = useState<string>(sugerida);
@@ -66,6 +77,7 @@ export function CheckoutEntrega({
   const [provincia, setProvincia] = useState<string>(data.member.province ?? "");
   const [localidades, setLocalidades] = useState<string[]>([]);
   const [calle, setCalle] = useState<string>(data.member.address ?? "");
+  const [indicaciones, setIndicaciones] = useState("");
   const [cpEstado, setCpEstado] = useState<"idle" | "buscando" | "ok" | "no-resuelto">("idle");
   const ultimoCp = useRef("");
 
@@ -92,9 +104,17 @@ export function CheckoutEntrega({
   }, [day]);
 
   const zonaElegida = data.envios.find((z) => z.zona === zona);
+  const direccion = [calle.trim(), localidad.trim(), provincia.trim(), cp.trim()].filter(Boolean).join(", ");
   const entregaLista =
     modo === "RETIRO" ? slot != null : Boolean(zonaElegida) && calle.trim().length >= 4 && cp.trim().length === 4;
-  const direccion = [calle.trim(), localidad.trim(), provincia.trim(), cp.trim()].filter(Boolean).join(", ");
+
+  const libre = slots.filter((s) => !s.past && !s.full);
+  const proximo = libre[0] ?? null;
+  const manana = libre.filter((s) => s.startMin < MEDIODIA);
+  const tarde = libre.filter((s) => s.startMin >= MEDIODIA);
+  const costoEnvio = modo === "ENVIO" ? (zonaElegida?.precioArs ?? 0) : 0;
+  const aporte = data.aportePorGramo != null ? data.aportePorGramo * total : null;
+  const totalPagar = (aporte ?? 0) + costoEnvio;
 
   async function resolverCp(valor: string) {
     const limpio = valor.replace(/\D/g, "");
@@ -112,7 +132,6 @@ export function CheckoutEntrega({
     }
   }
 
-  /** El pedido se crea acá: lo que sigue es pagarlo, y para eso hace falta su número. */
   async function continuar() {
     setBusy(true);
     setError(null);
@@ -120,7 +139,14 @@ export function CheckoutEntrega({
       const r = await api<{ pickup: { id: string } }>("/api/portal/pickups", {
         body:
           modo === "ENVIO"
-            ? { mode: "ENVIO", grams: total, items: aEnviar(items), zona, direccion }
+            ? {
+                mode: "ENVIO",
+                grams: total,
+                items: aEnviar(items),
+                zona,
+                direccion,
+                notes: indicaciones.trim() || undefined,
+              }
             : { mode: "RETIRO", grams: total, items: aEnviar(items), date: day, startMin: slot },
       });
       vaciar();
@@ -193,6 +219,7 @@ export function CheckoutEntrega({
                   onClick={() => {
                     setDay(d.key);
                     setSlot(null);
+                    setVerTodos({ manana: false, tarde: false });
                   }}
                 >
                   <small>{(d.label ?? "").split(" ")[0]}</small>
@@ -201,20 +228,64 @@ export function CheckoutEntrega({
               ))}
             </div>
           </div>
+
+          {proximo && slot == null ? (
+            <button type="button" className="atajo-turno" onClick={() => setSlot(proximo.startMin)}>
+              <CalendarCheck2 aria-hidden size={16} />
+              <span>
+                Próximo libre: <b>{proximo.label}</b>
+              </span>
+              <span className="atajo-turno-cta">Tomarlo</span>
+            </button>
+          ) : null}
+
           <div>
             <span className="label">¿A qué hora?</span>
             {slots.length === 0 ? (
               <p className="hint" style={{ margin: 0 }}>{closedDay ? "El club no atiende ese día." : "No hay horarios disponibles."}</p>
+            ) : libre.length === 0 ? (
+              <p className="hint" style={{ margin: 0 }}>Ese día ya está completo. Probá con otro.</p>
             ) : (
-              <div className="slot-grid" role="radiogroup" aria-label="Horario del retiro">
-                {slots.map((s) => (
-                  <button key={s.startMin} type="button" className="slot" disabled={s.full || s.past} aria-pressed={s.startMin === slot} onClick={() => setSlot(s.startMin)}>
-                    {s.label}
-                  </button>
-                ))}
+              <div style={{ display: "grid", gap: 12 }}>
+                {([
+                  ["Mañana", manana, "manana"],
+                  ["Tarde", tarde, "tarde"],
+                ] as const).map(([titulo, grupo, clave]) =>
+                  grupo.length ? (
+                    <div key={titulo}>
+                      <span className="franja-horarios">{titulo}</span>
+                      <div className="slot-grid" role="radiogroup" aria-label={`Horarios de la ${titulo.toLowerCase()}`}>
+                        {(verTodos[clave] ? grupo : grupo.slice(0, POR_FRANJA)).map((s) => (
+                          <button
+                            key={s.startMin}
+                            type="button"
+                            className="slot"
+                            aria-pressed={s.startMin === slot}
+                            onClick={() => setSlot(s.startMin)}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                      {grupo.length > POR_FRANJA && !verTodos[clave] ? (
+                        <button
+                          type="button"
+                          className="slot-mas"
+                          onClick={() => setVerTodos((v) => ({ ...v, [clave]: true }))}
+                        >
+                          + {grupo.length - POR_FRANJA} más
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null,
+                )}
               </div>
             )}
           </div>
+
+          <p className="hint" style={{ margin: 0 }}>
+            Traé tu DNI: en el club se verifica tu identidad y tu REPROCANN antes de entregarte.
+          </p>
         </div>
       ) : (
         <div className="checkout-bloque">
@@ -226,64 +297,105 @@ export function CheckoutEntrega({
                 {data.cobertura.aproximada ? ` (${data.cobertura.motivo})` : ""}. Mínimo {g(data.minimoEnvioG)}.
               </span>
             </p>
+          ) : data.cobertura.estado === "SIN_COBERTURA" ? (
+            <p className="note note-warn" style={{ margin: 0 }}>
+              <span>
+                No llegamos a {data.cobertura.cp}: {data.cobertura.motivo}. Podés retirar en el club sin costo.
+              </span>
+            </p>
           ) : null}
 
-          {/* El CP va primero: con los cuatro dígitos se completan localidad y provincia solas. */}
-          <div className="dir-grid">
-            <div>
-              <label className="label" htmlFor="c-cp">Código postal</label>
-              <input
-                id="c-cp"
-                className="input tnum"
-                inputMode="numeric"
-                maxLength={4}
-                value={cp}
-                placeholder="8370"
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                  setCp(v);
-                  if (v.length === 4 && v !== ultimoCp.current) {
-                    ultimoCp.current = v;
-                    void resolverCp(v);
-                  }
-                }}
-              />
+          {/* La dirección que el club ya tiene, no cuatro campos vacíos. */}
+          {guardada && !editando ? (
+            <div className="dir-tarjeta">
+              <div>
+                <small>Entregamos en</small>
+                <b>{guardada}</b>
+              </div>
+              <button type="button" className="btn btn-sm btn-quiet" onClick={() => setEditando(true)}>
+                <Pencil aria-hidden size={14} /> Cambiar
+              </button>
             </div>
+          ) : (
+            <>
+              <div className="dir-grid">
+                <div>
+                  <label className="label" htmlFor="c-cp">Código postal</label>
+                  <input
+                    id="c-cp"
+                    className="input tnum"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={cp}
+                    placeholder="8370"
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                      setCp(v);
+                      if (v.length === 4 && v !== ultimoCp.current) {
+                        ultimoCp.current = v;
+                        void resolverCp(v);
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="label" htmlFor="c-loc">Localidad</label>
+                  {localidades.length > 1 ? (
+                    <select id="c-loc" className="input" value={localidad} onChange={(e) => setLocalidad(e.target.value)}>
+                      <option value="">Elegí tu localidad</option>
+                      {localidades.map((l) => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  ) : (
+                    <input id="c-loc" className="input" value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Sale del código" />
+                  )}
+                </div>
+                <div>
+                  <label className="label" htmlFor="c-prov">Provincia</label>
+                  <input id="c-prov" className="input" value={provincia} onChange={(e) => setProvincia(e.target.value)} placeholder="Sale del código" />
+                </div>
+              </div>
+              {cpEstado === "buscando" ? <span className="cell-meta">Buscando la localidad…</span> : null}
+              {cpEstado === "no-resuelto" ? <span className="cell-meta">No pudimos resolver ese código: escribí la localidad y la provincia.</span> : null}
+
+              <div>
+                <label className="label" htmlFor="c-dir">Calle y número</label>
+                <input id="c-dir" className="input" value={calle} onChange={(e) => setCalle(e.target.value)} placeholder="Los Notros 195, piso 2 depto B" />
+              </div>
+            </>
+          )}
+
+          {data.envios.length > 1 ? (
             <div>
-              <label className="label" htmlFor="c-loc">Localidad</label>
-              {localidades.length > 1 ? (
-                <select id="c-loc" className="input" value={localidad} onChange={(e) => setLocalidad(e.target.value)}>
-                  <option value="">Elegí tu localidad</option>
-                  {localidades.map((l) => <option key={l} value={l}>{l}</option>)}
-                </select>
-              ) : (
-                <input id="c-loc" className="input" value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Sale del código" />
-              )}
+              <span className="label">Zona</span>
+              <div className="zona-grid" role="radiogroup" aria-label="Zona de envío">
+                {data.envios.map((z) => (
+                  <button key={z.zona} type="button" className="zona-op" aria-pressed={zona === z.zona} onClick={() => setZona(z.zona)}>
+                    <b>{z.zona}</b>
+                    <small className="tnum">{MONEY.format(z.precioArs)} · {z.demora}</small>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div>
-              <label className="label" htmlFor="c-prov">Provincia</label>
-              <input id="c-prov" className="input" value={provincia} onChange={(e) => setProvincia(e.target.value)} placeholder="Sale del código" />
-            </div>
-          </div>
-          {cpEstado === "buscando" ? <span className="cell-meta">Buscando la localidad…</span> : null}
-          {cpEstado === "no-resuelto" ? <span className="cell-meta">No pudimos resolver ese código: escribí la localidad y la provincia.</span> : null}
+          ) : null}
 
           <div>
-            <label className="label" htmlFor="c-dir">Calle y número</label>
-            <input id="c-dir" className="input" value={calle} onChange={(e) => setCalle(e.target.value)} placeholder="Los Notros 195, piso 2 depto B" />
+            <label className="label" htmlFor="c-ind">Indicaciones para quien entrega (opcional)</label>
+            <input
+              id="c-ind"
+              className="input"
+              value={indicaciones}
+              onChange={(e) => setIndicaciones(e.target.value)}
+              placeholder="Timbre 2B, dejar en portería, llamar al llegar…"
+              maxLength={300}
+            />
           </div>
 
-          <div>
-            <span className="label">Zona</span>
-            <div className="zona-grid" role="radiogroup" aria-label="Zona de envío">
-              {data.envios.map((z) => (
-                <button key={z.zona} type="button" className="zona-op" aria-pressed={zona === z.zona} onClick={() => setZona(z.zona)}>
-                  <b>{z.zona}</b>
-                  <small className="tnum">{MONEY.format(z.precioArs)} · {z.demora}</small>
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* La cuenta antes de ir a pagar: acá se decide si el envío conviene. */}
+          <ul className="cuenta" style={{ paddingTop: 10, borderTop: "1px solid var(--line)" }}>
+            <li><span>Aporte de cultivo</span><span className="tnum">{aporte != null ? MONEY.format(aporte) : "—"}</span></li>
+            <li><span>Envío a {zonaElegida?.zona ?? "—"}</span><span className="tnum">{zonaElegida ? MONEY.format(zonaElegida.precioArs) : "—"}</span></li>
+            <li className="cuenta-total"><span>Total</span><span className="tnum">{zonaElegida ? MONEY.format(totalPagar) : "—"}</span></li>
+          </ul>
         </div>
       )}
 
@@ -291,9 +403,19 @@ export function CheckoutEntrega({
 
       <div className="checkout-cta">
         <button type="button" className="btn btn-lg btn-block" disabled={!entregaLista || busy} onClick={continuar}>
-          {busy ? "Reservando…" : "Continuar al pago"}
+          {busy
+            ? "Reservando…"
+            : aporte != null
+              ? `Continuar al pago · ${MONEY.format(totalPagar)}`
+              : "Continuar al pago"}
         </button>
-        <span className="cell-meta">El total y los datos para transferir están en el paso siguiente.</span>
+        <span className="cell-meta">
+          {entregaLista
+            ? `El comprobante se sube en el paso siguiente.`
+            : modo === "RETIRO"
+              ? "Elegí un horario para continuar."
+              : "Completá el código postal y la calle."}
+        </span>
       </div>
     </div>
   );

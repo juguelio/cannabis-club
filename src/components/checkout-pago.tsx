@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { formatearCbu } from "@/lib/cbu";
 import { ComprobantePago, type CobroClub } from "@/components/comprobante-pago";
@@ -26,19 +27,57 @@ export type PedidoParaPagar = {
  * Paso 2: la cuenta y el comprobante, en su propia página.
  *
  * El pedido ya existe (se creó al elegir la entrega), así que esta pantalla se puede recargar: los
- * renglones, el total y el horario salen de la base. El comprobante es obligatorio porque sin él el
- * club no puede rendir el aporte; la única otra salida es cancelar y liberar el horario.
+ * renglones, el total y el horario salen de la base. El total va primero y grande —es lo único que el
+ * socio tiene que retener—, el alias es el dato principal con su botón de copiar, y el comprobante es
+ * obligatorio porque sin él el club no puede rendir el aporte. La única otra salida es cancelar, y es
+ * un enlace chico: no compite con la acción.
  */
-export function CheckoutPago({
-  pedido,
-  cobro,
-}: {
-  pedido: PedidoParaPagar;
-  cobro: CobroClub;
-}) {
+export function CheckoutPago({ pedido, cobro }: { pedido: PedidoParaPagar; cobro: CobroClub }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState<string | null>(null);
+
+  /**
+   * Copiar no siempre se puede: el portapapeles exige contexto seguro y, en algunos navegadores, un
+   * gesto real. Si falla, se selecciona el texto para que el socio lo copie a mano en vez de quedarse
+   * con un botón que no hace nada.
+   */
+  async function copiar(que: "alias" | "cbu", valor: string) {
+    const marcar = () => {
+      setCopiado(que);
+      setTimeout(() => setCopiado((c) => (c === que ? null : c)), 2000);
+    };
+    try {
+      await navigator.clipboard.writeText(valor);
+      marcar();
+      return;
+    } catch {
+      const area = document.createElement("textarea");
+      area.value = valor;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      try {
+        document.execCommand("copy");
+        marcar();
+      } catch {
+        const el = document.querySelector(que === "alias" ? ".cobro-alias" : ".cobro-dato code");
+        if (el) {
+          const rango = document.createRange();
+          rango.selectNodeContents(el);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(rango);
+        }
+        setError("No pudimos copiar solo: el dato quedó seleccionado, copialo con Ctrl+C (⌘+C en Mac).");
+      } finally {
+        area.remove();
+      }
+    }
+  }
 
   async function cancelar() {
     setBusy(true);
@@ -52,6 +91,8 @@ export function CheckoutPago({
     }
   }
 
+  const hayCobro = Boolean(cobro.alias || cobro.cbu);
+
   return (
     <div className="checkout-paso">
       <PasosPedido actual={2} />
@@ -64,48 +105,55 @@ export function CheckoutPago({
         </p>
       </div>
 
-      <ul className="cuenta cuenta-grande">
-        {pedido.items.map((i) => (
-          <li key={i.nombre}>
-            <span>{i.nombre} · {g(i.gramos)}</span>
-            <span className="tnum">{i.monto != null ? MONEY.format(i.monto) : "—"}</span>
-          </li>
-        ))}
-        {pedido.envio > 0 ? (
-          <li>
-            <span>Envío{pedido.direccion ? ` a ${pedido.direccion}` : ""}</span>
-            <span className="tnum">{MONEY.format(pedido.envio)}</span>
-          </li>
-        ) : null}
-        <li className="cuenta-total">
-          <span>Total a transferir</span>
-          <span className="tnum">{MONEY.format(pedido.total)}</span>
-        </li>
-      </ul>
+      <div className="cuenta-total-grande">
+        <small>Transferí</small>
+        <b className="tnum">{MONEY.format(pedido.total)}</b>
+        <ul className="cuenta">
+          {pedido.items.map((i) => (
+            <li key={i.nombre}>
+              <span>{i.nombre} · {g(i.gramos)}</span>
+              <span className="tnum">{i.monto != null ? MONEY.format(i.monto) : "—"}</span>
+            </li>
+          ))}
+          {pedido.envio > 0 ? (
+            <li>
+              <span>Envío{pedido.direccion ? ` a ${pedido.direccion}` : ""}</span>
+              <span className="tnum">{MONEY.format(pedido.envio)}</span>
+            </li>
+          ) : null}
+        </ul>
+      </div>
 
-      {cobro.alias || cobro.cbu ? (
+      {hayCobro ? (
         <div className="cobro-caja">
-          <b>Transferí a estos datos</b>
           {cobro.alias ? (
-            <div className="cobro-dato">
-              <span>Alias</span>
-              <code>{cobro.alias}</code>
-              <button type="button" className="cobro-copiar" onClick={() => void navigator.clipboard?.writeText(cobro.alias!)} aria-label="Copiar el alias">
-                <Copy aria-hidden size={13} /> Copiar
+            <div className="cobro-principal">
+              <small>Alias</small>
+              <code className="cobro-alias">{cobro.alias}</code>
+              <button
+                type="button"
+                className={`btn btn-sm${copiado === "alias" ? " btn-ok" : ""}`}
+                onClick={() => void copiar("alias", cobro.alias!)}
+                aria-live="polite"
+              >
+                {copiado === "alias" ? <><Check aria-hidden size={14} /> Copiado</> : <><Copy aria-hidden size={14} /> Copiar</>}
               </button>
             </div>
           ) : null}
-          {cobro.cbu ? (
-            <div className="cobro-dato">
-              <span>CBU</span>
-              <code>{formatearCbu(cobro.cbu)}</code>
-              <button type="button" className="cobro-copiar" onClick={() => void navigator.clipboard?.writeText(cobro.cbu!)} aria-label="Copiar el CBU">
-                <Copy aria-hidden size={13} /> Copiar
-              </button>
-            </div>
-          ) : null}
-          {cobro.titular ? <div className="cobro-dato"><span>Titular</span><b>{cobro.titular}</b></div> : null}
-          {cobro.banco ? <div className="cobro-dato"><span>Banco</span><b>{cobro.banco}</b></div> : null}
+          <div className="cobro-secundarios">
+            {cobro.cbu ? (
+              <div className="cobro-dato">
+                <span>CBU</span>
+                <code>{formatearCbu(cobro.cbu)}</code>
+                <button type="button" className="cobro-copiar" onClick={() => void copiar("cbu", cobro.cbu!)} aria-label="Copiar el CBU">
+                  {copiado === "cbu" ? <><Check aria-hidden size={13} /> Copiado</> : <><Copy aria-hidden size={13} /> Copiar</>}
+                </button>
+              </div>
+            ) : null}
+            {cobro.titular ? <div className="cobro-dato"><span>Titular</span><b>{cobro.titular}</b></div> : null}
+            {cobro.banco ? <div className="cobro-dato"><span>Banco</span><b>{cobro.banco}</b></div> : null}
+          </div>
+          {cobro.nota ? <span className="cell-meta">{cobro.nota}</span> : null}
         </div>
       ) : (
         <p className="note note-warn" style={{ margin: 0 }}>
@@ -128,12 +176,14 @@ export function CheckoutPago({
         />
       </div>
 
-      <div className="checkout-cta">
-        <button type="button" className="btn btn-quiet" onClick={cancelar} disabled={busy}>
+      <div className="checkout-pie">
+        <button type="button" className="enlace-chico" onClick={cancelar} disabled={busy}>
           {busy ? "Cancelando…" : "Cancelar el pedido"}
         </button>
         <span className="cell-meta">
           Sin el comprobante el pedido no se cierra: si lo cancelás, el horario y los gramos vuelven a quedar disponibles.
+          {" "}
+          <Link href="/portal" className="enlace-chico">Volver al catálogo</Link>
         </span>
       </div>
     </div>
