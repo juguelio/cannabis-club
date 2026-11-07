@@ -1,3 +1,4 @@
+import { cache } from "react";
 /**
  * Re-validación de legajos que ya existen: el socio prueba DNI y REPROCANN, el club mira.
  *
@@ -38,7 +39,10 @@ export type Presentacion = {
 
 const DOCS_SELECT = { id: true, tipo: true, mime: true, size: true, sha256: true, uploadedAt: true } as const;
 
-export async function verificacionDelSocio(memberId: string) {
+/** Una lectura por request (cache de React). */
+export const verificacionDelSocio = cache(verificacionDelSocioLeer);
+
+async function verificacionDelSocioLeer(memberId: string) {
   const [member, ultima] = await Promise.all([
     prisma.member.findUnique({
       where: { id: memberId },

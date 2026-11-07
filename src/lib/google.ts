@@ -91,6 +91,7 @@ export type GoogleProfile = {
 export async function exchangeAndVerify(cfg: GoogleConfig, code: string, verifier: string): Promise<GoogleProfile> {
   const res = await fetch(GOOGLE_TOKEN, {
     method: "POST",
+    signal: AbortSignal.timeout(8_000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       code,

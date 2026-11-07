@@ -172,6 +172,8 @@ export function AccessRequests() {
                                       <img
                                         src={url}
                                         alt={DOC_LABEL[d.tipo] ?? d.tipo}
+                                        loading="lazy"
+                                        decoding="async"
                                         style={{ width: "100%", height: 132, objectFit: "contain", background: "var(--surface, #fff)", borderRadius: 10, border: "1px solid var(--line)", display: "block" }}
                                       />
                                     ) : (

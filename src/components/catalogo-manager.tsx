@@ -137,8 +137,10 @@ export function CatalogoManager() {
                 {s.fotoVersion > 0 ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src={`/api/variedades/${s.id}/foto?v=${s.fotoVersion}`}
+                    src={`/api/variedades/${s.id}/foto?v=${s.fotoVersion}&w=480`}
                     alt={s.name}
+                    loading="lazy"
+                    decoding="async"
                     style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", display: "block", borderBottom: "1px solid var(--line)" }}
                   />
                 ) : (

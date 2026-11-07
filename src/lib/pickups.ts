@@ -5,6 +5,7 @@
  * paga un aporte de cultivo prorrateado cuando retira, en el club, con REPROCANN a la vista.
  * La reserva no habilita la entrega: el dispensario vuelve a validar todo.
  */
+import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { badRequest, conflict, notFound, unprocessable } from "./errors";
@@ -59,25 +60,28 @@ function limitsForMember(
 
 export type PortalOverview = Awaited<ReturnType<typeof portalOverview>>;
 
-export async function portalOverview(memberId: string) {
-  await expireStale();
+/**
+ * Todo lo que el portal necesita del socio. Una vez por request (layout y página lo piden los dos) y
+ * en una sola tanda de consultas en paralelo: con la base a un viaje de distancia, cada `await`
+ * encadenado suma ese viaje entero a la pantalla.
+ */
+export const portalOverview = cache(readPortalOverview);
 
-  const [member, club] = await Promise.all([prisma.member.findUnique({ where: { id: memberId } }), getClub()]);
-  if (!member) throw notFound("Socio inexistente");
+async function readPortalOverview(memberId: string) {
+  // El club ya está en caché del request casi siempre; la zona horaria hace falta para el uso del mes.
+  const [club] = await Promise.all([getClub(), expireStale()]);
 
-  const config = limitsFromClub(club);
-  const limits = limitsForMember(member, config);
-  const precios = preciosDeClub(club);
-  const [usage, pending, stockFisico, reservadoGlobal, pickups, porEstado] = await Promise.all([
-    memberUsage(prisma, member.id, club.timezone),
+  const [member, usage, pending, stockFisico, reservadoGlobal, pickups, porEstado, comprobantes, asientos] = await Promise.all([
+    prisma.member.findUnique({ where: { id: memberId } }),
+    memberUsage(prisma, memberId, club.timezone),
     prisma.pickupRequest.findMany({
-      where: { memberId: member.id, status: { in: [...OPEN_STATUSES] } },
+      where: { memberId, status: { in: [...OPEN_STATUSES] } },
       select: { grams: true },
     }),
     stockTotal(prisma),
     prisma.pickupRequest.aggregate({ where: { status: { in: [...OPEN_STATUSES] } }, _sum: { grams: true } }),
     prisma.pickupRequest.findMany({
-      where: { memberId: member.id },
+      where: { memberId },
       orderBy: { createdAt: "desc" },
       take: 12,
       include: { appointment: { select: { scheduledAt: true } } },
@@ -86,20 +90,28 @@ export async function portalOverview(memberId: string) {
     // y sería mentira presentar ese recorte como el historial completo.
     prisma.pickupRequest.groupBy({
       by: ["status"],
-      where: { memberId: member.id },
+      where: { memberId },
       _count: { _all: true },
     }),
+    // Estado del comprobante por pedido: el portal muestra si falta transferir, si está en revisión o si
+    // el club lo aprobó. Los archivos no viajan acá, sólo el estado. Se piden los del socio en la misma
+    // tanda (en vez de esperar la lista de pedidos) y abajo se cruzan con los 12 que se muestran.
+    prisma.paymentProof.findMany({
+      where: { pickup: { memberId } },
+      select: { pickupId: true, status: true, createdAt: true, motivo: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    // Estado de cuenta: el socio ve lo que debe o lo que tiene a favor, sin editar nada.
+    prisma.accountEntry.findMany({
+      where: { memberId },
+      select: { kind: true, amountArs: true, concept: true, occurredAt: true },
+    }),
   ]);
+  if (!member) throw notFound("Socio inexistente");
 
-  // Estado del comprobante por pedido: el portal muestra si falta transferir, si está en revisión o si
-  // el club lo aprobó. Los archivos no viajan acá, sólo el estado.
-  const comprobantes = pickups.length
-    ? await prisma.paymentProof.findMany({
-        where: { pickupId: { in: pickups.map((p) => p.id) } },
-        select: { pickupId: true, status: true, createdAt: true, motivo: true },
-        orderBy: { createdAt: "asc" },
-      })
-    : [];
+  const config = limitsFromClub(club);
+  const limits = limitsForMember(member, config);
+  const precios = preciosDeClub(club);
   const pagoPorPedido = new Map<string, { estado: ReturnType<typeof estadoDePago>; motivo: string | null }>();
   for (const p of pickups) {
     const propios = comprobantes.filter((c) => c.pickupId === p.id);
@@ -120,11 +132,6 @@ export async function portalOverview(memberId: string) {
   const tope = round2(Math.max(0, binding.value));
   const aportePorGramo = club.aportePorGramo == null ? null : Number(club.aportePorGramo);
 
-  // Estado de cuenta: el socio ve lo que debe o lo que tiene a favor, sin editar nada.
-  const asientos = await prisma.accountEntry.findMany({
-    where: { memberId: member.id },
-    select: { kind: true, amountArs: true, concept: true, occurredAt: true },
-  });
   const saldo = balanceOf(asientos);
   const periodoActual = periodOf(new Date());
   const aporteMes = asientos
@@ -524,13 +531,41 @@ export async function cancelPickup(input: { id: string; actorId: string | null; 
 }
 
 /**
+ * Cada cuánto, como mucho, una instancia vuelve a barrer pedidos vencidos. El corte más corto es de 48 h:
+ * unos minutos de demora no cambian nada, y barrer en cada pantalla era una escritura (transacción de varios
+ * viajes a la base) antes de poder mostrar algo.
+ */
+const EXPIRE_EVERY_MS = 5 * 60 * 1000;
+let lastExpire = 0;
+let expiring: Promise<{ vencidos: number }> | null = null;
+
+/**
  * Los pedidos que se caen solos.
  *
- * Antes esto sólo miraba las reservas de siete días y las marcaba vencidas **sin soltar el turno**: el
- * horario quedaba tomado por un pedido muerto. Ahora se aplican los dos relojes de
- * `pedido-vencimiento` y, al vencer, se libera el turno y queda el asiento en la auditoría.
+ * Dos relojes (`pedido-vencimiento`): **48 h sin comprobante** y **7 días sin retirarse**. Al vencer se
+ * libera el turno —`appointmentId` es único y el horario tiene que volver a ofrecerse, cosa que antes no
+ * pasaba— y queda `PICKUP_EXPIRE` en la auditoría con el motivo. Un pedido cargado en un traslado no vence
+ * por calendario: entre preparación y transporte pueden pasar más de siete días.
+ *
+ * Corre como mucho cada cinco minutos por instancia; `{ force: true }` lo saltea (cron de retención y
+ * endpoint de mantenimiento).
  */
-export async function expireStale(): Promise<{ vencidos: number }> {
+export function expireStale(opts: { force?: boolean } = {}): Promise<{ vencidos: number }> {
+  if (!opts.force && Date.now() - lastExpire < EXPIRE_EVERY_MS) return Promise.resolve({ vencidos: 0 });
+  if (!expiring) {
+    expiring = runExpire()
+      .then((r) => {
+        lastExpire = Date.now();
+        return r;
+      })
+      .finally(() => {
+        expiring = null;
+      });
+  }
+  return expiring;
+}
+
+async function runExpire(): Promise<{ vencidos: number }> {
   const abiertos = await prisma.pickupRequest.findMany({
     where: { status: { in: [...OPEN_STATUSES] } },
     select: {

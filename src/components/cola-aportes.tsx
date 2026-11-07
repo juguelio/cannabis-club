@@ -141,6 +141,8 @@ export function ColaAportes({ inicial }: { inicial: ComprobanteEnCola[] }) {
                     <img
                       src={`/api/comprobantes/${c.id}`}
                       alt={`Comprobante de ${socio}`}
+                      loading="lazy"
+                      decoding="async"
                       style={{ maxWidth: 360, width: "100%", borderRadius: 8, border: "1px solid var(--border)" }}
                     />
                   )}

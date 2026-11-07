@@ -3,6 +3,7 @@ import { esCron, NO_AUTORIZADO } from "@/lib/cron";
 import { requireUser } from "@/lib/auth";
 import { purgarDocumentosRechazadas } from "@/lib/retention";
 import { DIAS_RETENCION_RECHAZO } from "@/lib/retention-rules";
+import { expireStale } from "@/lib/pickups";
 
 /**
  * Purga de documentación de solicitudes rechazadas. Pensada para un cron diario
@@ -14,6 +15,8 @@ export const GET = route(async (req) => {
     return new Response(JSON.stringify(NO_AUTORIZADO), { status: 401, headers: { "Content-Type": "application/json" } });
   }
   const resultado = await purgarDocumentosRechazadas();
+  // Las pantallas vencen reservas como mucho cada 5 minutos por instancia; el cron diario lo garantiza.
+  await expireStale({ force: true });
   return { ...resultado, dias: DIAS_RETENCION_RECHAZO, origen: "cron" };
 });
 

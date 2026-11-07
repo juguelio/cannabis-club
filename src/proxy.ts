@@ -21,6 +21,8 @@ const PUBLIC = ["/login", "/api/auth/login", "/api/auth/google", "/api/auth/logo
   "/api/cartas/enviar",
   // Sumarse a la carta desde un link: sin sesión, con token firmado (GET pregunta, POST anota).
   "/api/carta/alta",
+  // Velocidad medida en usuarios reales (Web Vitals): también se mide /login y /sitio, sin sesión.
+  "/api/vitals",
   // Descubrimiento y metadatos: son públicos por definición, si el proxy los manda al login los buscadores no los ven.
   "/robots.txt", "/sitemap.xml", "/llms.txt", "/manifest.webmanifest"];
 // Páginas que se dibujan sin el shell de la app aunque haya sesión (el layout lee este header).

@@ -18,7 +18,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
     headers: {
       "Content-Type": decoded.mime,
       "Content-Length": String(decoded.bytes.length),
-      "Cache-Control": pinned ? "public, max-age=31536000, immutable" : "public, max-age=300",
+      "Cache-Control": pinned ? "public, max-age=31536000, s-maxage=31536000, immutable" : "public, max-age=300",
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "default-src 'none'; sandbox",
     },

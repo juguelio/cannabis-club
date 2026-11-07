@@ -237,7 +237,7 @@ export default async function SitioPage() {
             </div>
             <div className="s-visual">
               {view.img.portada ? (
-                <div className="s-frame"><img src={view.img.portada} alt={`Foto de ${view.nombre}`} /></div>
+                <div className="s-frame"><img src={view.img.portada} alt={`Foto de ${view.nombre}`} fetchPriority="high" decoding="async" /></div>
               ) : (
                 <div className="s-frame s-frame--mark" aria-hidden>
                   {view.img.logo ? <img src={view.img.logo} alt="" /> : <span className="s-sigla">{view.sigla}</span>}
@@ -316,7 +316,7 @@ export default async function SitioPage() {
                 <h2 className="s-big" style={{ marginBottom: 28 }}><small>Quiénes somos</small><span className="s-wordmark">{view.nombre}</span></h2>
                 {parrafos.map((p, i) => <p key={i}>{p}</p>)}
               </div>
-              {view.img.emblema ? <img className="s-about-mark" src={view.img.emblema} alt="" /> : view.img.logo ? <img className="s-about-mark" src={view.img.logo} alt="" /> : null}
+              {view.img.emblema ? <img className="s-about-mark" src={view.img.emblema} alt="" loading="lazy" decoding="async" /> : view.img.logo ? <img className="s-about-mark" src={view.img.logo} alt="" loading="lazy" decoding="async" /> : null}
             </div>
           </section>
         ) : null}

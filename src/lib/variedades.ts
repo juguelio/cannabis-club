@@ -1,10 +1,16 @@
+import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { armarCatalogo, type Variedad } from "@/lib/variedad-rules";
 
 export type { Variedad };
 
-/** Catálogo del club: variedades activas con su stock disponible (sin precios). */
-export async function catalogoDelClub(): Promise<Variedad[]> {
+/**
+ * Catálogo del club: variedades activas con su stock disponible (sin precios).
+ * Una lectura por request: el encabezado, el basket y la página lo pueden pedir a la vez.
+ */
+export const catalogoDelClub = cache(catalogoDelClubLeer);
+
+async function catalogoDelClubLeer(): Promise<Variedad[]> {
   const [strains, saldos] = await Promise.all([
     prisma.strain.findMany({
       select: { id: true, name: true, genetics: true, thcPct: true, cbdPct: true, active: true, fotoVersion: true },

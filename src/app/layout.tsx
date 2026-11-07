@@ -11,6 +11,7 @@ import { getBrandView } from "@/lib/brand-db";
 import { themeCss } from "@/lib/brand";
 import { MemberShell, Shell } from "@/components/shell";
 import type { BrandMarkInfo } from "@/components/brand-mark";
+import { WebVitals } from "@/components/web-vitals";
 import { addDaysKey, dayKeyOf, slotInstant } from "@/lib/appointments";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -46,7 +47,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* Tema del club: variables CSS derivadas de su marca (vacío si usa la paleta por defecto). */}
         <style id="club-theme" dangerouslySetInnerHTML={{ __html: themeCss(view.brand) }} />
       </head>
-      <body>{body}</body>
+      <body>
+        {body}
+        <WebVitals />
+      </body>
     </html>
   );
 

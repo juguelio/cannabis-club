@@ -22,6 +22,8 @@ export async function enviarEmail({ to, subject, text, html, headers }: EmailInp
   try {
     const r = await fetch(RESEND, {
       method: "POST",
+      // Si Resend no contesta, el aviso falla y se registra; la pantalla o el cron no quedan colgados.
+      signal: AbortSignal.timeout(10_000),
       headers: {
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         "Content-Type": "application/json",

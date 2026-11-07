@@ -1,6 +1,7 @@
 import "server-only";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
@@ -65,8 +66,14 @@ export async function endSession() {
   jar.delete(SESSION_COOKIE);
 }
 
-/** Cualquier usuario activo, incluido el socio (portal). */
-export async function getAnySession(): Promise<SessionUser | null> {
+/**
+ * Cualquier usuario activo, incluido el socio (portal).
+ * Una sola lectura por request: layout, página y componentes la piden por separado y antes eran
+ * tres consultas iguales a la base (con la base lejos, cada una es un viaje de ida y vuelta).
+ */
+export const getAnySession = cache(readAnySession);
+
+async function readAnySession(): Promise<SessionUser | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
