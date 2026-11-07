@@ -7,8 +7,9 @@ import { HORAS_SIN_COMPROBANTE } from "@/lib/pedido-vencimiento";
 /**
  * Vencimiento de pedidos: los que quedaron sin comprobante y las reservas que nadie vino a buscar.
  *
- * Corre por cron y también al abrir el dispensario (`listPickups`), así que un pedido caído nunca
- * bloquea un turno por más de una hora. Al vencer se libera el horario y queda asiento en la auditoría.
+ * Corre por cron **diario** (la cuenta de Vercel es Hobby: no admite crons más seguidos) y también al
+ * abrir el dispensario y el tablero, que es cuando el club mira. Al vencer se libera el horario y queda
+ * asiento en la auditoría.
  */
 export const GET = route(async (req) => {
   if (!esCron(req)) {

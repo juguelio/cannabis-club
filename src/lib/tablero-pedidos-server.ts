@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { dayKeyOf, labelOf } from "./appointments";
+import { expireStale } from "./pickups";
 import {
   columnaDelPedido,
   type ColumnaTablero,
@@ -19,6 +20,10 @@ export async function tableroPedidos(): Promise<{
   pedidos: PedidoTablero[];
   paraPreparar: ParaPreparar[];
 }> {
+  // Antes de pintar el tablero se caen los pedidos que ya no están en juego: así el club nunca ve como
+  // "pendiente" algo que venció, aunque el cron diario todavía no haya corrido.
+  await expireStale().catch(() => undefined);
+
   const hoy = dayKeyOf(new Date());
   const desde = new Date();
   desde.setHours(0, 0, 0, 0);
