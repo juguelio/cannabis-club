@@ -59,7 +59,8 @@ function ShellInner({ clubName, mark, userName, userRole, clubConfigured, pendin
   const daily: NavItem[] = visibles(
     [
       { href: "/", label: "Panel", icon: LayoutDashboard },
-      { href: "/dispensario", label: "Dispensario", icon: Scale, count: pendingPickups },
+      { href: "/pedidos", label: "Pedidos", icon: Scale, count: pendingPickups },
+      { href: "/dispensario", label: "Dispensario", icon: Scale },
       { href: "/turnos", label: "Turnos", icon: CalendarClock, count: todayAppointments },
       { href: "/calendario", label: "Calendario", icon: CalendarClock },
     ],

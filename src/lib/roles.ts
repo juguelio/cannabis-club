@@ -17,6 +17,7 @@ export const ROLES_EQUIPO: Rol[] = ["ADMIN", "OPERADOR", "DISPENSADOR"];
 
 export const SECCIONES = [
   "panel",
+  "pedidos",
   "dispensario",
   "turnos",
   "calendario",
@@ -37,7 +38,7 @@ export const SECCIONES = [
 export type Seccion = (typeof SECCIONES)[number];
 
 /** Lo mínimo para entregar: saber a quién y qué hay. */
-const MOSTRADOR: Seccion[] = ["panel", "dispensario", "turnos", "calendario", "socios", "stock", "avisos"];
+const MOSTRADOR: Seccion[] = ["panel", "pedidos", "dispensario", "turnos", "calendario", "socios", "stock", "avisos"];
 /** Operador: agrega movimientos de stock, traslados y libros, pero no la configuración del club. */
 const OPERADOR: Seccion[] = [...MOSTRADOR, "traslados", "aportes", "control", "reportes", "cierre"];
 const ADMIN: Seccion[] = [...SECCIONES];

@@ -1245,3 +1245,67 @@ details.card > div { min-width: 0; max-width: 100%; }
 .linea-tiempo b { font-size: 13.5px; display: block; }
 .linea-tiempo small { font-size: 12.5px; color: var(--muted); }
 .linea-tiempo li.pendiente b { color: var(--muted); }
+
+/* ── Tablero de pedidos (staff) ──────────────────────────────────────────────── */
+.tablero { display: grid; gap: 14px; }
+.tablero-barra { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.para-preparar {
+  display: grid; gap: 6px; padding: 11px 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface, #fff); min-width: 260px;
+}
+.para-preparar > b { font-size: 12px; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); }
+.para-preparar ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.para-preparar li { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.para-preparar li span:first-child { flex: 1; min-width: 0; }
+.para-preparar li small { color: var(--muted); font-size: 11.5px; }
+
+.tablero-columnas {
+  display: grid; gap: 12px; align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+.tablero-col { display: grid; gap: 8px; min-width: 0; }
+.tablero-col header { display: grid; gap: 2px; }
+.tablero-col h2 { margin: 0; font-size: 13.5px; display: flex; align-items: center; gap: 6px; }
+.tablero-col h2 span {
+  font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  background: var(--line); color: var(--ink);
+}
+.tablero-col header small { font-size: 11.5px; color: var(--muted); line-height: 1.3; }
+.tablero-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tablero-vacio { font-size: 12.5px; color: var(--muted-2); padding: 10px 2px; }
+.tablero-card {
+  display: grid; gap: 6px; width: 100%; text-align: left; font: inherit; cursor: pointer;
+  padding: 11px 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--surface, #fff);
+  min-width: 0;
+}
+.tablero-card:hover { border-color: var(--line-strong); }
+.tablero-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.tablero-card-top b { font-size: 13.5px; overflow-wrap: anywhere; }
+.tablero-card-datos { display: flex; gap: 8px; font-size: 12.5px; flex-wrap: wrap; }
+.tablero-card-datos span:first-child { font-weight: 700; }
+.tablero-card-pie { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.tablero-card-pie small { font-size: 11.5px; color: var(--muted); }
+
+.drawer-fondo { position: fixed; inset: 0; background: rgba(10, 20, 16, .38); z-index: 60; display: grid; justify-items: end; }
+.tablero-panel {
+  width: min(440px, 100%); height: 100%; background: var(--paper, #fff);
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; box-shadow: -12px 0 32px rgba(0,0,0,.18);
+}
+.tablero-panel-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  padding: 16px 18px; border-bottom: 1px solid var(--line);
+}
+.tablero-panel-head div { display: grid; gap: 2px; min-width: 0; }
+.tablero-panel-head b { font-size: 16px; font-family: var(--font-display); }
+.tablero-cerrar { background: none; border: 0; padding: 4px; color: var(--muted); cursor: pointer; }
+.tablero-panel-body { overflow-y: auto; padding: 16px 18px; display: grid; gap: 12px; align-content: start; min-height: 0; }
+.tablero-panel-pie {
+  display: flex; gap: 8px; justify-content: flex-end; padding: 14px 18px;
+  border-top: 1px solid var(--line); background: var(--paper-2, #f7f8f7);
+}
+.tablero-linea { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 13px; }
+.tablero-linea span { color: var(--muted); }
+.tablero-linea b { text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.tablero-comprobante { display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); }
+.tablero-difiere { color: #8a2c1f; }
+@media (max-width: 900px) { .tablero-columnas { grid-template-columns: minmax(0, 1fr); } }
