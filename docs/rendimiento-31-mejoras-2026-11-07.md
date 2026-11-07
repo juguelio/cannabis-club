@@ -1,6 +1,6 @@
 # Rendimiento: las 31 mejoras, una por una contra esta app
 
-Fecha: 07/11/2026. Base: `main` = `7805e71`. Origen: un reel con 31 mejoras de rendimiento (Jugue lo pidió implementado).
+Fecha: 07/11/2026. Base: `main` = `ef4f7fa` (ya con el catálogo, el basket y el checkout nuevos). Origen: un reel con 31 mejoras de rendimiento (Jugue lo pidió implementado).
 Rama: `perf/31-mejoras`.
 
 ## Lo que se midió en producción antes de tocar nada
@@ -21,27 +21,28 @@ Fotos de cámara (~1,8 MB) cargadas en las 4 variedades, como tiene producción.
 
 | Pantalla | `main` | rama, base lejos | rama, base al lado (gru1) |
 |---|---|---|---|
-| `/` panel | 2044 ms · 44 | 1717 ms · 33 | 104 ms |
-| `/dispensario` | 1202 ms · 29 | 964 ms · 17 | 86 ms |
-| `/socios` | 1244 ms · 20 | 1078 ms · 14 | 80 ms |
-| `/stock` | 1020 ms · 16 | 1106 ms · 14 | 74 ms |
-| `/aportes` | 954 ms · 17 | 951 ms · 11 | 54 ms |
-| `/portal` | 2185 ms · 53 | 1123 ms · 22 | 72 ms |
-| `/portal/basket` | 1733 ms · 48 | 782 ms · 17 | 52 ms |
-| `/portal/pedido` | 1763 ms · 44 | 843 ms · 19 | 49 ms |
-| `/portal/envios` | 1539 ms · 29 | 615 ms · 15 | 67 ms |
-| `/portal/datos` | 1606 ms · 24 | 671 ms · 15 | 44 ms |
+| `/` panel | 1950 ms · 44 | 1479 ms · 33 | 102 ms |
+| `/dispensario` | 1203 ms · 25 | 900 ms · 16 | 57 ms |
+| `/socios` | 1214 ms · 20 | 1264 ms · 14 | 92 ms |
+| `/stock` | 1314 ms · 16 | 1017 ms · 14 | 93 ms |
+| `/aportes` | 781 ms · 16 | 947 ms · 11 | 49 ms |
+| `/portal` | 2012 ms · 54 | 918 ms · 23 | 69 ms |
+| `/portal/basket` | 1887 ms · 49 | 670 ms · 17 | 50 ms |
+| `/portal/pedido` | 1712 ms · 45 | 796 ms · 21 | 50 ms |
+| `/portal/envios` | 1553 ms · 29 | 611 ms · 15 | 49 ms |
+| `/portal/datos` | 1613 ms · 24 | 614 ms · 15 | 54 ms |
 
-«Base al lado» = proxy de 1 ms por sentido: lo que se espera con las funciones en `gru1`, al lado de Neon.
+Promedio de dos pedidos en caliente. `/socios` y `/aportes` con la base lejos quedan igual dentro del ruido de la
+medición (bajan las consultas, no el tiempo: sus consultas ya iban en paralelo). «Base al lado» = proxy de 1 ms por sentido: lo que se espera con las funciones en `gru1`, al lado de Neon.
 
 ### Celular (390 px, CPU 4× más lenta)
 
 | Pantalla | `main` LCP · imágenes | rama LCP · imágenes |
 |---|---|---|
-| `/portal` | 2000 ms · **7,2 MB** | 1352 ms · 0,8 MB |
-| `/portal/pedido` | 1972 ms | 788 ms |
-| `/` panel | 3328 ms | 2388 ms |
-| `/socios` | 1748 ms | 1324 ms |
+| `/portal` | 2020 ms · **3,6 MB** | 1256 ms · 0,4 MB |
+| `/portal/pedido` | 1788 ms | 796 ms |
+| `/` panel | 3140 ms | 2556 ms |
+| `/socios` | 1440 ms | 1368 ms |
 
 Las fotos de prueba son ruido (comprimen mal): con fotos reales el WebP pesa todavía menos.
 
@@ -62,9 +63,9 @@ Las fotos de prueba son ruido (comprimen mal): con fotos reales el WebP pesa tod
 | 11 | Quitar dependencias sin usar | Revisadas: todas se usan. Se agrega `sharp` (ya venía con Next) para las fotos. |
 | 12 | Timeout a APIs externas | **Hecho**: Resend (10 s) y Google (8 s). Cotización y CP ya lo tenían. |
 | 13 | Streaming | Las pantallas ya se envían en streaming; con `loading.tsx` el socio ve el esqueleto al instante. |
-| 14 | UI optimista | Pendiente con el rediseño del panel de compra (Hermes): basket y cantidades. |
-| 15 | Lazy loading de imágenes | **Hecho** en comprobantes, documentos, catálogo del club y sitio. La portada del sitio va con `fetchPriority="high"`. Las tarjetas del portal quedan para el rediseño (Hermes). |
-| 16 | Peticiones en paralelo | **Hecho**: el resumen del portal pasó de 4 tandas encadenadas a 1 (comprobantes y cuenta del socio se piden junto con todo lo demás). |
+| 14 | UI optimista | El basket nuevo ya cambia al instante en el navegador (vive en el cliente). El resto de las acciones esperan al servidor a propósito: son registros legales. |
+| 15 | Lazy loading de imágenes | **Hecho** en las tarjetas del catálogo, comprobantes, documentos, catálogo del club y sitio. La portada del sitio va con `fetchPriority="high"`. |
+| 16 | Peticiones en paralelo | **Hecho**: el resumen del portal pasó de 4 tandas encadenadas a 1 (comprobantes y cuenta del socio se piden junto con todo lo demás), y el catálogo de 2 a 1. |
 | 17 | Índices | Ya estaban en todo lo que filtra (pedidos por socio y estado, entregas por socio y fecha, comprobantes, turnos, auditoría). |
 | 18 | Rastrear peticiones lentas | **Hecho**: toda consulta de más de 300 ms deja en los logs `{"evento":"consulta_lenta","ms":…,"sql":…}`, sin parámetros. `SLOW_QUERY_MS` lo ajusta. |
 | 19 | Acercar el servidor a la base | **Hecho en código**: `vercel.json` → `"regions": ["gru1"]`. Es el cambio que más pesa (ver tabla). |
@@ -74,7 +75,7 @@ Las fotos de prueba son ruido (comprimen mal): con fotos reales el WebP pesa tod
 | 23 | Virtualizar listas largas | No hay listas que lo necesiten (padrón de decenas, no miles). |
 | 24 | Pedir sólo las columnas | **Hecho, y era grande**: `include: { strain: true }` traía la foto de cada variedad (hasta 3 MB) en el panel, el dispensario, el stock, la ficha del socio y el cierre. Ahora el cliente de Prisma omite la foto y las imágenes de marca salvo que se pidan explícitamente. |
 | 25 | Pool de conexiones | Para Hermes: confirmar que `DATABASE_URL` de producción use el host `-pooler` de Neon con `pgbouncer=true&connection_limit=5`. No se tocó la variable. |
-| 26 | Evitar re-renders | Sin problemas medibles; se revisa con el rediseño del portal. |
+| 26 | Evitar re-renders | No se midió con el perfilador de React. No hay síntomas: el JS propio de cada pantalla es chico y las interacciones no esperan al servidor salvo al guardar. |
 | 27 | Cachear los estáticos | Ya estaba (`immutable` con versión en la URL); ahora también en la CDN. |
 | 28 | Repartir el tráfico | Vercel escala solo. |
 | 29 | Fuentes propias y pocos grosores | Ya estaban alojadas en la app (`@fontsource`, variables, un archivo por familia y alfabeto). |

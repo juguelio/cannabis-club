@@ -60,7 +60,7 @@ export function VariedadCard({
       <div className="vcard-foto">
         {v.foto ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={v.foto} alt={v.nombre} />
+          <img src={v.foto} alt={v.nombre} loading="lazy" decoding="async" />
         ) : (
           <div className="vcard-foto--vacia">
             <Leaf aria-hidden style={{ width: 26, height: 26 }} />

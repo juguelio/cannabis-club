@@ -11,7 +11,9 @@ export type { Variedad };
 export const catalogoDelClub = cache(catalogoDelClubLeer);
 
 async function catalogoDelClubLeer(): Promise<Variedad[]> {
-  const [strains, saldos] = await Promise.all([
+  // Las tres consultas van juntas: con la base a un viaje de distancia, esperar una para pedir la
+  // siguiente sumaba ese viaje entero al catálogo.
+  const [strains, saldos, lotes] = await Promise.all([
     prisma.strain.findMany({
       select: { id: true, name: true, genetics: true, thcPct: true, cbdPct: true, active: true, fotoVersion: true },
       orderBy: { name: "asc" },
@@ -23,14 +25,14 @@ async function catalogoDelClubLeer(): Promise<Variedad[]> {
       WHERE b.stage = 'DISPONIBLE'
       GROUP BY b."strainId"
     `,
+    // El lote que se entrega hoy: el más reciente de los disponibles de esa cepa.
+    prisma.batch.findMany({
+      where: { stage: "DISPONIBLE" },
+      select: { strainId: true, code: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
-  // El lote que se entrega hoy: el más reciente de los disponibles de esa cepa.
-  const lotes = await prisma.batch.findMany({
-    where: { stage: "DISPONIBLE" },
-    select: { strainId: true, code: true, createdAt: true },
-    orderBy: { createdAt: "desc" },
-  });
   const lotePorCepa = new Map<string, string>();
   for (const b of lotes) if (!lotePorCepa.has(b.strainId)) lotePorCepa.set(b.strainId, b.code);
 
