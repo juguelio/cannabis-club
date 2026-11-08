@@ -1,14 +1,31 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { clientIp } from "@/lib/http";
 import { startSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
-import { OAUTH_COOKIE, OAUTH_COOKIE_PATH, exchangeAndVerify, googleConfig, openState } from "@/lib/google";
+import { OAUTH_COOKIE, exchangeAndVerify, googleConfig, openState } from "@/lib/google";
+import { baseUrlDelFlujo, origenDelPedido } from "@/lib/google-base";
 import { crearSesionSolicitud } from "@/lib/onboarding";
 import { MAX_ALTAS_POR_IP_24H, decideGoogleLogin, pendingDefaults } from "@/lib/google-rules";
 
 const destino = (role: string) => (role === "SOCIO" ? "/portal" : "/");
+
+/** Lee una cookie del pedido sin depender del store mutable de Next. */
+function leerCookie(header: string | null, nombre: string): string | null {
+  if (!header) return null;
+  for (const parte of header.split(";")) {
+    const [k, ...resto] = parte.trim().split("=");
+    if (k === nombre) return decodeURIComponent(resto.join("="));
+  }
+  return null;
+}
+
+/** Redirect al login con la cookie de `state` borrada en la misma respuesta. */
+function alLogin(origin: string, qs: string) {
+  const r = NextResponse.redirect(`${origin}/login?${qs}`, 302);
+  r.cookies.set(OAUTH_COOKIE, "", { path: "/", maxAge: 0 });
+  return r;
+}
 
 /**
  * Vuelta de Google. Google prueba quién sos; el acceso lo sigue decidiendo el club:
@@ -16,18 +33,18 @@ const destino = (role: string) => (role === "SOCIO" ? "/portal" : "/");
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  // El origen sale de APP_BASE_URL: en local Next arma `req.url` con `localhost`
-  // y la cookie termina en otro origen que el que sigue el navegador.
-  const base = process.env.APP_BASE_URL || url.origin;
-  const origin = base.endsWith("/") ? base.slice(0, -1) : base;
-  const volver = (qs: string) => NextResponse.redirect(`${origin}/login?${qs}`, 302);
+  // La misma base que usó `/api/auth/google` para armar el `redirect_uri`: así la cookie de `state` que
+  // dejó el navegador está en este host. Antes salía siempre de `APP_BASE_URL`, y quien entraba por otro
+  // host (el dominio de Vercel, `www.`) volvía a un sitio donde esa cookie no existía: «el intento venció».
+  const origin = baseUrlDelFlujo(origenDelPedido(url, req.headers), process.env.APP_BASE_URL);
+  const volver = (qs: string) => alLogin(origin, qs);
 
   const cfg = googleConfig();
   if (!cfg) return volver("error=google_no_configurado");
 
-  const jar = await cookies();
-  const sealed = jar.get(OAUTH_COOKIE)?.value;
-  jar.delete({ name: OAUTH_COOKIE, path: OAUTH_COOKIE_PATH });
+  // Se lee del pedido y se borra en la respuesta: `cookies()` de `next/headers` no garantiza que el borrado
+  // viaje en un redirect armado a mano, y una cookie de `state` que sobrevive ensucia el intento siguiente.
+  const sealed = leerCookie(req.headers.get("cookie"), OAUTH_COOKIE);
   if (!sealed) return volver("error=google_estado");
   const state = await openState(sealed);
   if (!state) return volver("error=google_estado");
@@ -39,7 +56,7 @@ export async function GET(req: Request) {
 
   let profile;
   try {
-    profile = await exchangeAndVerify(cfg, code, state.verifier);
+    profile = await exchangeAndVerify(cfg, origin, code, state.verifier);
   } catch (error) {
     console.error("[google] no se pudo validar la identidad", error);
     return volver("error=google_validacion");

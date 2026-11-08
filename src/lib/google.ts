@@ -17,7 +17,6 @@ const GOOGLE_JWKS = new URL("https://www.googleapis.com/oauth2/v3/certs");
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
 
 export const OAUTH_COOKIE = "cc_oauth";
-export const OAUTH_COOKIE_PATH = "/api/auth/google";
 export const OAUTH_TTL_SECONDS = 600;
 
 export type GoogleConfig = { clientId: string; clientSecret: string; baseUrl: string };
@@ -32,7 +31,11 @@ export function googleConfig(env: NodeJS.ProcessEnv = process.env): GoogleConfig
 
 export const isGoogleEnabled = (env: NodeJS.ProcessEnv = process.env) => googleConfig(env) !== null;
 
-export const redirectUri = (cfg: GoogleConfig) => `${cfg.baseUrl}/api/auth/google/callback`;
+/**
+ * El `redirect_uri` sale de la base del flujo, no de `APP_BASE_URL`: la cookie de `state` vive en el host
+ * que pidió el ingreso, y Google tiene que volver a ese mismo host o la cookie no aparece.
+ */
+export const redirectUri = (base: string) => `${base.replace(/\/+$/, "")}/api/auth/google/callback`;
 
 const secretKey = () => {
   const secret = process.env.AUTH_SECRET;
@@ -68,10 +71,10 @@ export async function openState(token: string): Promise<{ nonce: string; verifie
   }
 }
 
-export function authorizationUrl(cfg: GoogleConfig, state: string, challenge: string) {
+export function authorizationUrl(cfg: GoogleConfig, base: string, state: string, challenge: string) {
   const url = new URL(GOOGLE_AUTH);
   url.searchParams.set("client_id", cfg.clientId);
-  url.searchParams.set("redirect_uri", redirectUri(cfg));
+  url.searchParams.set("redirect_uri", redirectUri(base));
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", "openid email profile");
   url.searchParams.set("state", state);
@@ -88,7 +91,7 @@ export type GoogleProfile = {
   name: string;
 };
 
-export async function exchangeAndVerify(cfg: GoogleConfig, code: string, verifier: string): Promise<GoogleProfile> {
+export async function exchangeAndVerify(cfg: GoogleConfig, base: string, code: string, verifier: string): Promise<GoogleProfile> {
   const res = await fetch(GOOGLE_TOKEN, {
     method: "POST",
     signal: AbortSignal.timeout(8_000),
@@ -97,7 +100,7 @@ export async function exchangeAndVerify(cfg: GoogleConfig, code: string, verifie
       code,
       client_id: cfg.clientId,
       client_secret: cfg.clientSecret,
-      redirect_uri: redirectUri(cfg),
+      redirect_uri: redirectUri(base),
       grant_type: "authorization_code",
       code_verifier: verifier,
     }),
