@@ -43,7 +43,8 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
 
   // Cola del día: turnos de hoy + reservas abiertas (una fila por socio).
   const pickupByMember = new Map(pickups.map((p) => [p.memberId, p]));
-  type Q = { key: string; memberId: string; time: string | null; name: string; legajo: number; pickupId: string | null; pickupG: number | null; status: string };
+  type Item = { strainName: string; grams: number };
+  type Q = { key: string; memberId: string; time: string | null; name: string; legajo: number; pickupId: string | null; pickupG: number | null; pickupItems: Item[]; status: string };
   const queue: Q[] = appts
     .filter((a) => a.member.status === "ACTIVO")
     .map((a) => {
@@ -56,12 +57,13 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
         legajo: a.member.legajo,
         pickupId: p?.id ?? null,
         pickupG: p?.grams ?? null,
+        pickupItems: p?.items ?? [],
         status: a.status,
       };
     });
   for (const p of pickups) {
     if (!queue.some((q) => q.memberId === p.memberId) && (!p.pickupAt || dayKeyOf(p.pickupAt) <= today)) {
-      queue.push({ key: p.id, memberId: p.memberId, time: null, name: p.memberName, legajo: p.legajo, pickupId: p.id, pickupG: p.grams, status: p.status });
+      queue.push({ key: p.id, memberId: p.memberId, time: null, name: p.memberName, legajo: p.legajo, pickupId: p.id, pickupG: p.grams, pickupItems: p.items, status: p.status });
     }
   }
 
@@ -70,6 +72,8 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
   }));
   const deliveredToday = dispensations.filter((d) => !d.voidedAt && d.occurredAt >= slotInstant(today, 0)).reduce((a, d) => a + Number(d.grams), 0);
   const minorRule = club.thcMaxMenor ? ` Menores de ${club.edadLimiteMenor}: ${fmtGrams(club.limiteMenorG)} por mes y hasta ${Number(club.thcMaxMenor)}% THC.` : "";
+  // Desglose de la reserva: es lo que el mostrador imputa. Sin ítems (reserva vieja o carga manual) queda vacío.
+  const itemsLabel = (items: Item[]) => items.map((i) => `${fmtGrams(i.grams)} ${i.strainName}`).join(" · ");
 
   return (
     <>
@@ -100,7 +104,10 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
                   {pickups.map((p) => (
                     <tr key={p.id}>
                       <td><Link className="row-link" href={`/socios/${p.memberId}`}><div className="cell-main">{p.memberName}</div><div className="cell-meta">Legajo {p.legajo}</div></Link></td>
-                      <td className="num tnum cell-main">{fmtGrams(p.grams)}</td>
+                      <td className="num">
+                        <div className="cell-main tnum">{fmtGrams(p.grams)}</div>
+                        {p.items.length ? <div className="cell-meta">{itemsLabel(p.items)}</div> : null}
+                      </td>
                       <td className="cell-meta">{p.pickupAt ? fmtWhen(p.pickupAt) : "sin horario"}</td>
                       <td className="tnum hide-sm">{p.aporteEstimado != null ? MONEY.format(p.aporteEstimado) : "—"}</td>
                       <td><Chip tone={p.status === "CONFIRMADA" ? "ok" : "brand"}>{p.status === "CONFIRMADA" ? "Confirmada" : "Por confirmar"}</Chip></td>
