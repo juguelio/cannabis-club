@@ -14,6 +14,7 @@ const g = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", 
 
 export type PedidoParaPagar = {
   id: string;
+  mode: "RETIRO" | "ENVIO";
   grams: number;
   aporte: number | null;
   envio: number;
@@ -166,8 +167,9 @@ export function CheckoutPago({ pedido, cobro }: { pedido: PedidoParaPagar; cobro
       <div className="checkout-bloque">
         <ComprobantePago
           pickupId={pedido.id}
-          aporteEstimado={pedido.aporte ?? pedido.total}
+          aporteEstimado={pedido.aporte}
           envioArs={pedido.envio > 0 ? pedido.envio : null}
+          modo={pedido.mode}
           pago="PENDIENTE"
           pagoMotivo={null}
           cobro={cobro}

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Camera, FileText, Upload } from "lucide-react";
 import { errMsg } from "@/lib/client";
 import { formatearCbu } from "@/lib/cbu";
-import { ESTADO_PAGO_LABEL, type EstadoPago } from "@/lib/comprobante-rules";
+import { ESTADO_PAGO_LABEL, detalleEsperado, esperadoDelPedido, type EstadoPago } from "@/lib/comprobante-rules";
 import { validarComprobante, type ArchivoElegido } from "@/lib/comprobante-cliente";
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -29,6 +29,7 @@ export function ComprobantePago({
   pickupId,
   aporteEstimado,
   envioArs,
+  modo,
   pago,
   pagoMotivo,
   cobro,
@@ -38,6 +39,8 @@ export function ComprobantePago({
   pickupId: string;
   aporteEstimado: number | null;
   envioArs?: number | null;
+  /** El modo del pedido: sin esto un envío sin costo cargado se confundiría con un retiro. */
+  modo?: "RETIRO" | "ENVIO";
   pago: EstadoPago;
   pagoMotivo?: string | null;
   cobro: CobroClub;
@@ -45,7 +48,17 @@ export function ComprobantePago({
   /** `false` cuando la pantalla ya muestra alias y CBU arriba: repetirlos es ruido. */
   repetirCobro?: boolean;
 }) {
-  const [monto, setMonto] = useState(aporteEstimado != null ? String(Math.round(aporteEstimado)) : "");
+  // Mismo cálculo que el tablero y la cola de aportes: el monto que se le pide al socio y el que el
+  // club compara salen de la misma función (`esperadoDelPedido`), no de una suma hecha en cada pantalla.
+  const esperado = esperadoDelPedido({
+    aporte: aporteEstimado,
+    envio: envioArs ?? null,
+    modo: modo ?? (envioArs != null ? "ENVIO" : "RETIRO"),
+  });
+  const total = esperado.esperado;
+  const detalle = detalleEsperado(esperado, (n) => MONEY.format(n));
+  // El monto sugerido es el total a transferir: pedir 199 y esperar 224 es el bug que reportó el club.
+  const [monto, setMonto] = useState(total != null ? String(Math.round(total)) : "");
   const [otroMonto, setOtroMonto] = useState(false);
   const [referencia, setReferencia] = useState("");
   const [archivo, setArchivo] = useState<ArchivoElegido | null>(null);
@@ -56,7 +69,6 @@ export function ComprobantePago({
   const camara = useRef<HTMLInputElement>(null);
   const galeria = useRef<HTMLInputElement>(null);
 
-  const total = aporteEstimado != null && envioArs != null ? aporteEstimado + envioArs : aporteEstimado;
   const hayCobro = Boolean(cobro.alias || cobro.cbu);
 
   if (pago === "APROBADO")
@@ -127,9 +139,7 @@ export function ComprobantePago({
 
       <div>
         <b>{total != null ? `Transferí ${MONEY.format(total)}` : "Transferí el aporte"}</b>
-        {envioArs != null && aporteEstimado != null ? (
-          <span className="muted"> ({MONEY.format(aporteEstimado)} de aporte + {MONEY.format(envioArs)} de envío)</span>
-        ) : null}
+        {detalle ? <span className="muted"> ({detalle})</span> : null}
       </div>
 
       {hayCobro && repetirCobro ? (

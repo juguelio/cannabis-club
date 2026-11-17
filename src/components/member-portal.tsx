@@ -491,6 +491,7 @@ export function MemberPortal({
                         pickupId={p.id}
                         aporteEstimado={p.aporteEstimado}
                         envioArs={p.deliveryCostoArs ?? null}
+                        modo={p.deliveryMode ?? (p.deliveryCostoArs ? "ENVIO" : "RETIRO")}
                         pago={p.pago ?? "PENDIENTE"}
                         pagoMotivo={p.pagoMotivo ?? null}
                         cobro={data.club.cobro ?? { alias: null, cbu: null, titular: null, banco: null, nota: null }}

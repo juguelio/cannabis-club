@@ -6,6 +6,7 @@ import { encryptDoc, decryptDoc, MAX_DOC_BYTES, sha256 } from "./docs-crypto";
 import {
   analizarMonto,
   estadoDePago,
+  esperadoDelPedido,
   puedeSubirComprobante,
   type EstadoPago,
 } from "./comprobante-rules";
@@ -55,6 +56,8 @@ export async function subirComprobante(input: {
       status: true,
       grams: true,
       aporteEstimado: true,
+      deliveryMode: true,
+      deliveryCostoArs: true,
       paymentProofs: { select: { status: true, createdAt: true } },
     },
   });
@@ -92,6 +95,12 @@ export async function subirComprobante(input: {
     throw err;
   }
 
+  const esperado = esperadoDelPedido({
+    aporte: pickup.aporteEstimado,
+    envio: pickup.deliveryCostoArs,
+    modo: pickup.deliveryMode,
+  });
+
   await audit({
     actorId: input.actorId,
     action: "PAYMENT_PROOF_UPLOAD",
@@ -104,16 +113,18 @@ export async function subirComprobante(input: {
       size: proof.size,
       mime: proof.mime,
       sha256: huella,
-      esperado: pickup.aporteEstimado ? Number(pickup.aporteEstimado) : null,
+      esperado: esperado.esperado,
+      aporte: esperado.aporte,
+      envio: esperado.envio,
     },
   });
 
   const analisis = analizarMonto({
     monto: input.monto,
-    esperado: pickup.aporteEstimado ? Number(pickup.aporteEstimado) : null,
+    esperado: esperado.esperado,
   });
 
-  return { comprobante: proof, ...analisis };
+  return { comprobante: proof, ...analisis, esperadoDelPedido: esperado };
 }
 
 export async function decidirComprobante(input: {
@@ -190,6 +201,7 @@ export async function comprobantesEnRevision() {
           status: true,
           deliveryMode: true,
           aporteEstimado: true,
+          deliveryCostoArs: true,
           deliveryZona: true,
           deliveryAddress: true,
           appointment: { select: { scheduledAt: true } },
@@ -199,19 +211,27 @@ export async function comprobantesEnRevision() {
     },
   });
 
-  return proofs.map((p) => ({
-    ...p,
-    montoArs: p.montoArs ? Number(p.montoArs) : null,
-    pickup: {
-      ...p.pickup,
-      grams: Number(p.pickup.grams),
-      aporteEstimado: p.pickup.aporteEstimado ? Number(p.pickup.aporteEstimado) : null,
-    },
-    analisis: analizarMonto({
-      monto: p.montoArs ? Number(p.montoArs) : null,
-      esperado: p.pickup.aporteEstimado ? Number(p.pickup.aporteEstimado) : null,
-    }),
-  }));
+  return proofs.map((p) => {
+    const esperado = esperadoDelPedido({
+      aporte: p.pickup.aporteEstimado,
+      envio: p.pickup.deliveryCostoArs,
+      modo: p.pickup.deliveryMode,
+    });
+    const monto = p.montoArs ? Number(p.montoArs) : null;
+    return {
+      ...p,
+      montoArs: monto,
+      pickup: {
+        ...p.pickup,
+        grams: Number(p.pickup.grams),
+        aporteEstimado: p.pickup.aporteEstimado ? Number(p.pickup.aporteEstimado) : null,
+        deliveryCostoArs: p.pickup.deliveryCostoArs ? Number(p.pickup.deliveryCostoArs) : null,
+      },
+      // El desglose va con el número: la cola mostraba «declaró $224 de $199» sobre un pago perfecto.
+      esperado,
+      analisis: analizarMonto({ monto, esperado: esperado.esperado }),
+    };
+  });
 }
 
 /** Abre un comprobante para verlo: descifra en memoria y deja el asiento de que alguien lo miró. */

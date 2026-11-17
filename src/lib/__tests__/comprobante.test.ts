@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   analizarMonto,
   cobroConfigurado,
+  detalleEsperado,
+  esperadoDelPedido,
   estadoDePago,
   leerCobro,
   normalizarCobro,
@@ -96,6 +98,79 @@ describe("analizarMonto", () => {
 
   it("sin aporte estimado no hay contra qué comparar", () => {
     expect(analizarMonto({ monto: 50000, esperado: null })).toEqual({ esperado: null, diferencia: null, cubreTotal: null });
+  });
+});
+
+describe("esperadoDelPedido", () => {
+  // El caso del club: 199 de aporte + 25 de envío, el socio transfiere 224 y el sistema le decía
+  // «declaró $224 de $199». El esperado tiene que incluir el envío en todas las pantallas.
+  it("suma el envío al aporte cuando el pedido es de envío", () => {
+    expect(esperadoDelPedido({ aporte: 199, envio: 25, modo: "ENVIO" })).toEqual({
+      esperado: 224,
+      aporte: 199,
+      envio: 25,
+      envioSinCosto: false,
+    });
+  });
+
+  it("un retiro no suma ni menciona el envío, aunque haya un costo guardado", () => {
+    expect(esperadoDelPedido({ aporte: 199, envio: 25, modo: "RETIRO" })).toEqual({
+      esperado: 199,
+      aporte: 199,
+      envio: null,
+      envioSinCosto: false,
+    });
+  });
+
+  it("envío sin costo cargado: el esperado es el aporte y se avisa que falta el costo", () => {
+    expect(esperadoDelPedido({ aporte: 199, envio: null, modo: "ENVIO" })).toEqual({
+      esperado: 199,
+      aporte: 199,
+      envio: null,
+      envioSinCosto: true,
+    });
+  });
+
+  it("sin aporte estimado no hay esperado, aunque haya envío", () => {
+    expect(esperadoDelPedido({ aporte: null, envio: 25, modo: "ENVIO" })).toEqual({
+      esperado: null,
+      aporte: null,
+      envio: 25,
+      envioSinCosto: false,
+    });
+  });
+
+  it("acepta los Decimal de Prisma como texto y redondea los centavos", () => {
+    expect(esperadoDelPedido({ aporte: "199.00", envio: "25.50", modo: "ENVIO" }).esperado).toBe(224.5);
+  });
+
+  it("el comprobante de 224 sobre 199 + 25 coincide", () => {
+    const e = esperadoDelPedido({ aporte: 199, envio: 25, modo: "ENVIO" });
+    expect(analizarMonto({ monto: 224, esperado: e.esperado }).cubreTotal).toBe(true);
+  });
+});
+
+describe("detalleEsperado", () => {
+  const fmt = (n: number) => `$${n}`;
+
+  it("muestra el desglose que pidió el club", () => {
+    expect(detalleEsperado(esperadoDelPedido({ aporte: 199, envio: 25, modo: "ENVIO" }), fmt)).toBe(
+      "aporte $199 + envío $25",
+    );
+  });
+
+  it("en un retiro nombra sólo el aporte", () => {
+    expect(detalleEsperado(esperadoDelPedido({ aporte: 199, envio: null, modo: "RETIRO" }), fmt)).toBe("aporte $199");
+  });
+
+  it("dice que el costo de envío no está cargado en vez de inventar un cero", () => {
+    expect(detalleEsperado(esperadoDelPedido({ aporte: 199, envio: null, modo: "ENVIO" }), fmt)).toBe(
+      "aporte $199 · envío sin costo cargado",
+    );
+  });
+
+  it("sin aporte estimado no hay desglose", () => {
+    expect(detalleEsperado(esperadoDelPedido({ aporte: null, envio: 25, modo: "ENVIO" }), fmt)).toBeNull();
   });
 });
 

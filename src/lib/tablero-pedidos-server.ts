@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { dayKeyOf, labelOf } from "./appointments";
 import { expireStale } from "./pickups";
+import { esperadoDelPedido } from "./comprobante-rules";
 import {
   columnaDelPedido,
   type ColumnaTablero,
@@ -119,10 +120,11 @@ export async function tableroPedidos(): Promise<{
             motivo: ultimo.motivo,
           }
         : null,
-      esperado:
-        p.aporteEstimado == null
-          ? null
-          : dosDecimales(Number(p.aporteEstimado) + Number(p.deliveryCostoArs ?? 0)),
+      esperado: esperadoDelPedido({
+        aporte: p.aporteEstimado,
+        envio: p.deliveryCostoArs,
+        modo: p.deliveryMode,
+      }),
       direccion: p.deliveryAddress,
       zona: p.deliveryZona,
     });

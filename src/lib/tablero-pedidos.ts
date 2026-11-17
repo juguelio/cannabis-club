@@ -7,6 +7,8 @@
  * estado del pedido, del último comprobante y de si ya salió a despacho.
  */
 
+import type { EsperadoPedido } from "./comprobante-rules";
+
 export type ColumnaTablero = "FALTA_PAGO" | "A_REVISAR" | "A_PREPARAR" | "LISTO" | "ENTREGADO";
 
 export const COLUMNAS: { key: ColumnaTablero; titulo: string; ayuda: string }[] = [
@@ -62,8 +64,8 @@ export type PedidoTablero = {
   items: { nombre: string; gramos: number }[];
   /** Último comprobante, si hay. */
   comprobante: { id: string; estado: string; monto: number | null; createdAt: string; motivo: string | null } | null;
-  /** Lo que el club esperaba cobrar, para comparar con lo declarado. */
-  esperado: number | null;
+  /** Lo que el club esperaba cobrar (aporte + envío) y su desglose, para comparar con lo declarado. */
+  esperado: EsperadoPedido;
   direccion: string | null;
   zona: string | null;
 };

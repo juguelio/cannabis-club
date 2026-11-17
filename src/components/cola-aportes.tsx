@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, ExternalLink, X } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
+import { detalleEsperado } from "@/lib/comprobante-rules";
 import { Chip } from "./ui";
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -17,6 +18,8 @@ export type ComprobanteEnCola = {
   status: string;
   createdAt: string;
   analisis: { esperado: number | null; diferencia: number | null; cubreTotal: boolean | null };
+  /** Aporte + envío con su desglose: el número contra el que se compara lo declarado. */
+  esperado: { esperado: number | null; aporte: number | null; envio: number | null; envioSinCosto: boolean };
   pickup: {
     id: string;
     grams: number;
@@ -84,6 +87,8 @@ export function ColaAportes({ inicial }: { inicial: ComprobanteEnCola[] }) {
         {items.map((c) => {
           const socio = `${c.pickup.member.firstName} ${c.pickup.member.lastName}`;
           const falta = c.analisis.diferencia != null && c.analisis.diferencia < -0.5;
+          const esperado = c.esperado?.esperado ?? null;
+          const detalle = detalleEsperado(c.esperado, (n) => MONEY.format(n));
           return (
             <li key={c.id} style={{ display: "block" }}>
               <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -93,10 +98,17 @@ export function ColaAportes({ inicial }: { inicial: ComprobanteEnCola[] }) {
                     <span className="chip">legajo {c.pickup.member.legajo}</span>
                     <Chip tone={falta ? "danger" : c.analisis.cubreTotal === false ? "warn" : "ok"}>
                       {c.montoArs != null ? MONEY.format(c.montoArs) : "sin monto"}
-                      {c.analisis.esperado != null ? ` de ${MONEY.format(c.analisis.esperado)}` : ""}
+                      {esperado != null ? ` de ${MONEY.format(esperado)}` : ""}
                     </Chip>
                     {falta ? <Chip tone="danger">faltan {MONEY.format(Math.abs(c.analisis.diferencia ?? 0))}</Chip> : null}
+                    {!falta && c.analisis.cubreTotal === true ? <Chip tone="ok">Coincide</Chip> : null}
                   </div>
+                  {esperado != null ? (
+                    <div className="cell-meta">
+                      Esperado {MONEY.format(esperado)}
+                      {detalle ? ` — ${detalle}` : ""}
+                    </div>
+                  ) : null}
                   <div className="cell-meta">
                     {c.pickup.grams} g ·{" "}
                     {c.pickup.deliveryMode === "ENVIO"

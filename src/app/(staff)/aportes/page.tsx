@@ -48,6 +48,7 @@ export default async function AportesPage() {
     status: c.status,
     createdAt: c.createdAt.toISOString(),
     analisis: c.analisis,
+    esperado: c.esperado,
     pickup: {
       id: c.pickup.id,
       grams: c.pickup.grams,
