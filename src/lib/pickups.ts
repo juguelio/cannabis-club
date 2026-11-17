@@ -623,7 +623,12 @@ export async function listPickups() {
     where: { status: { in: [...OPEN_STATUSES] } },
     orderBy: { createdAt: "asc" },
     take: 40,
-    include: { member: true, appointment: { select: { scheduledAt: true } } },
+    include: {
+      member: true,
+      appointment: { select: { scheduledAt: true } },
+      // El desglose por variedad es lo que el mostrador imputa: sin esto la reserva dice «15 g» y no «de qué».
+      items: { select: { strainName: true, grams: true }, orderBy: { strainName: "asc" } },
+    },
   });
   return rows.map((p) => ({
     id: p.id,
@@ -631,6 +636,7 @@ export async function listPickups() {
     legajo: p.member.legajo,
     memberName: `${p.member.lastName}, ${p.member.firstName}`,
     grams: Number(p.grams),
+    items: p.items.map((i) => ({ strainName: i.strainName, grams: Number(i.grams) })),
     status: p.status,
     aporteEstimado: p.aporteEstimado == null ? null : Number(p.aporteEstimado),
     pickupLabel: p.appointment

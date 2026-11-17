@@ -9,7 +9,7 @@ import { MemberPicker, type PickerMember } from "./member-picker";
 import { useToast } from "./toast";
 
 type Batch = { id: string; code: string; strain: string; balanceG: number; thcPct: number | null };
-type QueueItem = { key: string; memberId: string; time: string | null; name: string; legajo: number; pickupId: string | null; pickupG: number | null; status: string };
+type QueueItem = { key: string; memberId: string; time: string | null; name: string; legajo: number; pickupId: string | null; pickupG: number | null; pickupItems: { strainName: string; grams: number }[]; status: string };
 type Status = {
   member: { name: string; legajo: number; statusLabel: string; reprocannLabel: string; reprocannDays: number | null; forecastG: number | null };
   usage: { dayGrams: number; monthGrams: number };
@@ -19,6 +19,8 @@ type Status = {
 type Receipt = { id: string; replay: boolean; member: string; memberId: string; grams: number; batch: string; balanceAfter: number; exhausted: boolean; pickup: boolean };
 
 const g = (v: number) => `${Number.isInteger(v) ? v : v.toFixed(1).replace(".", ",")} g`;
+// La reserva se imputa por variedad: «5 g Tangie · 10 g Grape Gas», nunca sólo el total.
+const itemsLabel = (items: { strainName: string; grams: number }[]) => items.map((i) => `${g(i.grams)} ${i.strainName}`).join(" · ");
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export function DispensaryConsole({
@@ -136,6 +138,7 @@ export function DispensaryConsole({
 
   const presets = [2, 5, 10, 20].filter((p) => !status || p <= maxAllowed + 1e-9);
   const reserved = pickupId ? queue.find((q) => q.pickupId === pickupId)?.pickupG ?? null : null;
+  const reservedItems = pickupId ? queue.find((q) => q.pickupId === pickupId)?.pickupItems ?? [] : [];
   const monthPct = (v: number) => (status ? Math.min(100, (v / status.limits.monthlyG) * 100) : 0);
   const dayPct = (v: number) => (status ? Math.min(100, (v / status.limits.dailyG) * 100) : 0);
 
@@ -158,6 +161,7 @@ export function DispensaryConsole({
                     <div className="grow">
                       <div className="cell-main truncate">{q.name}</div>
                       <div className="cell-meta">Legajo {q.legajo}{q.pickupG ? ` · reservó ${g(q.pickupG)}` : ""}</div>
+                      {q.pickupItems.length ? <div className="cell-meta">{itemsLabel(q.pickupItems)}</div> : null}
                     </div>
                     {q.status === "CONFIRMADO" || q.status === "CONFIRMADA" ? <span className="chip chip-ok">Confirmado</span> : null}
                   </li>
@@ -298,7 +302,7 @@ export function DispensaryConsole({
               {pickupId && reserved != null ? (
                 <div className="verdict">
                   <Info aria-hidden />
-                  <span style={{ flex: 1 }}>Atendés su reserva del portal de {g(reserved)}: esta entrega la cierra{amount && Math.abs(amount - reserved) > 0.001 ? " (queda registrado que fue distinto de lo reservado)" : ""}.</span>
+                  <span style={{ flex: 1 }}>Atendés su reserva del portal de {g(reserved)}{reservedItems.length ? `: ${itemsLabel(reservedItems)}` : ""}. Esta entrega la cierra{amount && Math.abs(amount - reserved) > 0.001 ? " (queda registrado que fue distinto de lo reservado)" : ""}.</span>
                   <button type="button" className="btn btn-sm" style={{ background: "transparent", color: "#d5e5db", borderColor: "#355a4b" }} onClick={() => setPickupId(null)}>No es la reserva</button>
                 </div>
               ) : null}
