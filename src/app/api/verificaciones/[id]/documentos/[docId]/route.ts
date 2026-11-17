@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { clientIp } from "@/lib/http";
 import { decryptDoc } from "@/lib/docs-crypto";
 import { abrirDocumentoVerificacion } from "@/lib/verificacion";
+import { cabecerasDeArchivo, nombreDeArchivo } from "@/lib/file-headers";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +24,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   return new Response(new Uint8Array(bytes), {
-    headers: {
-      "Content-Type": doc.mime,
-      "Content-Length": String(bytes.length),
-      "Content-Disposition": `inline; filename="${doc.tipo.toLowerCase()}${doc.mime === "application/pdf" ? ".pdf" : ""}"`,
-      "Cache-Control": "no-store, private",
-      "X-Content-Type-Options": "nosniff",
-      "Content-Security-Policy": "default-src 'none'; sandbox",
-    },
+    headers: cabecerasDeArchivo({
+      mime: doc.mime,
+      bytes: bytes.length,
+      nombre: nombreDeArchivo(doc.tipo.toLowerCase(), doc.mime),
+    }),
   });
 }
