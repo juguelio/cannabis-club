@@ -7,6 +7,7 @@ import { api, errMsg } from "@/lib/client";
 import { useToast } from "@/components/toast";
 import { ReasonDialog } from "@/components/dialog";
 import { COLUMNAS, type ColumnaTablero, type ParaPreparar, type PedidoTablero } from "@/lib/tablero-pedidos";
+import { detalleEsperado } from "@/lib/comprobante-rules";
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const g = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")} g`;
@@ -38,6 +39,8 @@ export function TableroPedidos({
 
   const visibles = pedidos.filter((p) => filtro === "TODOS" || p.mode === filtro);
   const sel = pedidos.find((p) => p.id === abierto) ?? null;
+  // Mismo cálculo y mismo formateador que el total: el desglose no puede decir otra cosa.
+  const detalle = sel ? detalleEsperado(sel.esperado, (n) => MONEY.format(n)) : null;
 
   async function decidir(decision: "APROBAR" | "RECHAZAR", motivo?: string) {
     if (!sel?.comprobante) return;
@@ -174,9 +177,13 @@ export function TableroPedidos({
                 ))}
                 <li className="cuenta-total">
                   <span>Esperado</span>
-                  <span className="tnum">{sel.esperado != null ? MONEY.format(sel.esperado) : "—"}</span>
+                  <span className="tnum">
+                    {sel.esperado.esperado != null ? MONEY.format(sel.esperado.esperado) : "—"}
+                  </span>
                 </li>
               </ul>
+              {/* El desglose sale del mismo cálculo que el total: no puede decir otra cosa. */}
+              {detalle ? <p className="cell-meta" style={{ margin: "2px 0 0" }}>{detalle}</p> : null}
 
               {sel.comprobante ? (
                 <div className="tablero-comprobante">
@@ -185,11 +192,15 @@ export function TableroPedidos({
                     <span>Declaró</span>
                     <b className="tnum">{sel.comprobante.monto != null ? MONEY.format(sel.comprobante.monto) : "—"}</b>
                   </div>
-                  {sel.comprobante.monto != null && sel.esperado != null ? (
-                    <span className={`cell-meta${Math.abs(sel.comprobante.monto - sel.esperado) < 1 ? "" : " tablero-difiere"}`}>
-                      {Math.abs(sel.comprobante.monto - sel.esperado) < 1
+                  {sel.comprobante.monto != null && sel.esperado.esperado != null ? (
+                    <span
+                      className={`cell-meta${
+                        Math.abs(sel.comprobante.monto - sel.esperado.esperado) < 1 ? "" : " tablero-difiere"
+                      }`}
+                    >
+                      {Math.abs(sel.comprobante.monto - sel.esperado.esperado) < 1
                         ? "Coincide con lo esperado."
-                        : `Declaró ${MONEY.format(sel.comprobante.monto)} y se esperaban ${MONEY.format(sel.esperado)}.`}
+                        : `Declaró ${MONEY.format(sel.comprobante.monto)} y se esperaban ${MONEY.format(sel.esperado.esperado)}.`}
                     </span>
                   ) : null}
                   <a

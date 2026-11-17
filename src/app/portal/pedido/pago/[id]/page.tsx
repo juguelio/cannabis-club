@@ -29,6 +29,7 @@ export default async function PagoPage({ params }: { params: Promise<{ id: strin
 
   const paraPagar: PedidoParaPagar = {
     id: pedido.id,
+    mode: pedido.mode,
     grams: pedido.grams,
     aporte: pedido.aporte,
     envio: pedido.envio,

@@ -118,3 +118,55 @@ export const ESTADO_PAGO_LABEL: Record<EstadoPago, string> = {
   APROBADO: "Pago aprobado",
   RECHAZADO: "Comprobante rechazado",
 };
+
+/**
+ * Lo que el pedido espera que el socio transfiera: **aporte + envío**.
+ *
+ * El envío estaba sumado a mano en el tablero y en ningún lado en la cola de aportes: el mismo pedido
+ * mostraba 224 en Pedidos y 199 en Aportes, así que un pago perfecto (199 de aporte + 25 de envío) se
+ * leía como «declaró $224 de $199». Un solo cálculo para todas las pantallas.
+ *
+ * - Pedido de **retiro**: el envío no existe, no se menciona ni se suma.
+ * - Pedido de **envío sin costo cargado**: `envioSinCosto` lo dice; no se inventa un cero.
+ * - **Sin aporte estimado** no hay total contra el que comparar: `esperado` queda en `null`.
+ */
+export type EsperadoPedido = {
+  /** Total a transferir (aporte + envío), o null si no hay aporte estimado. */
+  esperado: number | null;
+  aporte: number | null;
+  /** Sólo tiene valor cuando el pedido es de envío y el club cargó el costo. */
+  envio: number | null;
+  /** El pedido es de envío pero no tiene costo cargado: se dice, no se suma 0. */
+  envioSinCosto: boolean;
+};
+
+export function esperadoDelPedido(params: {
+  /** Acepta los `Decimal` de Prisma, sus strings o number: la pantalla no convierte nada antes. */
+  aporte: unknown;
+  envio: unknown;
+  modo: "RETIRO" | "ENVIO" | string | null | undefined;
+}): EsperadoPedido {
+  const n = (v: unknown): number | null => {
+    if (v == null || v === "") return null;
+    const num = typeof v === "number" ? v : Number(String(v));
+    return Number.isFinite(num) ? num : null;
+  };
+  const aporte = n(params.aporte);
+  const esEnvio = params.modo === "ENVIO";
+  const envio = esEnvio ? n(params.envio) : null;
+  const envioSinCosto = esEnvio && envio == null;
+  if (aporte == null) return { esperado: null, aporte: null, envio, envioSinCosto };
+  const total = Math.round((aporte + (envio ?? 0)) * 100) / 100;
+  return { esperado: total, aporte, envio, envioSinCosto };
+}
+
+/**
+ * El desglose en palabras, con el formateador de cada pantalla: «aporte $199 + envío $25».
+ * Va aparte del cálculo para que el texto y el número no puedan separarse.
+ */
+export function detalleEsperado(e: EsperadoPedido, formato: (n: number) => string): string | null {
+  if (e.aporte == null) return null;
+  if (e.envio != null) return `aporte ${formato(e.aporte)} + envío ${formato(e.envio)}`;
+  if (e.envioSinCosto) return `aporte ${formato(e.aporte)} · envío sin costo cargado`;
+  return `aporte ${formato(e.aporte)}`;
+}
