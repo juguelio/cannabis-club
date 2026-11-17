@@ -523,6 +523,11 @@ model PickupItem {
   strain     Strain        @relation(fields: [strainId], references: [id])
   strainName String
   grams      Decimal       @db.Decimal(10, 2)
+  /// La entrega que imputó este ítem. Único: un ítem reservado se entrega una sola vez.
+  /// Sin esto la reserva de tres variedades sólo se podía cerrar con una entrega del total
+  /// (la segunda con el mismo `pickupId` rebotaba con PICKUP_NOT_OPEN).
+  dispensationId String?       @unique
+  dispensation   Dispensation? @relation(fields: [dispensationId], references: [id])
 
   @@unique([pickupId, strainId])
   @@index([pickupId])
@@ -625,6 +630,8 @@ model Dispensation {
   appointment    Appointment?
   pickup         PickupRequest?
   shipmentItem   ShipmentItem?
+  /// Ítems de reserva que esta entrega imputó (una entrega por variedad reservada).
+  pickupItems    PickupItem[]
 
   @@index([memberId, occurredAt])
   @@index([batchId])

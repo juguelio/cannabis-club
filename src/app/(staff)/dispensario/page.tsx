@@ -43,7 +43,7 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
 
   // Cola del día: turnos de hoy + reservas abiertas (una fila por socio).
   const pickupByMember = new Map(pickups.map((p) => [p.memberId, p]));
-  type Item = { strainName: string; grams: number };
+  type Item = { id: string; strainId: string; strainName: string; grams: number };
   type Q = { key: string; memberId: string; time: string | null; name: string; legajo: number; pickupId: string | null; pickupG: number | null; pickupItems: Item[]; status: string };
   const queue: Q[] = appts
     .filter((a) => a.member.status === "ACTIVO")
@@ -68,7 +68,7 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
   }
 
   const available = batches.filter((b) => b.totals.balanceG > 0).map((b) => ({
-    id: b.id, code: b.code, strain: b.strain.name, balanceG: b.totals.balanceG, thcPct: b.thcPct == null ? null : Number(b.thcPct),
+    id: b.id, code: b.code, strain: b.strain.name, strainId: b.strainId, balanceG: b.totals.balanceG, thcPct: b.thcPct == null ? null : Number(b.thcPct),
   }));
   const deliveredToday = dispensations.filter((d) => !d.voidedAt && d.occurredAt >= slotInstant(today, 0)).reduce((a, d) => a + Number(d.grams), 0);
   const minorRule = club.thcMaxMenor ? ` Menores de ${club.edadLimiteMenor}: ${fmtGrams(club.limiteMenorG)} por mes y hasta ${Number(club.thcMaxMenor)}% THC.` : "";

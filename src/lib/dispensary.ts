@@ -258,6 +258,265 @@ export async function dispense(input: DispenseInput) {
   }
 }
 
+export type PickupDispenseLine = { pickupItemId: string; batchId: string; grams: number };
+
+export type DispensePickupInput = {
+  /** Reserva a atender: el socio sale de la reserva, nunca del legajo que recuerde el mostrador. */
+  pickupId: string;
+  lines: PickupDispenseLine[];
+  operatorId: string;
+  signatureType?: DispenseInput["signatureType"];
+  notes?: string | null;
+  idempotencyKey?: string;
+  ip?: string | null;
+};
+
+/**
+ * Atender una reserva del portal imputando **una entrega por variedad reservada**.
+ *
+ * Antes, cerrar la reserva exigía una sola entrega del total: la segunda vuelta con el mismo
+ * `pickupId` rebotaba con PICKUP_NOT_OPEN y la reserva de tres genéticas se registraba como
+ * un solo asiento del total, sin decir de qué lote salió cada gramo. Acá cada fila es su propia
+ * `Dispensation` (su asiento de stock, su cargo y su `limitSnapshot`), los topes se validan sobre
+ * la **suma** de las filas en la misma transacción Serializable, y la reserva se cierra recién
+ * cuando todas las variedades reservadas quedaron imputadas.
+ */
+export async function dispensePickup(input: DispensePickupInput) {
+  const club = await getClub();
+  const config = limitsFromClub(club);
+  const lineKey = (i: number) => (input.idempotencyKey ? `${input.idempotencyKey}:${i}` : null);
+
+  // Reintento de la misma intención: se devuelven las entregas ya registradas, sin asiento nuevo.
+  // La forma es la misma que la de una corrida nueva (variedad y lote), o el comprobante de la
+  // pantalla saldría sin nombres.
+  const replayOf = async () => {
+    const previas = await prisma.dispensation.findMany({
+      where: { idempotencyKey: { startsWith: `${input.idempotencyKey}:` } },
+      orderBy: { occurredAt: "asc" },
+      include: { batch: { include: { strain: true } } },
+    });
+    return previas.length
+      ? {
+          dispensations: previas.map((d) => ({
+            id: d.id,
+            grams: Number(d.grams),
+            batchCode: d.batch.code,
+            strainName: d.batch.strain.name,
+            itemId: null,
+          })),
+          complete: null,
+          deliveredG: previas.reduce((a, d) => a + Number(d.grams), 0),
+          remainingG: null,
+          pending: [],
+          replay: true as const,
+        }
+      : null;
+  };
+  if (input.idempotencyKey) {
+    const previas = await replayOf();
+    if (previas) return previas;
+  }
+
+  if (!input.lines.length) throw unprocessable("INVALID_AMOUNT", "La entrega no tiene ninguna variedad.");
+  if (new Set(input.lines.map((l) => l.pickupItemId)).size !== input.lines.length)
+    throw unprocessable("PICKUP_LINE_DUPLICADA", "Hay dos filas para la misma variedad reservada.");
+
+  for (let intento = 0; ; intento += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const pickup = await tx.pickupRequest.findUnique({
+            where: { id: input.pickupId },
+            include: { items: true, member: true },
+          });
+          if (!pickup) throw notFound("Reserva inexistente");
+          if (!["SOLICITADA", "CONFIRMADA"].includes(pickup.status))
+            throw conflict("PICKUP_NOT_OPEN", "Esa reserva ya está cerrada.");
+          if (!pickup.items.length)
+            throw conflict("PICKUP_WITHOUT_ITEMS", "La reserva no tiene variedades: registrá la entrega por total.");
+
+          const member = pickup.member;
+          if (member.status !== "ACTIVO")
+            throw unprocessable("MEMBER_NOT_ACTIVE", `El socio está en estado ${member.status} y no puede retirar.`);
+
+          // El uso del socio se lee una vez y se acumula fila por fila: tres entregas de la misma
+          // reserva no pueden pasarse del tope entre sí (cada `evaluateDispensation` mira el acumulado).
+          let usage = await memberUsage(tx, member.id, club.timezone);
+          const created: { id: string; grams: number; batchCode: string; strainName: string; itemId: string }[] = [];
+
+          for (const [index, line] of input.lines.entries()) {
+            const item = pickup.items.find((i) => i.id === line.pickupItemId);
+            if (!item) throw notFound("La variedad no pertenece a esa reserva");
+            if (item.dispensationId) throw conflict("PICKUP_ITEM_DELIVERED", `${item.strainName} ya se entregó.`);
+
+            const grams = Number(line.grams);
+            if (!(grams > 0)) throw unprocessable("INVALID_AMOUNT", `Los gramos de ${item.strainName} deben ser mayores a 0.`);
+            if (!line.batchId) throw unprocessable("BATCH_REQUIRED", `Falta elegir el lote de ${item.strainName}.`);
+
+            const batch = await tx.batch.findUnique({ where: { id: line.batchId } });
+            if (!batch) throw notFound(`Lote inexistente para ${item.strainName}`);
+            if (batch.recalledAt || batch.stage === "RETIRADO")
+              throw conflict("BATCH_RECALLED", `El lote ${batch.code} fue retirado del mercado.`);
+            if (batch.stage !== "DISPONIBLE")
+              throw conflict("BATCH_NOT_AVAILABLE", `El lote ${batch.code} está en etapa ${batch.stage}, no disponible.`);
+            if (club.requiereLiberacion && !batch.releasedAt)
+              throw conflict("BATCH_NOT_RELEASED", `El lote ${batch.code} todavía no está liberado: falta la firma de calidad.`);
+            if (batch.strainId !== item.strainId)
+              throw unprocessable(
+                "BATCH_STRAIN_MISMATCH",
+                `El lote ${batch.code} no es de ${item.strainName}: cada variedad reservada se imputa con su genética.`,
+              );
+
+            const decision = evaluateDispensation({
+              member: {
+                status: member.status,
+                birthDate: member.birthDate,
+                reprocannStatus: member.reprocannStatus,
+                reprocannExpiresAt: member.reprocannExpiresAt,
+                monthlyForecastG: member.monthlyForecastG == null ? null : Number(member.monthlyForecastG),
+              },
+              usage,
+              config,
+              grams,
+              thcPct: batch.thcPct == null ? null : Number(batch.thcPct),
+            });
+            if (!decision.ok) throw unprocessable(decision.code, decision.message, decision.snapshot);
+
+            const available = await batchBalance(tx, batch.id);
+            if (available + 1e-9 < grams)
+              throw conflict("STOCK_INSUFFICIENT", `El lote ${batch.code} tiene ${available} g disponibles.`);
+
+            const dispensation = await tx.dispensation.create({
+              data: {
+                memberId: member.id,
+                batchId: batch.id,
+                grams: new Prisma.Decimal(grams.toFixed(2)),
+                thcPct: batch.thcPct,
+                operatorId: input.operatorId,
+                signatureType: input.signatureType ?? "REGISTRO_OPERADOR",
+                idempotencyKey: lineKey(index),
+                notes: input.notes ?? null,
+                limitSnapshot: decision.snapshot as unknown as Prisma.InputJsonValue,
+              },
+            });
+
+            await tx.stockMovement.create({
+              data: {
+                batchId: batch.id,
+                type: "DISPENSACION",
+                grams: new Prisma.Decimal(grams.toFixed(2)),
+                memberId: member.id,
+                actorId: input.operatorId,
+                dispensationId: dispensation.id,
+                reason: `Entrega a socio ${member.legajo} · ${item.strainName}`,
+              },
+            });
+
+            await chargeDispensation(tx, {
+              memberId: member.id,
+              dispensationId: dispensation.id,
+              grams,
+              aportePorGramo: Number(club.aportePorGramo ?? 0),
+              occurredAt: dispensation.occurredAt,
+            });
+
+            // El vínculo es lo que cierra la reserva: un ítem imputado no se vuelve a entregar.
+            await tx.pickupItem.update({ where: { id: item.id }, data: { dispensationId: dispensation.id } });
+
+            await tx.auditLog.create({
+              data: {
+                actorId: input.operatorId,
+                action: "DISPENSATION_CREATE",
+                entity: "Dispensation",
+                entityId: dispensation.id,
+                ip: input.ip ?? null,
+                payload: {
+                  memberId: member.id,
+                  batchId: batch.id,
+                  grams,
+                  code: decision.code,
+                  pickupId: pickup.id,
+                  pickupItemId: item.id,
+                  strainName: item.strainName,
+                } as Prisma.InputJsonValue,
+              },
+            });
+
+            const after = Math.round((available - grams) * 100) / 100;
+            if (after <= 0) await tx.batch.update({ where: { id: batch.id }, data: { stage: "AGOTADO" } });
+
+            usage = {
+              dayGrams: Math.round((usage.dayGrams + grams) * 100) / 100,
+              monthGrams: Math.round((usage.monthGrams + grams) * 100) / 100,
+            };
+            created.push({ id: dispensation.id, grams, batchCode: batch.code, strainName: item.strainName, itemId: item.id });
+          }
+
+          const itemsAfter = await tx.pickupItem.findMany({ where: { pickupId: pickup.id }, select: { grams: true, dispensationId: true, strainName: true } });
+          const complete = itemsAfter.every((i) => i.dispensationId !== null);
+          const entregadoG = Math.round(created.reduce((a, c) => a + c.grams, 0) * 100) / 100;
+          const reservadoG = Math.round(itemsAfter.reduce((a, i) => a + Number(i.grams), 0) * 100) / 100;
+          const ultima = created[created.length - 1];
+
+          if (complete) {
+            await tx.pickupRequest.update({
+              where: { id: pickup.id },
+              data: { status: "RETIRADA", fulfilledAt: new Date(), dispensationId: ultima.id },
+            });
+            // Se entregó distinto de lo reservado: queda el apartamiento dicho, no un número mudo.
+            if (Math.abs(reservadoG - entregadoG) > 0.001) {
+              await tx.auditLog.create({
+                data: {
+                  actorId: input.operatorId,
+                  action: "PICKUP_PARTIAL",
+                  entity: "PickupRequest",
+                  entityId: pickup.id,
+                  payload: {
+                    reservadoG,
+                    entregadoG,
+                    differenceG: Math.round((entregadoG - reservadoG) * 100) / 100,
+                    variedades: created.map((c) => ({ variedad: c.strainName, lote: c.batchCode, gramos: c.grams })),
+                  } as Prisma.InputJsonValue,
+                },
+              });
+            }
+            if (pickup.appointmentId) {
+              await tx.appointment.update({
+                where: { id: pickup.appointmentId },
+                data: { status: "ATENDIDO", attendedAt: new Date(), dispensationId: ultima.id },
+              });
+            }
+          }
+
+          return {
+            dispensations: created,
+            complete,
+            deliveredG: entregadoG,
+            remainingG: Math.round((reservadoG - entregadoG) * 100) / 100,
+            pending: itemsAfter.filter((i) => !i.dispensationId).map((i) => i.strainName),
+            replay: false as const,
+          };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 },
+      );
+    } catch (error) {
+      if (error instanceof Error && error.name === "AppError") throw error;
+      const code = error instanceof Prisma.PrismaClientKnownRequestError ? error.code : null;
+      if (input.idempotencyKey && (code === "P2002" || code === "P2034")) {
+        const previas = await replayOf();
+        if (previas) return previas;
+        if (code === "P2034" && intento < 2) {
+          await new Promise((r) => setTimeout(r, 60 * (intento + 1)));
+          continue;
+        }
+      }
+      if (code === "P2034")
+        throw conflict("CONCURRENT_UPDATE", "Otra entrega se registró al mismo tiempo. Revisá el saldo y volvé a confirmar.");
+      throw error;
+    }
+  }
+}
+
 /** Anular una entrega = contra-asiento. El asiento original nunca se borra. */
 export async function voidDispensation(input: {
   dispensationId: string;
@@ -309,6 +568,31 @@ export async function voidDispensation(input: {
           entity: "PickupRequest",
           entityId: item.pickupRequestId,
           payload: { motivo: "Se anuló la entrega del traslado", dispensationId: dispensation.id },
+        },
+      });
+    }
+
+    // Anular una entrega que imputó una variedad reservada tiene que devolver esa variedad a la
+    // reserva. Si no, el ítem queda marcado como entregado, la reserva no se puede reatender y el
+    // pedido queda «retirado» sin asiento. Mismo criterio que el ítem de traslado de arriba.
+    const pickupItem = await tx.pickupItem.findFirst({
+      where: { dispensationId: dispensation.id },
+      select: { id: true, pickupId: true, strainName: true },
+    });
+    if (pickupItem) {
+      const antes = await tx.pickupRequest.findUnique({ where: { id: pickupItem.pickupId }, select: { status: true } });
+      await tx.pickupItem.update({ where: { id: pickupItem.id }, data: { dispensationId: null } });
+      await tx.pickupRequest.update({
+        where: { id: pickupItem.pickupId },
+        data: { status: "SOLICITADA", fulfilledAt: null, dispensationId: null },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: input.actorId,
+          action: "PICKUP_REOPEN",
+          entity: "PickupRequest",
+          entityId: pickupItem.pickupId,
+          payload: { motivo: "Se anuló la entrega de una variedad de la reserva", variedad: pickupItem.strainName, dispensationId: dispensation.id, estadoPrevio: antes?.status ?? null },
         },
       });
     }
