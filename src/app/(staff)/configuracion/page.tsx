@@ -49,7 +49,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           nombre: club.nombre, nombreCorto: club.nombreCorto ?? "", cuit: club.cuit ?? "", directorMedico: club.directorMedico ?? "", responsableTecnico: club.responsableTecnico ?? "",
           directorMedicoMatricula: club.directorMedicoMatricula ?? "", responsableTecnicoTitulo: club.responsableTecnicoTitulo ?? "",
           personeria: club.personeria ?? "", reps: club.reps ?? "", domicilioLegal: club.domicilioLegal ?? "",
-          reprocannNumber: club.reprocannNumber ?? "", reprocannCode: club.reprocannCode ?? "", limiteDiarioG: Number(club.limiteDiarioG),
+          reprocannNumber: club.reprocannNumber ?? "", reprocannCode: club.reprocannCode ?? "", limitePorPedidoG: Number(club.limitePorPedidoG),
           limiteMensualG: Number(club.limiteMensualG), limiteMenorG: Number(club.limiteMenorG), edadMinima: club.edadMinima,
           edadLimiteMenor: club.edadLimiteMenor, thcMaxMenor: club.thcMaxMenor == null ? null : Number(club.thcMaxMenor),
           maxSocios: club.maxSocios, requiereReprocann: club.requiereReprocann,

@@ -10,7 +10,7 @@ const FIELD: Record<string, string> = {
   firstName: "Nombre", lastName: "Apellido", docNumber: "Documento", birthDate: "Nacimiento", email: "Email",
   grams: "Gramos", reason: "Motivo", code: "Código", password: "Contraseña", name: "Nombre",
   reprocannExpiresAt: "Vencimiento REPROCANN", consentSignedAt: "Consentimiento", dryWeightG: "Peso seco",
-  wetWeightG: "Peso húmedo", limiteDiarioG: "Tope diario", limiteMensualG: "Tope mensual", limiteMenorG: "Tope para menores",
+  wetWeightG: "Peso húmedo", limitePorPedidoG: "Tope por pedido", limiteMensualG: "Tope mensual", limiteMenorG: "Tope para menores",
 };
 
 export const json = (data: unknown, status = 200) => NextResponse.json(data, { status });

@@ -5,7 +5,7 @@
  */
 
 export type LimitConfig = {
-  limiteDiarioG: number;
+  limitePorPedidoG: number;
   limiteMensualG: number;
   limiteMenorG: number;
   edadMinima: number;
@@ -38,7 +38,7 @@ export type Decision = {
     | "INVALID_AMOUNT"
     | "THC_LIMIT"
     | "THC_UNKNOWN"
-    | "DAILY_LIMIT"
+    | "ORDER_LIMIT"
     | "MONTHLY_LIMIT";
   message: string;
   snapshot: {
@@ -49,7 +49,7 @@ export type Decision = {
     usageBefore: Usage;
     usageAfter: Usage;
     limitsApplied: {
-      dailyG: number;
+      perOrderG: number;
       monthlyG: number;
       thcMaxPct: number | null;
       sellsForMinor: boolean;
@@ -86,7 +86,7 @@ export function evaluateDispensation(input: {
   const age = member.birthDate ? ageYears(member.birthDate, at) : null;
   const isMinor = age === null ? false : age < config.edadLimiteMenor;
   const monthlyLimit = isMinor ? Math.min(config.limiteMenorG, config.limiteMensualG) : config.limiteMensualG;
-  const dailyLimit = Math.min(config.limiteDiarioG, monthlyLimit);
+  const dailyLimit = Math.min(config.limitePorPedidoG, monthlyLimit);
   const thcMax = isMinor ? config.thcMaxMenor : null;
   const grams = Number(input.grams ?? 0);
   const thcPct = input.thcPct == null ? null : Number(input.thcPct);
@@ -100,7 +100,7 @@ export function evaluateDispensation(input: {
     thcPct,
     usageBefore,
     usageAfter,
-    limitsApplied: { dailyG: dailyLimit, monthlyG: monthlyLimit, thcMaxPct: thcMax, sellsForMinor: isMinor },
+    limitsApplied: { perOrderG: dailyLimit, monthlyG: monthlyLimit, thcMaxPct: thcMax, sellsForMinor: isMinor },
     reprocann: {
       status: member.reprocannStatus,
       expiresAt: member.reprocannExpiresAt ? toDate(member.reprocannExpiresAt).toISOString().slice(0, 10) : null,
@@ -139,8 +139,10 @@ export function evaluateDispensation(input: {
     );
   if (thcMax != null && thcPct != null && thcPct > thcMax)
     return deny("THC_LIMIT", `El lote tiene ${thcPct}% THC; para menores de ${config.edadLimiteMenor} el máximo es ${thcMax}%.`);
-  if (usageAfter.dayGrams > dailyLimit + 1e-9)
-    return deny("DAILY_LIMIT", `Supera el tope diario (${dailyLimit} g): ya retiró ${usageBefore.dayGrams} g hoy.`);
+  // El tope del club es por pedido, no por día (lo pidió el club: dos envíos el mismo día son
+  // legítimos, incluso para la misma persona con dos REPROCANN). Se mide esta entrega sola.
+  if (grams > dailyLimit + 1e-9)
+    return deny("ORDER_LIMIT", `Esta entrega lleva ${grams} g y el tope por pedido es ${dailyLimit} g.`);
   if (usageAfter.monthGrams > monthlyLimit + 1e-9)
     return deny("MONTHLY_LIMIT", `Supera el tope mensual (${monthlyLimit} g): ya retiró ${usageBefore.monthGrams} g este mes.`);
 

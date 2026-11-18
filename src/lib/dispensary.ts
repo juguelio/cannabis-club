@@ -339,8 +339,14 @@ export async function dispensePickup(input: DispensePickupInput) {
           if (member.status !== "ACTIVO")
             throw unprocessable("MEMBER_NOT_ACTIVE", `El socio está en estado ${member.status} y no puede retirar.`);
 
-          // El uso del socio se lee una vez y se acumula fila por fila: tres entregas de la misma
-          // reserva no pueden pasarse del tope entre sí (cada `evaluateDispensation` mira el acumulado).
+          // El tope del club es por pedido: se mira la suma de las filas de esta entrega (no el día).
+          // Cada fila se valida igual con `evaluateDispensation` para el resto de las reglas.
+          const totalEntrega = Math.round(input.lines.reduce((a, l) => a + Number(l.grams), 0) * 100) / 100;
+          if (totalEntrega > config.limitePorPedidoG + 1e-9)
+            throw unprocessable(
+              "ORDER_LIMIT",
+              `La entrega suma ${totalEntrega} g y el tope por pedido es ${config.limitePorPedidoG} g.`,
+            );
           let usage = await memberUsage(tx, member.id, club.timezone);
           const created: { id: string; grams: number; batchCode: string; strainName: string; itemId: string }[] = [];
 

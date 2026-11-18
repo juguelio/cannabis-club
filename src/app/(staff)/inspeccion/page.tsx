@@ -63,7 +63,7 @@ export default async function InspectionPage() {
           <Panel title="Topes vigentes">
             <div className="panel-body">
               <dl className="dl">
-                <dt>Tope diario</dt><dd>{fmtGrams(club.limiteDiarioG)}</dd>
+                <dt>Tope por pedido</dt><dd>{fmtGrams(club.limitePorPedidoG)}</dd>
                 <dt>Tope mensual</dt><dd>{fmtGrams(club.limiteMensualG)}</dd>
                 <dt>Tope reducido por edad</dt><dd>{fmtGrams(club.limiteMenorG)}{club.thcMaxMenor ? ` · hasta ${Number(club.thcMaxMenor)} % THC` : ""}</dd>
                 <dt>Cupo de socios</dt><dd>{club.maxSocios}</dd>

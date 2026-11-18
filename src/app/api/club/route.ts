@@ -27,7 +27,7 @@ export async function PATCH(req: Request) {
     const club = await prisma.$transaction(async tx => {
       const current = await tx.club.findUniqueOrThrow({ where: { id: CLUB_ID }, omit: OMIT_IMAGES });
       clubSettings.parse({ ...current,
-        limiteDiarioG: Number(current.limiteDiarioG), limiteMensualG: Number(current.limiteMensualG),
+        limitePorPedidoG: Number(current.limitePorPedidoG), limiteMensualG: Number(current.limiteMensualG),
         limiteMenorG: Number(current.limiteMenorG), thcMaxMenor: current.thcMaxMenor == null ? null : Number(current.thcMaxMenor),
         cuit: current.cuit ?? "", directorMedico: current.directorMedico ?? "", responsableTecnico: current.responsableTecnico ?? "",
         directorMedicoMatricula: current.directorMedicoMatricula ?? "", responsableTecnicoTitulo: current.responsableTecnicoTitulo ?? "",

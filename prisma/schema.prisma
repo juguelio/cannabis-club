@@ -136,7 +136,9 @@ model Club {
   /// REPS: inscripción provincial en el registro de cannabis.
   reps                     String?
   domicilioLegal           String?
-  limiteDiarioG            Decimal  @default(25) @db.Decimal(6, 2)
+  /// Tope por pedido (antes «tope diario»): el club pidió que el tope sea por solicitud, no por día.
+  /// El nombre de la columna en la base sigue siendo `limiteDiarioG` para no migrar datos.
+  limitePorPedidoG            Decimal  @default(25) @map("limiteDiarioG") @db.Decimal(6, 2)
   limiteMensualG           Decimal  @default(50) @db.Decimal(6, 2)
   /// Con cuántos días de anticipación se avisa que el REPROCANN vence.
   avisoReprocannDias       Int      @default(30)

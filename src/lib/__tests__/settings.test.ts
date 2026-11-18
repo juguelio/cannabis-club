@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { clubSettings, clubSettingsFields } from "../club-settings";
 import { calendarDate, gramsAmount } from "../validation";
-const valid = { nombre: "Club de prueba", cuit: "", directorMedico: "", responsableTecnico: "", reprocannNumber: "", reprocannCode: "", limiteDiarioG: 25, limiteMensualG: 50, limiteMenorG: 30, edadMinima: 18, edadLimiteMenor: 21, thcMaxMenor: 10, maxSocios: 100, requiereReprocann: true, aportePorGramo: 1200, cuotaSocialArs: 8000, cuotaIngresoArs: null, requiereLiberacion: true };
+const valid = { nombre: "Club de prueba", cuit: "", directorMedico: "", responsableTecnico: "", reprocannNumber: "", reprocannCode: "", limitePorPedidoG: 25, limiteMensualG: 50, limiteMenorG: 30, edadMinima: 18, edadLimiteMenor: 21, thcMaxMenor: 10, maxSocios: 100, requiereReprocann: true, aportePorGramo: 1200, cuotaSocialArs: 8000, cuotaIngresoArs: null, requiereLiberacion: true };
 describe("configuración del club", () => {
   it("permite completar la identidad gradualmente", () => expect(clubSettings.safeParse(valid).success).toBe(true));
-  it.each([{ limiteDiarioG: 60 }, { limiteMenorG: 60 }, { edadMinima: 22 }, { nombre: "  " }, { thcMaxMenor: 101 }])("rechaza reglas contradictorias: %j", patch => expect(clubSettings.safeParse({ ...valid, ...patch }).success).toBe(false));
+  it.each([{ limitePorPedidoG: 60 }, { limiteMenorG: 60 }, { edadMinima: 22 }, { nombre: "  " }, { thcMaxMenor: 101 }])("rechaza reglas contradictorias: %j", patch => expect(clubSettings.safeParse({ ...valid, ...patch }).success).toBe(false));
   it("valida un PATCH después de combinarlo con la configuración actual", () => {
     const patch = clubSettingsFields.partial().parse({ limiteMensualG: 20 });
     expect(clubSettings.safeParse({ ...valid, ...patch }).success).toBe(false);

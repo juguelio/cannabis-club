@@ -51,7 +51,7 @@ function limitsForMember(
     isMinor,
     birthMissing,
     monthLimitG: isMinor ? Math.min(config.limiteMenorG, config.limiteMensualG) : config.limiteMensualG,
-    dayLimitG: config.limiteDiarioG,
+    perOrderLimitG: config.limitePorPedidoG,
     thcMaxPct: isMinor ? config.thcMaxMenor : null,
     reprocannOk,
     reprocannDays: days,
@@ -122,10 +122,11 @@ async function readPortalOverview(memberId: string) {
   const pendingGrams = round2(pending.reduce((a, p) => a + Number(p.grams), 0));
   const stock = round2(Math.max(0, stockFisico - Number(reservadoGlobal._sum.grams ?? 0)));
   const disponibleMes = round2(Math.max(0, limits.monthLimitG - usage.monthGrams - pendingGrams));
-  const disponibleDia = round2(Math.max(0, limits.dayLimitG - usage.dayGrams));
+  // Sin tope diario: un pedido nuevo puede ser de hasta el tope por pedido, aunque ya haya retirado hoy.
+  const topePorPedido = round2(limits.perOrderLimitG);
   const candidates: { key: "mes" | "dia" | "stock"; value: number }[] = [
     { key: "mes", value: disponibleMes },
-    { key: "dia", value: disponibleDia },
+    { key: "dia", value: topePorPedido },
     { key: "stock", value: stock },
   ];
   const binding = candidates.reduce((a, b) => (b.value < a.value ? b : a));
@@ -174,14 +175,14 @@ async function readPortalOverview(memberId: string) {
     cuenta: { saldo, periodo: periodoActual, aportesDelMes: Math.round(aporteMes * 100) / 100 },
     limits: {
       monthLimitG: limits.monthLimitG,
-      dayLimitG: limits.dayLimitG,
+      perOrderLimitG: limits.perOrderLimitG,
       isMinor: limits.isMinor,
       thcMaxPct: limits.thcMaxPct,
     },
     usage,
     pendingGrams,
     disponibleMes,
-    disponibleDia,
+    topePorPedido,
     stock,
     /** Cuánto puede reservar ahora mismo (el mínimo de los tres topes). */
     tope,
@@ -327,7 +328,7 @@ export async function createPickup(input: {
         monthLimitG: limits.monthLimitG,
         monthUsedG: usage.monthGrams,
         pendingGrams,
-        dayLimitG: limits.dayLimitG,
+        perOrderLimitG: limits.perOrderLimitG,
         dayUsedG: usage.dayGrams,
         stockG: stock,
       });
@@ -441,7 +442,7 @@ export async function createPickup(input: {
             monthLimitG: limits.monthLimitG,
             monthUsedG: usage.monthGrams,
             pendingGrams,
-            dayLimitG: limits.dayLimitG,
+            perOrderLimitG: limits.perOrderLimitG,
             dayUsedG: usage.dayGrams,
             stockG: stock,
             stockFisicoG: stockFisico,

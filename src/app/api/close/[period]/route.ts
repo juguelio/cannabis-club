@@ -22,7 +22,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ period: string
       ["CUIT", t.club.cuit],
       ["Director médico", t.club.directorMedico],
       ["Responsable técnico", t.club.responsableTecnico],
-      ["Tope diario (g)", t.topes.diarioG],
+      ["Tope por pedido (g)", t.topes.diarioG],
       ["Tope mensual (g)", t.topes.mensualG],
       ["Entregas", t.entregas.cantidad],
       ["Gramos entregados", t.entregas.gramos],

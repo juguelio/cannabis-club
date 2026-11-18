@@ -24,7 +24,7 @@ type QueueItem = {
 type Status = {
   member: { name: string; legajo: number; statusLabel: string; reprocannLabel: string; reprocannDays: number | null; forecastG: number | null };
   usage: { dayGrams: number; monthGrams: number };
-  limits: { dailyG: number; monthlyG: number; thcMaxPct: number | null; isMinor: boolean; requiresReprocann: boolean };
+  limits: { perOrderG: number; monthlyG: number; thcMaxPct: number | null; isMinor: boolean; requiresReprocann: boolean };
   blockers: string[];
 };
 type ReceiptRow = { strainName: string; grams: number; batch: string };
@@ -93,9 +93,9 @@ export function DispensaryConsole({
   const batch = useMemo(() => batches.find((b) => b.id === batchId), [batches, batchId]);
   const amount = Number(grams.replace(",", ".")) || 0;
 
-  const dayLeft = status ? r2(Math.max(0, status.limits.dailyG - status.usage.dayGrams)) : 0;
+  const perOrderLeft = status ? status.limits.perOrderG : 0;
   const monthLeft = status ? r2(Math.max(0, status.limits.monthlyG - status.usage.monthGrams)) : 0;
-  const maxAllowed = status ? Math.min(dayLeft, monthLeft, batch?.balanceG ?? Infinity) : 0;
+  const maxAllowed = status ? Math.min(perOrderLeft, monthLeft, batch?.balanceG ?? Infinity) : 0;
 
   const reserved = pickupId ? queue.find((q) => q.pickupId === pickupId)?.pickupG ?? null : null;
   const reservedItems = pickupId ? queue.find((q) => q.pickupId === pickupId)?.pickupItems ?? [] : [];
@@ -103,7 +103,7 @@ export function DispensaryConsole({
   // una reserva cuya genética ya no tiene lote con saldo.
   const byVariety = Boolean(pickupId) && reservedItems.length > 0 && mode === "variedad";
   const limitsForLines = status
-    ? { dailyG: status.limits.dailyG, monthlyG: status.limits.monthlyG, usage: status.usage, thcMaxPct: status.limits.thcMaxPct }
+    ? { perOrderG: status.limits.perOrderG, monthlyG: status.limits.monthlyG, usage: status.usage, thcMaxPct: status.limits.thcMaxPct }
     : null;
   const lineIssues = byVariety
     ? lines.flatMap((l) => lineProblems(l, batches, limitsForLines).filter((p) => p.tone === "bad").map((p) => ({ ...p, key: `${l.pickupItemId}-${p.text}` })))
@@ -117,7 +117,8 @@ export function DispensaryConsole({
     for (const b of status.blockers) checks.push({ tone: "bad", text: b });
     if (batch && status.limits.thcMaxPct != null && batch.thcPct != null && batch.thcPct > status.limits.thcMaxPct)
       checks.push({ tone: "bad", text: `El lote tiene ${batch.thcPct}% THC; por su edad el máximo es ${status.limits.thcMaxPct}%.` });
-    if (amount > 0 && status.usage.dayGrams + amount > status.limits.dailyG + 1e-9) checks.push({ tone: "bad", text: `Supera el tope diario: le quedan ${g(dayLeft)} hoy.` });
+    if (amount > 0 && amount > status.limits.perOrderG + 1e-9)
+      checks.push({ tone: "bad", text: `El tope por pedido es ${g(status.limits.perOrderG)}: esta entrega lleva ${g(amount)}.` });
     if (amount > 0 && status.usage.monthGrams + amount > status.limits.monthlyG + 1e-9) checks.push({ tone: "bad", text: `Supera el tope mensual: le quedan ${g(monthLeft)} este mes.` });
     if (batch && amount > batch.balanceG + 1e-9) checks.push({ tone: "bad", text: `El lote ${batch.code} tiene ${g(batch.balanceG)}.` });
     if (status.member.reprocannDays != null && status.member.reprocannDays >= 0 && status.member.reprocannDays <= 30)
@@ -230,7 +231,7 @@ export function DispensaryConsole({
 
   const presets = [2, 5, 10, 20].filter((p) => !status || p <= maxAllowed + 1e-9);
   const monthPct = (v: number) => (status ? Math.min(100, (v / status.limits.monthlyG) * 100) : 0);
-  const dayPct = (v: number) => (status ? Math.min(100, (v / status.limits.dailyG) * 100) : 0);
+  const dayPct = (v: number) => (status ? Math.min(100, (v / status.limits.perOrderG) * 100) : 0);
   const deliveredDraft = byVariety ? linesTotal : amount;
 
   return (
@@ -445,8 +446,8 @@ export function DispensaryConsole({
                   <span className="gauge-used" style={{ width: `${monthPct(status.usage.monthGrams)}%` }} />
                   <span className="gauge-now" style={{ left: `${monthPct(status.usage.monthGrams)}%`, width: `${Math.max(0, monthPct(status.usage.monthGrams + deliveredDraft) - monthPct(status.usage.monthGrams))}%` }} />
                 </div>
-                <div className="gauge-row" style={{ marginTop: 12 }}><span>Hoy</span><span><b>{g(r2(status.usage.dayGrams + deliveredDraft))}</b> de {g(status.limits.dailyG)}</span></div>
-                <div className="gauge-track" data-over={status.usage.dayGrams + deliveredDraft > status.limits.dailyG + 1e-9}>
+                <div className="gauge-row" style={{ marginTop: 12 }}><span>Hoy</span><span><b>{g(r2(status.usage.dayGrams + deliveredDraft))}</b> de {g(status.limits.perOrderG)}</span></div>
+                <div className="gauge-track" data-over={status.usage.dayGrams + deliveredDraft > status.limits.perOrderG + 1e-9}>
                   <span className="gauge-used" style={{ width: `${dayPct(status.usage.dayGrams)}%` }} />
                   <span className="gauge-now" style={{ left: `${dayPct(status.usage.dayGrams)}%`, width: `${Math.max(0, dayPct(status.usage.dayGrams + deliveredDraft) - dayPct(status.usage.dayGrams))}%` }} />
                 </div>

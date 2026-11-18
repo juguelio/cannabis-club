@@ -16,14 +16,14 @@ export type PickupRulesInput = {
   monthUsedG: number;
   /** Reservado y todavía no retirado (para no reservar dos veces lo mismo). */
   pendingGrams: number;
-  dayLimitG: number;
+  perOrderLimitG: number;
   dayUsedG: number;
   stockG: number;
 };
 
 export type PickupRuleError = {
   ok: false;
-  code: "MEMBER_INACTIVE" | "REPROCANN" | "INVALID_AMOUNT" | "MONTHLY_LIMIT" | "DAILY_LIMIT" | "NO_STOCK";
+  code: "MEMBER_INACTIVE" | "REPROCANN" | "INVALID_AMOUNT" | "MONTHLY_LIMIT" | "ORDER_LIMIT" | "NO_STOCK";
   message: string;
 };
 
@@ -57,12 +57,11 @@ export function evaluatePickup(input: PickupRulesInput): PickupRuleOk | PickupRu
     };
   }
 
-  const disponibleDia = round2(input.dayLimitG - input.dayUsedG);
-  if (input.grams > disponibleDia) {
+  if (input.grams > input.perOrderLimitG + 1e-9) {
     return {
       ok: false,
-      code: "DAILY_LIMIT",
-      message: `El tope diario es ${fmt(input.dayLimitG)} y ya retiraste ${fmt(input.dayUsedG)} hoy.`,
+      code: "ORDER_LIMIT",
+      message: `Cada pedido puede ser de hasta ${fmt(input.perOrderLimitG)}. Si necesitás más, hacé otro pedido: no hay tope diario.`,
     };
   }
 

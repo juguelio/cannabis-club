@@ -31,7 +31,7 @@ async function main() {
       directorMedico: "Dra. Demo (mat. 0000)",
       responsableTecnico: "Ing. Agr. Demo (mat. 0000)",
       // topes tomados del estándar europeo como plantilla, NO como ley argentina
-      limiteDiarioG: D(25),
+      limitePorPedidoG: D(25),
       limiteMensualG: D(50),
       limiteMenorG: D(30),
       edadMinima: 18,

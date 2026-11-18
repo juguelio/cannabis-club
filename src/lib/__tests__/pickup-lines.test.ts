@@ -13,7 +13,7 @@ const batches: BatchLite[] = [
   { id: "b4", code: "L-004", strainId: "s1", balanceG: 0, thcPct: 0.4 },
 ];
 
-const limits = { dailyG: 25, monthlyG: 50, usage: { dayGrams: 0, monthGrams: 0 }, thcMaxPct: null };
+const limits = { perOrderG: 25, monthlyG: 50, usage: { dayGrams: 0, monthGrams: 0 }, thcMaxPct: null };
 
 describe("borrador de filas por variedad", () => {
   it("arma una fila por variedad reservada, con la cantidad reservada puesta y sin lote", () => {
@@ -79,7 +79,7 @@ describe("problemas del conjunto", () => {
   it("mide los topes sobre la suma de las filas, no fila por fila", () => {
     const lines = draftLines(items).map((l, i) => ({ ...l, batchId: ["b1", "b2", "b3"][i], grams: "10" }));
     const problems = setProblems(lines, limits);
-    expect(problems.some((p) => p.tone === "bad" && p.text.includes("tope diario"))).toBe(true);
+    expect(problems.some((p) => p.tone === "bad" && p.text.includes("tope por pedido"))).toBe(true);
   });
 
   it("no bloquea 15 g de una reserva de 15 g con topes de 25/50", () => {
