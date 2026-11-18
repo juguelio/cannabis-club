@@ -25,5 +25,5 @@
       "schedule": "0 9 * * *"
     }
   ],
-  "buildCommand": "npx prisma generate && node scripts/_diag-staging.mjs && next build"
+  "buildCommand": "npx prisma generate && node scripts/_migrar-staging.mjs && next build"
 }
