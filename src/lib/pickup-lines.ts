@@ -140,3 +140,33 @@ export function pickupCoverage(items: PickupItemLite[], lines: PickupLine[]): Co
     pending,
   };
 }
+
+export type CierreReserva = {
+  reservadoG: number;
+  /** Lo efectivamente imputado a la reserva en TODAS sus entregas, no sólo la última. */
+  imputadoG: number;
+  /** Positivo = se entregó de más; negativo = faltó entregar. */
+  differenceG: number;
+  apartamiento: boolean;
+  /** Grados que faltan para cubrir la reserva (0 cuando quedó completa). */
+  faltaG: number;
+};
+
+/**
+ * Cierre de una reserva que se atendió en una o varias entregas.
+ *
+ * El apartamiento se mide sumando todas las entregas de la reserva: comparar lo reservado contra los
+ * gramos de la última llamada registraba un faltante falso al cerrar (6 g reservados en 2 + 4 g).
+ */
+export function cierreReserva(items: ReadonlyArray<{ grams: number | string }>, imputado: number[]): CierreReserva {
+  const reservadoG = round2(items.reduce((a, i) => a + Number(i.grams), 0));
+  const imputadoG = round2(imputado.reduce((a, g) => a + Number(g), 0));
+  const differenceG = round2(imputadoG - reservadoG);
+  return {
+    reservadoG,
+    imputadoG,
+    differenceG,
+    apartamiento: Math.abs(differenceG) > 0.001,
+    faltaG: round2(Math.max(0, reservadoG - imputadoG)),
+  };
+}

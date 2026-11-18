@@ -4,6 +4,7 @@ import { getClub, limitsFromClub } from "./club";
 import { chargeDispensation } from "./account";
 import { conflict, notFound, unprocessable } from "./errors";
 import { evaluateDispensation, type Usage } from "./limits";
+import { cierreReserva } from "./pickup-lines";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -461,7 +462,18 @@ export async function dispensePickup(input: DispensePickupInput) {
           const itemsAfter = await tx.pickupItem.findMany({ where: { pickupId: pickup.id }, select: { grams: true, dispensationId: true, strainName: true } });
           const complete = itemsAfter.every((i) => i.dispensationId !== null);
           const entregadoG = Math.round(created.reduce((a, c) => a + c.grams, 0) * 100) / 100;
-          const reservadoG = Math.round(itemsAfter.reduce((a, i) => a + Number(i.grams), 0) * 100) / 100;
+          // La reserva se atiende en varias entregas (una fila por variedad, o el operador vuelve otro
+          // día): el apartamiento se mide contra TODO lo imputado a la reserva, no contra los gramos de
+          // esta llamada. Con lo de esta llamada, cerrar una reserva de 6 g en dos entregas de 2 y 4 g
+          // escribía un faltante falso de 2 g en el libro.
+          const imputadas = await tx.dispensation.findMany({
+            where: { id: { in: itemsAfter.flatMap((i) => (i.dispensationId ? [i.dispensationId] : [])) } },
+            select: { grams: true, batch: { select: { code: true, strain: { select: { name: true } } } } },
+          });
+          const cierre = cierreReserva(
+            itemsAfter.map((i) => ({ grams: Number(i.grams) })),
+            imputadas.map((d) => Number(d.grams)),
+          );
           const ultima = created[created.length - 1];
 
           if (complete) {
@@ -470,7 +482,7 @@ export async function dispensePickup(input: DispensePickupInput) {
               data: { status: "RETIRADA", fulfilledAt: new Date(), dispensationId: ultima.id },
             });
             // Se entregó distinto de lo reservado: queda el apartamiento dicho, no un número mudo.
-            if (Math.abs(reservadoG - entregadoG) > 0.001) {
+            if (cierre.apartamiento) {
               await tx.auditLog.create({
                 data: {
                   actorId: input.operatorId,
@@ -478,10 +490,14 @@ export async function dispensePickup(input: DispensePickupInput) {
                   entity: "PickupRequest",
                   entityId: pickup.id,
                   payload: {
-                    reservadoG,
-                    entregadoG,
-                    differenceG: Math.round((entregadoG - reservadoG) * 100) / 100,
-                    variedades: created.map((c) => ({ variedad: c.strainName, lote: c.batchCode, gramos: c.grams })),
+                    reservadoG: cierre.reservadoG,
+                    entregadoG: cierre.imputadoG,
+                    differenceG: cierre.differenceG,
+                    variedades: imputadas.map((d) => ({
+                      variedad: d.batch.strain.name,
+                      lote: d.batch.code,
+                      gramos: Number(d.grams),
+                    })),
                   } as Prisma.InputJsonValue,
                 },
               });
@@ -498,7 +514,8 @@ export async function dispensePickup(input: DispensePickupInput) {
             dispensations: created,
             complete,
             deliveredG: entregadoG,
-            remainingG: Math.round((reservadoG - entregadoG) * 100) / 100,
+            // Una reserva cerrada no tiene nada pendiente; el faltante se lee en el apartamiento.
+            remainingG: complete ? 0 : cierre.faltaG,
             pending: itemsAfter.filter((i) => !i.dispensationId).map((i) => i.strainName),
             replay: false as const,
           };

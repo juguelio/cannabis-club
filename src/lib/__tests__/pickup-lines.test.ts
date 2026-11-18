@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { draftLines, gramsOf, lineProblems, pickupCoverage, setProblems, totalGrams, type BatchLite, type PickupItemLite } from "../pickup-lines";
+import { cierreReserva, draftLines, gramsOf, lineProblems, pickupCoverage, setProblems, totalGrams, type BatchLite, type PickupItemLite } from "../pickup-lines";
 
 const cbd: PickupItemLite = { id: "i1", strainId: "s1", strainName: "CBD Therapy", grams: 5 };
 const lemon: PickupItemLite = { id: "i2", strainId: "s2", strainName: "Lemon Haze", grams: 5 };
@@ -120,5 +120,39 @@ describe("gramos escritos a mano", () => {
     expect(gramsOf("5,5")).toBe(5.5);
     expect(gramsOf("")).toBe(0);
     expect(gramsOf("-3")).toBe(0);
+  });
+});
+
+describe("cierre de la reserva atendida en varias entregas", () => {
+  const reserva = [
+    { id: "i1", strainId: "s3", strainName: "Northern Lights", grams: 2 },
+    { id: "i2", strainId: "s2", strainName: "Lemon Haze", grams: 4 },
+  ];
+
+  it("no marca apartamiento cuando las entregas suman lo reservado", () => {
+    const cierre = cierreReserva(reserva, [2, 4]);
+    expect(cierre.reservadoG).toBe(6);
+    expect(cierre.imputadoG).toBe(6);
+    expect(cierre.differenceG).toBe(0);
+    expect(cierre.apartamiento).toBe(false);
+    expect(cierre.faltaG).toBe(0);
+  });
+
+  it("mide el faltante sobre todas las entregas, no sobre la última", () => {
+    // La última entrega son 4 g de una reserva de 6: si se comparara sólo con ella aparecería un
+    // faltante de 2 g aunque el socio ya se llevó los 2 g de la primera variedad días antes.
+    const cierre = cierreReserva(reserva, [2, 4]);
+    expect(cierre.differenceG).not.toBe(-2);
+    const parcial = cierreReserva(reserva, [4]);
+    expect(parcial.apartamiento).toBe(true);
+    expect(parcial.differenceG).toBe(-2);
+    expect(parcial.faltaG).toBe(2);
+  });
+
+  it("registra la entrega de más sin pedir nada pendiente", () => {
+    const cierre = cierreReserva(reserva, [2, 5]);
+    expect(cierre.differenceG).toBe(1);
+    expect(cierre.apartamiento).toBe(true);
+    expect(cierre.faltaG).toBe(0);
   });
 });
