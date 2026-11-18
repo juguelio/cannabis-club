@@ -1,8 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": [
-    "gru1"
-  ],
+  "regions": ["gru1"],
   "crons": [
     {
       "path": "/api/mantenimiento/retencion",
@@ -24,6 +22,5 @@
       "path": "/api/mantenimiento/pedidos",
       "schedule": "0 9 * * *"
     }
-  ],
-  "buildCommand": "npx prisma generate && node scripts/_migrar-staging.mjs && node scripts/_diag-staging.mjs && next build"
+  ]
 }
