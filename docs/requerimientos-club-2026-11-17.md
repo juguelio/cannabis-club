@@ -54,7 +54,8 @@ Leyenda de estado:
 
 **R8. Reporte de gasto de envíos por destino.**
 *«Abajo envíos, y a todo el que puso envíos le suman los 25, para tener una lógica de envíos: a San Martín de los Andes se gastó tanto y se hicieron tantos envíos, a Los Toldos, a Bahía Blanca… Entonces yo digo: socios, ¿quieren esto o ponemos una sede?»* (17/11 16:26 y 16:27)
-❓ **Necesita tres decisiones:** si el envío entra o no en la caja; qué es un «destino» (zona, CP o localidad — para decidir una sede hay que agrupar por localidad, y hoy la zona no lo distingue, ver R6); y qué período muestra por defecto. (issue #8)
+✅ **Hecho.** En Aportes, debajo de la cola de comprobantes: una fila por destino con envíos, gramos, envío, aporte y total, y el total del período. Tres períodos: este mes, últimos 3 meses, este año. Agrupa por la localidad del socio y sólo cuenta lo despachado. (issue #8 / PR #16)
+❓ **Falta decidir** si el envío entra en la caja y si «destino» es la localidad o algo más fino; el reporte muestra envío y aporte separados para que no haya que rehacerlo.
 
 ---
 
@@ -76,14 +77,22 @@ Leyenda de estado:
 
 ## 5. Lo que falta del lado del club
 
-- **Las capturas de «botoncitos que no andan»** — se anunciaron el 10/11 y el 16/11 (*«tengo ahí algunas capturas para ver algunos botones que no andan o cositas»*) y **nunca llegaron**. Sin eso no hay nada que arreglar.
-- **Los textos para acompañar** algunas pantallas (*«algunos textos para acompañar algunas cosas»*, 16/11): tampoco llegaron.
+- ~~Las capturas de «botoncitos que no andan»~~ — **llegaron**: son las 9 fotos y el video del 17/11. De ahí salió un bug real (R12) y la confirmación del envío a Neuquén (R6).
+- **Los textos para acompañar** algunas pantallas (*«algunos textos para acompañar algunas cosas»*, 16/11): siguen sin llegar.
 - **Padrón a migrar:** ~70 usuarios al 2/11, *«casi 100 en total»* al 17/11. Si se migran, necesitamos el listado en planilla (nombre, DNI, REPROCANN, vencimiento, contacto).
 - **Confirmación del PDF:** abrir un comprobante desde Pedidos o Aportes y avisar si se ve (R5).
 
 ---
 
-## 6. Decisiones que necesitamos para seguir
+## 6. Errores corregidos que no eran pedidos
+
+**R12. La dirección de entrega repetía localidad y provincia.**
+*«Antonio “Niño” Ragussi 279, San Martín de los Andes, Neuquén, San Martín de los Andes, Neuquén, 8370»* (foto del 17/11 16:15)
+✅ **Corregido.** El domicilio del padrón ya trae la localidad y la provincia adentro, y la pantalla las volvía a agregar. Ahora se compone sin repetir, también en la lista de socios y en la dirección que va al despacho. (issue #15 / PR #17)
+
+---
+
+## 7. Decisiones que necesitamos para seguir
 
 | # | Pregunta | Issue |
 |---|---|---|
