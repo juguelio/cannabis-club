@@ -7,6 +7,7 @@ import { CalendarCheck2, MapPin, Pencil, Store, Truck } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { aEnviar } from "@/lib/carrito";
 import { useCarrito } from "@/lib/carrito-cliente";
+import { componerDireccion } from "@/lib/direccion";
 import { PasosPedido } from "@/components/checkout-pasos";
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -65,9 +66,14 @@ export function CheckoutEntrega({
   const [verTodos, setVerTodos] = useState({ manana: false, tarde: false });
 
   // Envío: la dirección guardada se muestra como tarjeta; el formulario aparece con «Cambiar».
-  const guardada = [data.member.address, data.member.locality, data.member.province, data.member.postalCode]
-    .filter(Boolean)
-    .join(", ");
+  // El padrón trae socios con la localidad y la provincia ya dentro de `address`: se compone
+  // sin repetir partes en vez de concatenar los cuatro campos tal cual.
+  const guardada = componerDireccion(
+    data.member.address,
+    data.member.locality,
+    data.member.province,
+    data.member.postalCode,
+  );
   const [editando, setEditando] = useState(!guardada);
 
   const sugerida = data.cobertura.estado === "CUBIERTA" ? data.cobertura.zona.zona : (data.envios[0]?.zona ?? "");
@@ -104,7 +110,7 @@ export function CheckoutEntrega({
   }, [day]);
 
   const zonaElegida = data.envios.find((z) => z.zona === zona);
-  const direccion = [calle.trim(), localidad.trim(), provincia.trim(), cp.trim()].filter(Boolean).join(", ");
+  const direccion = componerDireccion(calle, localidad, provincia, cp);
   const entregaLista =
     modo === "RETIRO" ? slot != null : Boolean(zonaElegida) && calle.trim().length >= 4 && cp.trim().length === 4;
 

@@ -5,6 +5,7 @@ import { ShipmentForm } from "@/components/shipment-form";
 import { EnvioPedidos } from "@/components/envio-pedidos";
 import { fmtDate, fmtGrams } from "@/lib/labels";
 import { listShipments, resolveShipmentStatus, totalGrams } from "@/lib/shipments";
+import { componerDireccion } from "@/lib/direccion";
 import { Truck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +53,7 @@ export default async function ShipmentsPage() {
     grams: Number(p.grams),
     zona: p.deliveryZona,
     costoArs: p.deliveryCostoArs == null ? null : Number(p.deliveryCostoArs),
-    direccion: p.deliveryAddress,
+    direccion: componerDireccion(p.deliveryAddress),
     creado: p.createdAt.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }),
   }));
   const origin = club?.nombreCorto ?? club?.nombre ?? "Sede del club";
