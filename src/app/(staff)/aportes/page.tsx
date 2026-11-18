@@ -2,21 +2,32 @@ import Link from "next/link";
 import { PageHead, Panel, Chip } from "@/components/ui";
 import { ColaAportes, type ComprobanteEnCola } from "@/components/cola-aportes";
 import { comprobantesEnRevision } from "@/lib/comprobantes";
+import { enviosPorDestino } from "@/lib/envios-destino-server";
+import { esPeriodo, PERIODOS, type Periodo } from "@/lib/envios-destino";
 import { cobroConfigurado, leerCobro } from "@/lib/comprobante-rules";
 import { getClub } from "@/lib/club";
 import { prisma } from "@/lib/db";
-import { fmtDate } from "@/lib/labels";
+import { fmtDate, fmtGrams } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 
+const LABEL_PERIODO: Record<Periodo, string> = {
+  mes: "Este mes",
+  trimestre: "3 meses",
+  anio: "Este año",
+};
+
 /**
  * Aportes: el club mira la transferencia que subió el socio y decide.
  * No hay cobro automático ni pasarela; aprobar el comprobante es lo que confirma el pedido.
  */
-export default async function AportesPage() {
-  const [cola, club, decididos] = await Promise.all([
+export default async function AportesPage({ searchParams }: { searchParams: Promise<{ envios?: string }> }) {
+  const sp = await searchParams;
+  const periodo = esPeriodo(sp.envios) ? sp.envios : "mes";
+
+  const [cola, club, decididos, envios] = await Promise.all([
     comprobantesEnRevision(),
     getClub(),
     prisma.paymentProof.findMany({
@@ -32,6 +43,7 @@ export default async function AportesPage() {
         pickup: { select: { grams: true, member: { select: { legajo: true, firstName: true, lastName: true } } } },
       },
     }),
+    enviosPorDestino(periodo),
   ]);
 
   const cobro = leerCobro(club.cobro);
@@ -90,6 +102,88 @@ export default async function AportesPage() {
         }
       >
         <ColaAportes inicial={items} />
+      </Panel>
+
+      <Panel
+        title="Envíos por destino"
+        subtitle="A dónde se fue la plata de los envíos en el período: cuántos despachos, cuántos gramos y cuánto de envío."
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {PERIODOS.map((p) => (
+              <Link
+                key={p}
+                href={`/aportes?envios=${p}`}
+                className={`btn btn-sm ${p === periodo ? "btn-primary" : "btn-quiet"}`}
+                scroll={false}
+              >
+                {LABEL_PERIODO[p]}
+              </Link>
+            ))}
+          </div>
+        }
+      >
+        {envios.destinos.length === 0 ? (
+          <div className="empty">
+            No hay envíos despachados en {envios.rango.etiqueta.toLowerCase()}. Los pedidos que se retiran en el club no
+            cuentan.
+          </div>
+        ) : (
+          <>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Destino</th>
+                  <th className="tnum">Envíos</th>
+                  <th className="tnum">Gramos</th>
+                  <th className="tnum">Envío</th>
+                  <th className="tnum">Aporte</th>
+                  <th className="tnum">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {envios.destinos.map((d) => (
+                  <tr key={d.destino}>
+                    <td>{d.destino}</td>
+                    <td className="tnum">{d.envios}</td>
+                    <td className="tnum">{fmtGrams(d.gramos)}</td>
+                    <td className="tnum">{MONEY.format(d.costoEnvio)}</td>
+                    <td className="tnum">{MONEY.format(d.aporte)}</td>
+                    <td className="tnum">
+                      <b>{MONEY.format(d.total)}</b>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>
+                    <b>Total · {envios.rango.etiqueta}</b>
+                  </td>
+                  <td className="tnum">
+                    <b>{envios.totales.envios}</b>
+                  </td>
+                  <td className="tnum">
+                    <b>{fmtGrams(envios.totales.gramos)}</b>
+                  </td>
+                  <td className="tnum">
+                    <b>{MONEY.format(envios.totales.costoEnvio)}</b>
+                  </td>
+                  <td className="tnum">
+                    <b>{MONEY.format(envios.totales.aporte)}</b>
+                  </td>
+                  <td className="tnum">
+                    <b>{MONEY.format(envios.totales.total)}</b>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+            <p className="cell-meta" style={{ marginTop: 8 }}>
+              Agrupado por la localidad del socio; si falta, por la zona del envío. Sólo cuenta lo despachado (
+              {envios.totales.destinos} {envios.totales.destinos === 1 ? "destino" : "destinos"}). Los importes son los
+              congelados en cada pedido.
+            </p>
+          </>
+        )}
       </Panel>
 
       <Panel title="Últimos decididos" subtitle="Queda el historial: quién aprobó, quién rechazó y por qué.">
