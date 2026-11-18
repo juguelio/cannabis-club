@@ -67,7 +67,10 @@ if (primer.code !== 0) {
     const reset = correr(["migrate", "reset", "--force", "--skip-seed"]);
     mostrar(reset.salida, 24);
     if (reset.code === 0) {
-      const seed = correr(["db", "seed"]);
+      const seed = (() => {
+        const r = spawnSync("npm", ["run", "db:seed"], { env, encoding: "utf8" });
+        return { code: r.status ?? 1, salida: `${r.stdout ?? ""}${r.stderr ?? ""}` };
+      })();
       mostrar(seed.salida, 12);
       console.log(`[migrar-staging] seed exit=${seed.code}`);
       primer = correr(["migrate", "deploy"]);
