@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarCheck2, MapPin, Pencil, Store, Truck } from "lucide-react";
+import { CalendarCheck2, MapPin, MapPinned, Pencil, Store, Truck } from "lucide-react";
+import { esDespacho, esSucursal, type ModoEntrega } from "@/lib/entrega";
 import { api, errMsg } from "@/lib/client";
 import { aEnviar } from "@/lib/carrito";
 import { useCarrito } from "@/lib/carrito-cliente";
@@ -56,7 +57,7 @@ export function CheckoutEntrega({
   const router = useRouter();
   const { items, total, listo, vaciar } = useCarrito(data.tope);
 
-  const [modo, setModo] = useState<"RETIRO" | "ENVIO">("RETIRO");
+  const [modo, setModo] = useState<ModoEntrega>("RETIRO");
 
   const [day, setDay] = useState<string>("");
   const [days, setDays] = useState<Day[]>([]);
@@ -118,7 +119,8 @@ export function CheckoutEntrega({
   const proximo = libre[0] ?? null;
   const manana = libre.filter((s) => s.startMin < MEDIODIA);
   const tarde = libre.filter((s) => s.startMin >= MEDIODIA);
-  const costoEnvio = modo === "ENVIO" ? (zonaElegida?.precioArs ?? 0) : 0;
+  // Sucursal paga la misma zona que el domicilio: el paquete viaja igual, cambia dónde se retira.
+  const costoEnvio = esDespacho(modo) ? (zonaElegida?.precioArs ?? 0) : 0;
   const aporte = data.aportePorGramo != null ? data.aportePorGramo * total : null;
   const totalPagar = (aporte ?? 0) + costoEnvio;
 
@@ -144,9 +146,9 @@ export function CheckoutEntrega({
     try {
       const r = await api<{ pickup: { id: string } }>("/api/portal/pickups", {
         body:
-          modo === "ENVIO"
+          esDespacho(modo)
             ? {
-                mode: "ENVIO",
+                mode: modo,
                 grams: total,
                 items: aEnviar(items),
                 zona,
@@ -200,6 +202,12 @@ export function CheckoutEntrega({
         {([
           { id: "RETIRO" as const, icono: <Store aria-hidden size={18} />, t: "Retiro en el club", d: "Sin costo, con turno" },
           { id: "ENVIO" as const, icono: <Truck aria-hidden size={18} />, t: "Envío a domicilio", d: data.envios[0] ? `Desde ${MONEY.format(data.envios[0].precioArs)}` : "Consultar" },
+          {
+            id: "SUCURSAL" as const,
+            icono: <MapPinned aria-hidden size={18} />,
+            t: "Retiro en sucursal Andreani",
+            d: "Lo llevamos a la más cercana",
+          },
         ]).map((op) => (
           <button key={op.id} type="button" className="entrega-op" aria-pressed={modo === op.id} onClick={() => setModo(op.id)}>
             {op.icono}
@@ -311,11 +319,21 @@ export function CheckoutEntrega({
             </p>
           ) : null}
 
+          {esSucursal(modo) ? (
+            <p className="note" style={{ margin: 0 }}>
+              <MapPinned aria-hidden />
+              <span>
+                Dejamos el pedido en la sucursal de Andreani más cercana a esta dirección y lo retirás ahí con tu DNI.
+                Necesitamos tu domicilio para buscarla.
+              </span>
+            </p>
+          ) : null}
+
           {/* La dirección que el club ya tiene, no cuatro campos vacíos. */}
           {guardada && !editando ? (
             <div className="dir-tarjeta">
               <div>
-                <small>Entregamos en</small>
+                <small>{esSucursal(modo) ? "Sucursal Andreani más cercana a" : "Entregamos en"}</small>
                 <b>{guardada}</b>
               </div>
               <button type="button" className="btn btn-sm btn-quiet" onClick={() => setEditando(true)}>
@@ -399,7 +417,8 @@ export function CheckoutEntrega({
           {/* La cuenta antes de ir a pagar: acá se decide si el envío conviene. */}
           <ul className="cuenta" style={{ paddingTop: 10, borderTop: "1px solid var(--line)" }}>
             <li><span>Aporte de cultivo</span><span className="tnum">{aporte != null ? MONEY.format(aporte) : "—"}</span></li>
-            <li><span>Envío a {zonaElegida?.zona ?? "—"}</span><span className="tnum">{zonaElegida ? MONEY.format(zonaElegida.precioArs) : "—"}</span></li>
+            <li>
+              <span>{esSucursal(modo) ? "Envío a sucursal" : "Envío"} a {zonaElegida?.zona ?? "—"}</span><span className="tnum">{zonaElegida ? MONEY.format(zonaElegida.precioArs) : "—"}</span></li>
             <li className="cuenta-total"><span>Total</span><span className="tnum">{zonaElegida ? MONEY.format(totalPagar) : "—"}</span></li>
           </ul>
         </div>

@@ -81,6 +81,8 @@ enum MovementType {
 enum DeliveryMode {
   RETIRO
   ENVIO
+  /// Envío a la sucursal de Andreani más cercana al domicilio del socio; el socio lo retira ahí.
+  SUCURSAL
 }
 
 enum PickupStatus {

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { pedidoDelSocio } from "@/lib/pedido-socio";
 import { faltaComprobante } from "@/lib/pedidos-estado";
 import { PasosPedido } from "@/components/checkout-pasos";
+import { esSucursal } from "@/lib/entrega";
 
 export const metadata = { title: "Pedido hecho" };
 export const dynamic = "force-dynamic";
@@ -79,11 +80,13 @@ export default async function ListoPage({ params }: { params: Promise<{ id: stri
         <li className={aprobado ? "pendiente" : "pendiente"}>
           <span className="linea-tiempo-punto"><PackageCheck aria-hidden size={12} /></span>
           <div>
-            <b>{pedido.mode === "ENVIO" ? "Despacho" : "Retiro en el club"}</b>
+            <b>{esSucursal(pedido.mode) ? "Envío a sucursal" : pedido.mode === "ENVIO" ? "Despacho" : "Retiro en el club"}</b>
             <small>
-              {pedido.mode === "ENVIO"
-                ? "Sale en el próximo despacho; la entrega la confirma el transportista."
-                : pedido.cuando
+              {esSucursal(pedido.mode)
+                ? "Sale en el próximo despacho a la sucursal de Andreani más cercana a tu domicilio."
+                : pedido.mode === "ENVIO"
+                  ? "Sale en el próximo despacho; la entrega la confirma el transportista."
+                  : pedido.cuando
                   ? `${pedido.cuando}. Traé tu DNI.`
                   : "Te avisamos cuando esté listo."}
             </small>

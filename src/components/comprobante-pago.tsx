@@ -40,7 +40,7 @@ export function ComprobantePago({
   aporteEstimado: number | null;
   envioArs?: number | null;
   /** El modo del pedido: sin esto un envío sin costo cargado se confundiría con un retiro. */
-  modo?: "RETIRO" | "ENVIO";
+  modo?: "RETIRO" | "ENVIO" | "SUCURSAL";
   pago: EstadoPago;
   pagoMotivo?: string | null;
   cobro: CobroClub;

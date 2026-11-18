@@ -11,7 +11,7 @@ const Body = z.object({
   reprocann: z.string().min(4).max(40),
   vence: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha va como AAAA-MM-DD"),
   // El domicilio entra en el mismo trámite: es el único momento en que el socio ya está escribiendo.
-  entrega: z.enum(["RETIRO", "ENVIO"]).default("RETIRO"),
+  entrega: z.enum(["RETIRO", "ENVIO", "SUCURSAL"]).default("RETIRO"),
   direccion: z.string().max(160).optional(),
   localidad: z.string().max(80).optional(),
   provincia: z.string().max(80).optional(),

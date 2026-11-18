@@ -5,6 +5,7 @@ import { Check, ExternalLink, X } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { detalleEsperado } from "@/lib/comprobante-rules";
 import { Chip } from "./ui";
+import { esDespacho, esSucursal } from "@/lib/entrega";
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 
@@ -111,8 +112,8 @@ export function ColaAportes({ inicial }: { inicial: ComprobanteEnCola[] }) {
                   ) : null}
                   <div className="cell-meta">
                     {c.pickup.grams} g ·{" "}
-                    {c.pickup.deliveryMode === "ENVIO"
-                      ? `envío a ${c.pickup.deliveryZona ?? "domicilio"}`
+                    {esDespacho(c.pickup.deliveryMode)
+                      ? `${esSucursal(c.pickup.deliveryMode) ? "sucursal" : "envío"} a ${c.pickup.deliveryZona ?? "domicilio"}`
                       : c.pickup.appointment
                         ? `retiro ${fecha(c.pickup.appointment.scheduledAt)}`
                         : "retiro sin turno"}{" "}

@@ -8,13 +8,14 @@ import { api, errMsg } from "@/lib/client";
 import { formatearCbu } from "@/lib/cbu";
 import { ComprobantePago, type CobroClub } from "@/components/comprobante-pago";
 import { PasosPedido } from "@/components/checkout-pasos";
+import type { ModoEntrega } from "@/lib/entrega";
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const g = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")} g`;
 
 export type PedidoParaPagar = {
   id: string;
-  mode: "RETIRO" | "ENVIO";
+  mode: ModoEntrega;
   grams: number;
   aporte: number | null;
   envio: number;

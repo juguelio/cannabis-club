@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { estadoDePago, type EstadoPago } from "./comprobante-rules";
 import { dayKeyOf, labelOf } from "./appointments";
+import type { ModoEntrega } from "./entrega";
 
 /**
  * Un pedido con lo justo para mostrarlo en su propia página.
@@ -12,7 +13,7 @@ import { dayKeyOf, labelOf } from "./appointments";
 export type PedidoSocio = {
   id: string;
   status: string;
-  mode: "RETIRO" | "ENVIO";
+  mode: ModoEntrega;
   grams: number;
   aporte: number | null;
   envio: number;
@@ -57,7 +58,7 @@ export async function pedidoDelSocio(id: string, memberId: string): Promise<Pedi
   return {
     id: p.id,
     status: p.status,
-    mode: p.deliveryMode,
+    mode: p.deliveryMode as ModoEntrega,
     grams: Number(p.grams),
     aporte,
     envio,
