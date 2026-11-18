@@ -79,6 +79,24 @@ if (primer.code !== 0) {
   process.exit(1);
 }
 
+// Staging sin datos no sirve para probar: si la base quedó vacía, se siembra.
+try {
+  const { PrismaClient } = await import("@prisma/client");
+  const prisma = new PrismaClient();
+  const [{ n }] = await prisma.$queryRawUnsafe('SELECT count(*)::int AS n FROM "Member"');
+  await prisma.$disconnect();
+  if (Number(n) === 0) {
+    console.log("[migrar-staging] base sin socios: siembro los datos de prueba");
+    const seed = spawnSync("npm", ["run", "db:seed"], { env, encoding: "utf8" });
+    console.log(`[migrar-staging] seed exit=${seed.status ?? 1}`);
+    mostrar(`${seed.stdout ?? ""}${seed.stderr ?? ""}`, 12);
+  } else {
+    console.log(`[migrar-staging] base con ${n} socios: no siembro`);
+  }
+} catch (e) {
+  console.error(`[migrar-staging] no pude contar socios: ${e?.message?.slice(0, 120)}`);
+}
+
 const fin = correr(["migrate", "status"]);
 mostrar(fin.salida, 10);
 console.log("[migrar-staging] OK");
