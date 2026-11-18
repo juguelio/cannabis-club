@@ -44,38 +44,33 @@ const mostrar = (txt, lineas = 14) => {
 const estado = correr(["migrate", "status"]);
 mostrar(estado.salida, 20);
 
-let primer = correr(["migrate", "deploy"]);
+const intentar = () => correr(["migrate", "deploy"]);
+
+let primer = intentar();
 mostrar(primer.salida, 24);
 
-if (primer.code !== 0) {
+// P3009: quedó una fila de un intento anterior marcada como fallida. Se resuelve y se reintenta.
+if (primer.code !== 0 && /P3009/.test(primer.salida)) {
   const pendiente = (primer.salida.match(/(\d{14}_[a-z0-9_]+)/i) || [])[1];
-  const esP3009 = /P3009/.test(primer.salida);
-  const esDrift = /P3018|does not exist/i.test(primer.salida);
-  console.log(`[migrar-staging] falló · P3009=${esP3009} · drift=${esDrift} · detectada: ${pendiente ?? "?"}`);
+  console.log(`[migrar-staging] P3009 en ${pendiente ?? "?"}: marco rolled-back y reintento`);
+  if (pendiente) mostrar(correr(["migrate", "resolve", "--rolled-back", pendiente]).salida, 8);
+  primer = intentar();
+  mostrar(primer.salida, 24);
+}
 
-  if (esP3009 && pendiente) {
-    console.log(`[migrar-staging] marco ${pendiente} como rolled-back y reintento una vez`);
-    mostrar(correr(["migrate", "resolve", "--rolled-back", pendiente]).salida, 8);
-    primer = correr(["migrate", "deploy"]);
-    mostrar(primer.salida, 24);
-  }
+// Si sigue fallando, la base está fuera de sincronía con el historial: se rehace desde cero.
+// El candado de arriba ya garantizó que esta base es staging y no producción.
+if (primer.code !== 0) {
+  console.log("[migrar-staging] base desincronizada: reset desde cero y replay de las migraciones");
+  const reset = correr(["migrate", "reset", "--force", "--skip-seed"]);
+  mostrar(reset.salida, 24);
 
-  if (primer.code !== 0 && esDrift) {
-    // La base de staging quedó fuera de sincronía (schema creado sin historial de migraciones).
-    // Se rehace desde cero: el candado de arriba ya garantizó que esta base es staging.
-    console.log("[migrar-staging] base desincronizada: reset desde cero y replay de las migraciones");
-    const reset = correr(["migrate", "reset", "--force", "--skip-seed"]);
-    mostrar(reset.salida, 24);
-    if (reset.code === 0) {
-      const seed = (() => {
-        const r = spawnSync("npm", ["run", "db:seed"], { env, encoding: "utf8" });
-        return { code: r.status ?? 1, salida: `${r.stdout ?? ""}${r.stderr ?? ""}` };
-      })();
-      mostrar(seed.salida, 12);
-      console.log(`[migrar-staging] seed exit=${seed.code}`);
-      primer = correr(["migrate", "deploy"]);
-      mostrar(primer.salida, 12);
-    }
+  if (reset.code === 0) {
+    const seed = spawnSync("npm", ["run", "db:seed"], { env, encoding: "utf8" });
+    console.log(`[migrar-staging] seed exit=${seed.status ?? 1}`);
+    mostrar(`${seed.stdout ?? ""}${seed.stderr ?? ""}`, 10);
+    primer = intentar();
+    mostrar(primer.salida, 12);
   }
 }
 
