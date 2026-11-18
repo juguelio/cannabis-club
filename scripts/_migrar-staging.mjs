@@ -50,14 +50,29 @@ mostrar(primer.salida, 24);
 if (primer.code !== 0) {
   const pendiente = (primer.salida.match(/(\d{14}_[a-z0-9_]+)/i) || [])[1];
   const esP3009 = /P3009/.test(primer.salida);
-  console.log(`[migrar-staging] falló · P3009=${esP3009} · migración detectada: ${pendiente ?? "?"}`);
+  const esDrift = /P3018|does not exist/i.test(primer.salida);
+  console.log(`[migrar-staging] falló · P3009=${esP3009} · drift=${esDrift} · detectada: ${pendiente ?? "?"}`);
 
   if (esP3009 && pendiente) {
     console.log(`[migrar-staging] marco ${pendiente} como rolled-back y reintento una vez`);
-    const resolve = correr(["migrate", "resolve", "--rolled-back", pendiente]);
-    mostrar(resolve.salida, 8);
+    mostrar(correr(["migrate", "resolve", "--rolled-back", pendiente]).salida, 8);
     primer = correr(["migrate", "deploy"]);
     mostrar(primer.salida, 24);
+  }
+
+  if (primer.code !== 0 && esDrift) {
+    // La base de staging quedó fuera de sincronía (schema creado sin historial de migraciones).
+    // Se rehace desde cero: el candado de arriba ya garantizó que esta base es staging.
+    console.log("[migrar-staging] base desincronizada: reset desde cero y replay de las migraciones");
+    const reset = correr(["migrate", "reset", "--force", "--skip-seed"]);
+    mostrar(reset.salida, 24);
+    if (reset.code === 0) {
+      const seed = correr(["db", "seed"]);
+      mostrar(seed.salida, 12);
+      console.log(`[migrar-staging] seed exit=${seed.code}`);
+      primer = correr(["migrate", "deploy"]);
+      mostrar(primer.salida, 12);
+    }
   }
 }
 
