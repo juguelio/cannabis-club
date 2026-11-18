@@ -69,6 +69,7 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
 
   const available = batches.filter((b) => b.totals.balanceG > 0).map((b) => ({
     id: b.id, code: b.code, strain: b.strain.name, strainId: b.strainId, balanceG: b.totals.balanceG, thcPct: b.thcPct == null ? null : Number(b.thcPct),
+    unreleased: club.requiereLiberacion && !b.releasedAt,
   }));
   const deliveredToday = dispensations.filter((d) => !d.voidedAt && d.occurredAt >= slotInstant(today, 0)).reduce((a, d) => a + Number(d.grams), 0);
   const minorRule = club.thcMaxMenor ? ` Menores de ${club.edadLimiteMenor}: ${fmtGrams(club.limiteMenorG)} por mes y hasta ${Number(club.thcMaxMenor)}% THC.` : "";
@@ -82,7 +83,10 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
         subtitle={`Topes del club: ${fmtGrams(club.limitePorPedidoG)} por pedido y ${fmtGrams(club.limiteMensualG)} por mes.${minorRule} Cada entrega se valida otra vez al confirmar.`}
       />
 
+      {/* La key remonta la consola cuando «Atender» navega a la misma ruta con otro socio o reserva:
+          sin ella el estado inicial (useState) no se vuelve a leer y no se preselecciona nada. */}
       <DispensaryConsole
+        key={`${sp?.socio ?? ""}:${sp?.pickup ?? ""}`}
         members={members.map((m) => ({ id: m.id, legajo: m.legajo, name: `${m.lastName}, ${m.firstName}`, docLast4: m.docLast4 }))}
         batches={available}
         queue={queue}
