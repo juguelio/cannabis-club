@@ -106,7 +106,7 @@ export default async function AportesPage({ searchParams }: { searchParams: Prom
 
       <Panel
         title="Envíos por destino"
-        subtitle="A dónde se fue la plata de los envíos en el período: cuántos despachos, cuántos gramos y cuánto de envío."
+        subtitle="A dónde se fue la plata de los envíos en el período. El envío se cobra para pagar el despacho: no es plata del club."
         action={
           <div className="flex flex-wrap items-center gap-2">
             {PERIODOS.map((p) => (
@@ -135,9 +135,9 @@ export default async function AportesPage({ searchParams }: { searchParams: Prom
                   <th>Destino</th>
                   <th className="tnum">Envíos</th>
                   <th className="tnum">Gramos</th>
-                  <th className="tnum">Envío</th>
-                  <th className="tnum">Aporte</th>
-                  <th className="tnum">Total</th>
+                  <th className="tnum">Envío cobrado</th>
+                  <th className="tnum">Aporte del club</th>
+                  <th className="tnum">Total transferido</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,7 +180,8 @@ export default async function AportesPage({ searchParams }: { searchParams: Prom
             <p className="cell-meta" style={{ marginTop: 8 }}>
               Agrupado por la localidad del socio; si falta, por la zona del envío. Sólo cuenta lo despachado (
               {envios.totales.destinos} {envios.totales.destinos === 1 ? "destino" : "destinos"}). Los importes son los
-              congelados en cada pedido.
+              congelados en cada pedido. <b>El envío cobrado no entra en la caja</b>: se le paga al despacho. Lo que le
+              queda al club es la columna <b>aporte</b>.
             </p>
           </>
         )}
