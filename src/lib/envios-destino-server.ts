@@ -30,7 +30,7 @@ export async function enviosPorDestino(periodo: Periodo, ahora = new Date()): Pr
 
   const pedidos = await prisma.pickupRequest.findMany({
     where: {
-      deliveryMode: "ENVIO",
+      deliveryMode: { in: ["ENVIO", "SUCURSAL"] },
       fulfilledAt: { not: null, gte: rango.desde, lte: rango.hasta },
     },
     select: {

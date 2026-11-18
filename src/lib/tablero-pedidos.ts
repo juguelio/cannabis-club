@@ -8,6 +8,7 @@
  */
 
 import type { EsperadoPedido } from "./comprobante-rules";
+import type { ModoEntrega } from "./entrega";
 
 export type ColumnaTablero = "FALTA_PAGO" | "A_REVISAR" | "A_PREPARAR" | "LISTO" | "ENTREGADO";
 
@@ -55,7 +56,7 @@ export function columnaDelPedido(p: EntradaColumna): ColumnaTablero | null {
 export type PedidoTablero = {
   id: string;
   columna: ColumnaTablero;
-  mode: "RETIRO" | "ENVIO";
+  mode: ModoEntrega;
   grams: number;
   status: string;
   createdAt: string;

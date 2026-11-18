@@ -154,7 +154,7 @@ export const puedeOperar = (estado: string) => estado === "VERIFICADO";
  * código postal, o «retiro en sucursal» sin aclarar). Pedirlo en el mismo trámite donde el socio ya escribe cierra ese
  * hueco sin un formulario nuevo; y se guarda en el expediente, no en la ficha, hasta que el club lo mire.
  */
-export type Entrega = "RETIRO" | "ENVIO";
+export type Entrega = "RETIRO" | "ENVIO" | "SUCURSAL";
 
 export type DomicilioDeclarado = {
   entrega: Entrega;

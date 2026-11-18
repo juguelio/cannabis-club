@@ -6,7 +6,9 @@
  * confirma la entrega es el transportista, y la app no recibe esa señal. Llamarlo «entregado» sería
  * afirmar algo que no sabemos.
  */
-export type ModoPedido = "RETIRO" | "ENVIO";
+import { esDespacho, esSucursal } from "./entrega";
+
+export type ModoPedido = "RETIRO" | "ENVIO" | "SUCURSAL";
 
 export type EtiquetaPedido = {
   label: string;
@@ -16,7 +18,8 @@ export type EtiquetaPedido = {
 };
 
 export function estadoPedido(status: string, mode?: ModoPedido | null): EtiquetaPedido {
-  const envio = mode === "ENVIO";
+  // Sucursal se cuenta como envío: sale del club y lo confirma el transportista, no el socio.
+  const envio = esDespacho(mode);
   switch (status) {
     case "SOLICITADA":
       return {
@@ -31,6 +34,8 @@ export function estadoPedido(status: string, mode?: ModoPedido | null): Etiqueta
         nota: envio ? "Sale en el próximo despacho." : "Te esperamos en el club.",
       };
     case "RETIRADA":
+      if (esSucursal(mode))
+        return { label: "En la sucursal", tone: "ok", nota: "Lo despachamos a la sucursal de Andreani: retiralo con tu DNI." };
       return envio
         ? { label: "Despachado", tone: "ok", nota: "Salió del club. La entrega la confirma el transportista." }
         : { label: "Retirado", tone: "mute", nota: null };

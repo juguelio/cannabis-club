@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarCheck2, CircleAlert, Leaf, PackageCheck, Truck } from "lucide-react";
+import { CalendarCheck2, CircleAlert, Leaf, MapPinned, PackageCheck, Truck } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { memberDocumentStatus } from "@/lib/member-document-status";
 import { Chip } from "./ui";
@@ -20,6 +20,7 @@ import { useCarrito } from "@/lib/carrito-cliente";
 import { ComprobantePago } from "@/components/comprobante-pago";
 import { ReasonDialog } from "./dialog";
 import { useToast } from "./toast";
+import { esDespacho, esSucursal, tituloEntrega, type ModoEntrega } from "@/lib/entrega";
 
 type Overview = {
   cuenta?: { saldo: number; periodo: string; aportesDelMes: number };
@@ -68,7 +69,7 @@ type Overview = {
     pickupLabel: string | null;
     aporteEstimado: number | null;
     cancelReason: string | null;
-    deliveryMode?: "RETIRO" | "ENVIO";
+    deliveryMode?: ModoEntrega;
     deliveryZona?: string | null;
     deliveryCostoArs?: number | null;
     pago: "PENDIENTE" | "EN_REVISION" | "APROBADO" | "RECHAZADO";
@@ -246,15 +247,17 @@ export function MemberPortal({
 
       {activos.length === 1 ? (
         <div className="note note-ok">
-          {activos[0].deliveryMode === "ENVIO" ? <Truck aria-hidden /> : <CalendarCheck2 aria-hidden />}
+          {esSucursal(activos[0].deliveryMode) ? <MapPinned aria-hidden /> : activos[0].deliveryMode === "ENVIO" ? <Truck aria-hidden /> : <CalendarCheck2 aria-hidden />}
           <div>
             <b>
-              {activos[0].deliveryMode === "ENVIO"
-                ? `Tenés un envío de ${g(activos[0].grams)} en camino a prepararse.`
+              {esDespacho(activos[0].deliveryMode)
+                ? `Tenés ${esSucursal(activos[0].deliveryMode) ? "un envío a sucursal" : "un envío"} de ${g(activos[0].grams)} en camino a prepararse.`
                 : `Tenés un retiro de ${g(activos[0].grams)}${activos[0].pickupLabel ? ` el ${activos[0].pickupLabel.replace(" · ", " a las ")}` : ""}.`}
             </b>{" "}
             {activos[0].status === "CONFIRMADA" ? "El club ya lo confirmó." : "El club lo va a confirmar."}{" "}
-            {activos[0].deliveryMode === "ENVIO"
+            {esSucursal(activos[0].deliveryMode)
+              ? "Lo despacha el club a la sucursal de Andreani más cercana a tu domicilio y te avisamos cuando sale."
+              : activos[0].deliveryMode === "ENVIO"
               ? "Lo despacha el club y te avisamos cuando sale."
               : "Traé tu DNI para retirarlo."}
           </div>
@@ -265,11 +268,11 @@ export function MemberPortal({
           <div>
             <b>Tenés {activos.length} pedidos activos.</b>{" "}
             {(() => {
-              const envios = activos.filter((p) => p.deliveryMode === "ENVIO").length;
+              const envios = activos.filter((p) => esDespacho(p.deliveryMode)).length;
               const retiros = activos.length - envios;
               return [
                 retiros ? `${retiros} para retirar en el club` : null,
-                envios ? `${envios} para despachar a domicilio` : null,
+                envios ? `${envios} para despachar` : null,
               ]
                 .filter(Boolean)
                 .join(" y ")
@@ -458,13 +461,14 @@ export function MemberPortal({
                         <span className="chip chip-warn">Falta el comprobante</span>
                       ) : null}
                       <span className="chip">
-                        {p.deliveryMode === "ENVIO" ? "Envío a domicilio" : "Retiro en el club"}
+                        {tituloEntrega(p.deliveryMode)}
                       </span>
                     </div>
                     <div className="pedido-datos">
                       <span>Pedido el {fmtDay(p.createdAt)}</span>
-                      {p.deliveryMode === "ENVIO" ? (
+                      {esDespacho(p.deliveryMode) ? (
                         <span>
+                          {esSucursal(p.deliveryMode) ? "Sucursal Andreani · " : ""}
                           {p.deliveryZona ?? "zona a confirmar"}
                           {p.deliveryCostoArs != null ? ` · envío ${MONEY.format(p.deliveryCostoArs)}` : ""}
                         </span>
@@ -473,7 +477,7 @@ export function MemberPortal({
                       )}
                       {p.aporteEstimado != null ? (
                         <span>
-                          {p.status === "RETIRADA" && p.deliveryMode !== "ENVIO" ? "Aporte" : "Aporte estimado"}{" "}
+                          {p.status === "RETIRADA" && !esDespacho(p.deliveryMode) ? "Aporte" : "Aporte estimado"}{" "}
                           {MONEY.format(p.aporteEstimado)}
                         </span>
                       ) : null}

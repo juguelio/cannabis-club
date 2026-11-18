@@ -15,6 +15,7 @@ import { ValidacionAcciones } from "@/components/validacion-acciones";
 import { colaVerificaciones } from "@/lib/verificacion";
 import { estadoVerificacion } from "@/lib/verificacion-rules";
 import { age, fmtGrams, MEMBER_STATUS, reprocannIssue } from "@/lib/labels";
+import { esDespacho, esSucursal } from "@/lib/entrega";
 
 export const metadata = { title: "Socios" };
 const PAGE = 50;
@@ -107,9 +108,9 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
                   </div>
                   {/* Cómo recibe y a dónde: sin localidad y CP no hay envío, y el club tiene que verlo al aprobar. */}
                   <div className="cell-meta" style={{ marginTop: 2 }}>
-                    {r.deliveryMode === "ENVIO"
+                    {esDespacho(r.deliveryMode)
                       ? r.address && r.postalCode
-                        ? `Envío · ${componerDireccion(r.address, r.locality, r.province)} · CP ${r.postalCode}`
+                        ? `${esSucursal(r.deliveryMode) ? "Sucursal Andreani" : "Envío"} · ${componerDireccion(r.address, r.locality, r.province)} · CP ${r.postalCode}`
                         : "Envío · falta domicilio o código postal: pedile que lo complete antes de aprobar"
                       : `Retiro en el club${r.address ? ` · domicilio declarado: ${componerDireccion(r.address)}` : ""}`}
                   </div>

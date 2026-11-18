@@ -26,7 +26,8 @@ export default async function ShipmentsPage() {
     prisma.club.findFirst({ select: { nombreCorto: true, nombre: true } }),
     // Lo que el socio pidió enviar desde el portal y todavía no salió.
     prisma.pickupRequest.findMany({
-      where: { deliveryMode: "ENVIO", status: { in: ["SOLICITADA", "CONFIRMADA"] } },
+      // Sucursal y domicilio se despachan igual: las dos esperan traslado.
+      where: { deliveryMode: { in: ["ENVIO", "SUCURSAL"] }, status: { in: ["SOLICITADA", "CONFIRMADA"] } },
       orderBy: { createdAt: "asc" },
       include: { member: { select: { id: true, legajo: true, firstName: true, lastName: true } } },
     }),

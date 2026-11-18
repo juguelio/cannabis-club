@@ -23,6 +23,7 @@ import { daysToExpiry } from "./labels";
 import { availableStock } from "./stock";
 import { faltaDomicilioParaEnvio } from "./verificacion-rules";
 import { faltaParaMinimo, zonaPorCp } from "./envios";
+import { esDespacho, type ModoEntrega } from "@/lib/entrega";
 
 type Tx = Prisma.TransactionClient | typeof prisma;
 
@@ -226,8 +227,8 @@ async function readPortalOverview(memberId: string) {
 export async function createPickup(input: {
   memberId: string;
   grams: number;
-  /** RETIRO (default) trae turno; ENVIO no, viaja al domicilio. */
-  mode?: "RETIRO" | "ENVIO";
+  /** RETIRO (default) trae turno; ENVIO viaja al domicilio; SUCURSAL va a la sucursal de Andreani. */
+  mode?: ModoEntrega;
   dayKey?: string;
   startMin?: number;
   zona?: string;
@@ -242,7 +243,9 @@ export async function createPickup(input: {
   const club = await getClub();
   const config = limitsFromClub(club);
   const modo = input.mode ?? "RETIRO";
-  const esEnvio = modo === "ENVIO";
+  // Envío a domicilio y envío a sucursal comparten todo: no ocupan turno, piden domicilio y
+  // cuentan como despacho. Cambia sólo a dónde llega.
+  const esEnvio = esDespacho(modo);
   const precios = preciosDeClub(club);
 
   return prisma.$transaction(

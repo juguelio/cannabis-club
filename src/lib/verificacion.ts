@@ -30,7 +30,7 @@ export type Presentacion = {
   reprocann: string;
   vence: string;
   /** Cómo recibe y a dónde. Se pide acá porque es el único momento en que el socio ya está escribiendo. */
-  entrega: "RETIRO" | "ENVIO";
+  entrega: "RETIRO" | "ENVIO" | "SUCURSAL";
   direccion?: string;
   localidad?: string;
   provincia?: string;

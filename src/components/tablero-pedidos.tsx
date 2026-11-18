@@ -8,6 +8,7 @@ import { useToast } from "@/components/toast";
 import { ReasonDialog } from "@/components/dialog";
 import { COLUMNAS, type ColumnaTablero, type ParaPreparar, type PedidoTablero } from "@/lib/tablero-pedidos";
 import { detalleEsperado } from "@/lib/comprobante-rules";
+import { esDespacho, esSucursal } from "@/lib/entrega";
 
 const MONEY = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const g = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")} g`;
@@ -32,12 +33,15 @@ export function TableroPedidos({
   const router = useRouter();
   const toast = useToast();
   const [filtro, setFiltro] = useState<"TODOS" | "RETIRO" | "ENVIO">("TODOS");
+  // El filtro «Envíos» agrupa domicilio y sucursal: los dos salen del club.
   const [abierto, setAbierto] = useState<string | null>(null);
   const [rechazar, setRechazar] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const visibles = pedidos.filter((p) => filtro === "TODOS" || p.mode === filtro);
+  const visibles = pedidos.filter((p) =>
+    filtro === "TODOS" ? true : filtro === "ENVIO" ? esDespacho(p.mode) : !esDespacho(p.mode),
+  );
   const sel = pedidos.find((p) => p.id === abierto) ?? null;
   // Mismo cálculo y mismo formateador que el total: el desglose no puede decir otra cosa.
   const detalle = sel ? detalleEsperado(sel.esperado, (n) => MONEY.format(n)) : null;
@@ -122,7 +126,11 @@ export function TableroPedidos({
                       </span>
                       <span className="tablero-card-datos">
                         <span className="tnum">{g(p.grams)}</span>
-                        <span>{p.mode === "ENVIO" ? `Envío · ${p.zona ?? "zona"}` : "Retiro en el club"}</span>
+                        <span>
+                          {esDespacho(p.mode)
+                            ? `${esSucursal(p.mode) ? "Sucursal" : "Envío"} · ${p.zona ?? "zona"}`
+                            : "Retiro en el club"}
+                        </span>
                       </span>
                       <span className="tablero-card-pie">
                         <small>{p.cuando ?? "sin horario"}</small>

@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { dayKeyOf, labelOf } from "./appointments";
+import type { ModoEntrega } from "./entrega";
 import { expireStale } from "./pickups";
 import { esperadoDelPedido } from "./comprobante-rules";
 import {
@@ -96,7 +97,7 @@ export async function tableroPedidos(): Promise<{
     pedidos.push({
       id: p.id,
       columna,
-      mode: p.deliveryMode,
+      mode: p.deliveryMode as ModoEntrega,
       grams: Number(p.grams),
       status: p.status,
       createdAt: p.createdAt.toISOString(),

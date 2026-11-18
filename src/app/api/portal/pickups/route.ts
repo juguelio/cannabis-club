@@ -5,8 +5,8 @@ import { createPickup, portalOverview } from "@/lib/pickups";
 import { dayKeyOf } from "@/lib/appointments";
 
 const Body = z.object({
-  /** RETIRO pide día y horario; ENVIO pide zona y dirección, y no ocupa turno. */
-  mode: z.enum(["RETIRO", "ENVIO"]).default("RETIRO"),
+  /** RETIRO pide día y horario; ENVIO y SUCURSAL piden zona y dirección, y no ocupan turno. */
+  mode: z.enum(["RETIRO", "ENVIO", "SUCURSAL"]).default("RETIRO"),
   grams: z.number().positive().max(500),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   startMin: z.number().int().min(0).max(24 * 60 - 1).optional(),
