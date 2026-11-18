@@ -15,7 +15,7 @@ export const clubSettingsFields = z.object({
   /** REPS: inscripción provincial en el registro de cannabis. */
   reps: z.string().trim().max(160).default(""),
   domicilioLegal: z.string().trim().max(200).default(""),
-  limiteDiarioG: z.number().positive().max(100000),
+  limitePorPedidoG: z.number().positive().max(100000),
   limiteMensualG: z.number().positive().max(100000),
   limiteMenorG: z.number().positive().max(100000),
   edadMinima: z.number().int().min(18).max(100),
@@ -44,7 +44,7 @@ export const clubSettingsFields = z.object({
     .nullable()
     .optional(),
 });
-export const clubSettings = clubSettingsFields.refine(v => v.limiteDiarioG <= v.limiteMensualG, { message: "El tope diario no puede superar el mensual", path: ["limiteDiarioG"] })
+export const clubSettings = clubSettingsFields.refine(v => v.limitePorPedidoG <= v.limiteMensualG, { message: "El tope por pedido no puede superar el tope mensual", path: ["limitePorPedidoG"] })
   .refine(v => v.limiteMenorG <= v.limiteMensualG, { message: "El tope para menores debe ser igual o inferior al general", path: ["limiteMenorG"] })
   .refine(v => v.edadLimiteMenor >= v.edadMinima, { message: "La edad de corte debe ser igual o mayor a la edad mínima", path: ["edadLimiteMenor"] });
 

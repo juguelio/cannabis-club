@@ -27,7 +27,7 @@ export const getClub = cache(async () => {
 
 export function limitsFromClub(club: Awaited<ReturnType<typeof getClub>>): LimitConfig {
   return {
-    limiteDiarioG: num(club.limiteDiarioG, 25),
+    limitePorPedidoG: num(club.limitePorPedidoG, 25),
     limiteMensualG: num(club.limiteMensualG, 50),
     limiteMenorG: num(club.limiteMenorG, 30),
     edadMinima: club.edadMinima,

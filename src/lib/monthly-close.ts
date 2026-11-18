@@ -95,7 +95,7 @@ export async function monthlyTotals(period: string) {
       responsableTecnico: club.responsableTecnico ?? null,
     },
     topes: {
-      diarioG: Number(club.limiteDiarioG),
+      diarioG: Number(club.limitePorPedidoG),
       mensualG: Number(club.limiteMensualG),
       menorG: Number(club.limiteMenorG),
       thcMaxMenor: club.thcMaxMenor == null ? null : Number(club.thcMaxMenor),

@@ -46,7 +46,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       },
       usage,
       limits: {
-        dailyG: limits.limiteDiarioG,
+        perOrderG: limits.limitePorPedidoG,
         monthlyG: isMinor ? Math.min(limits.limiteMenorG, limits.limiteMensualG) : limits.limiteMensualG,
         thcMaxPct: isMinor ? limits.thcMaxMenor : null,
         isMinor,

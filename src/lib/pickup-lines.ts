@@ -19,7 +19,7 @@ export type PickupLine = {
   grams: string;
 };
 
-export type LimitsForLines = { dailyG: number; monthlyG: number; usage: { dayGrams: number; monthGrams: number }; thcMaxPct: number | null };
+export type LimitsForLines = { perOrderG: number; monthlyG: number; usage: { dayGrams: number; monthGrams: number }; thcMaxPct: number | null };
 
 const EPS = 1e-9;
 export const round2 = (v: number) => Math.round(v * 100) / 100;
@@ -98,10 +98,9 @@ export function setProblems(lines: PickupLine[], limits: LimitsForLines | null):
   }
   const total = totalGrams(lines);
   if (limits && total > 0) {
-    const dayAfter = round2(limits.usage.dayGrams + total);
     const monthAfter = round2(limits.usage.monthGrams + total);
-    if (dayAfter > limits.dailyG + EPS)
-      out.push({ tone: "bad", text: `La entrega suma ${round2(total)} g: pasa el tope diario de ${limits.dailyG} g.` });
+    if (total > limits.perOrderG + EPS)
+      out.push({ tone: "bad", text: `La entrega suma ${round2(total)} g: pasa el tope por pedido de ${limits.perOrderG} g.` });
     if (monthAfter > limits.monthlyG + EPS)
       out.push({ tone: "bad", text: `La entrega suma ${round2(total)} g: pasa el tope mensual de ${limits.monthlyG} g.` });
   }

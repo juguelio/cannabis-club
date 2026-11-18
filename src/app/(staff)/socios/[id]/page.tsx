@@ -128,12 +128,9 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
                 </div>
                 <Meter value={usage.monthGrams} max={monthLimit} />
               </div>
-              <div>
-                <div className="flex items-baseline justify-between" style={{ marginBottom: 6, fontSize: 14 }}>
-                  <span><b className="tnum">{fmtGrams(usage.dayGrams)}</b> hoy</span>
-                  <span className="cell-meta">tope diario {fmtGrams(limits.limiteDiarioG)}</span>
-                </div>
-                <Meter value={usage.dayGrams} max={limits.limiteDiarioG} />
+              <div className="cell-meta" style={{ fontSize: 14 }}>
+                <b className="tnum">{fmtGrams(usage.dayGrams)}</b> retirados hoy · sin tope diario: el club limita{" "}
+                {fmtGrams(limits.limitePorPedidoG)} por pedido
               </div>
               {pickup ? (
                 <Note>

@@ -8,7 +8,7 @@ const base: PickupRulesInput = {
   monthLimitG: 50,
   monthUsedG: 10,
   pendingGrams: 0,
-  dayLimitG: 25,
+  perOrderLimitG: 25,
   dayUsedG: 0,
   stockG: 500,
 };
@@ -36,9 +36,16 @@ describe("reserva de retiro", () => {
     if (!r.ok) expect(r.message).toContain("40");
   });
 
-  it("respeta el tope diario", () => {
-    const r = evaluatePickup({ ...base, dayUsedG: 20, grams: 10 });
-    expect(r).toMatchObject({ ok: false, code: "DAILY_LIMIT" });
+  it("el tope es por pedido: una entrega por encima rebota", () => {
+    const r = evaluatePickup({ ...base, grams: 26 });
+    expect(r).toMatchObject({ ok: false, code: "ORDER_LIMIT" });
+    if (!r.ok) expect(r.message).toContain("25");
+  });
+
+  it("no hay tope diario: un segundo pedido el mismo día pasa", () => {
+    // El caso del club: dos envíos el mismo día, uno por cada REPROCANN de la pareja.
+    expect(evaluatePickup({ ...base, grams: 25 })).toMatchObject({ ok: true });
+    expect(evaluatePickup({ ...base, grams: 25 })).toMatchObject({ ok: true });
   });
 
   it("bloquea sin REPROCANN vigente", () => {

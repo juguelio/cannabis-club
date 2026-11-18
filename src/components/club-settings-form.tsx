@@ -20,7 +20,7 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
     ["reprocannCode", "Código de vinculación", "El que usan los socios para vincularse."],
   ] as const;
   const limits = [
-    ["limiteDiarioG", "Tope diario por socio (g)"],
+    ["limitePorPedidoG", "Tope por pedido de cada socio (g)"],
     ["limiteMensualG", "Tope mensual por socio (g)"],
     ["edadMinima", "Edad mínima para asociarse"],
     ["edadLimiteMenor", "Tope reducido por debajo de (años)"],

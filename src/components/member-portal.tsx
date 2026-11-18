@@ -51,11 +51,11 @@ type Overview = {
     /** Qué zona le toca según su código postal (o por qué no le toca ninguna). */
     cobertura?: Cobertura;
   };
-  limits: { monthLimitG: number; dayLimitG: number; isMinor: boolean; thcMaxPct: number | null };
+  limits: { monthLimitG: number; perOrderLimitG: number; isMinor: boolean; thcMaxPct: number | null };
   usage: { dayGrams: number; monthGrams: number };
   pendingGrams: number;
   disponibleMes: number;
-  disponibleDia: number;
+  topePorPedido: number;
   stock: number;
   tope: number;
   topeMotivo: "mes" | "dia" | "stock";

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ageYears, balanceFromMovements, evaluateDispensation, type LimitConfig } from "../limits";
 
 const config: LimitConfig = {
-  limiteDiarioG: 25,
+  limitePorPedidoG: 25,
   limiteMensualG: 50,
   limiteMenorG: 30,
   edadMinima: 18,
@@ -51,7 +51,7 @@ describe("evaluateDispensation", () => {
   });
 
   it("rechaza uso negativo: una anulación de otro día no regala cupo", () => {
-    const d = evaluateDispensation({ member: adult, usage: usage(-5, 45), config, grams: 30, thcPct: 15, at });
+    const d = evaluateDispensation({ member: adult, usage: usage(-5, 45), config, grams: 20, thcPct: 15, at });
     expect(d).toMatchObject({ ok: false, code: "MONTHLY_LIMIT" });
   });
 
@@ -100,10 +100,23 @@ describe("evaluateDispensation", () => {
     expect(d.ok).toBe(true);
   });
 
-  it("aplica tope diario y mensual", () => {
-    expect(evaluateDispensation({ member: adult, usage: usage(24, 24), config, grams: 2, at }).code).toBe("DAILY_LIMIT");
+  it("el tope es por pedido: una entrega por encima rebota aunque el día esté libre", () => {
+    expect(evaluateDispensation({ member: adult, usage: usage(0, 0), config, grams: 26, at }).code).toBe("ORDER_LIMIT");
+    // justo en el tope se permite
+    expect(evaluateDispensation({ member: adult, usage: usage(0, 0), config, grams: 25, at }).ok).toBe(true);
+  });
+
+  it("no hay tope diario: dos entregas el mismo día se permiten", () => {
+    // El club lo pidió explícitamente: la pareja con dos REPROCANN manda dos solicitudes y
+    // el club despacha una el viernes y otra el lunes. Acumular el día lo frenaba.
+    expect(evaluateDispensation({ member: adult, usage: usage(0, 0), config, grams: 25, at }).ok).toBe(true);
+    expect(evaluateDispensation({ member: adult, usage: usage(25, 25), config, grams: 25, at }).ok).toBe(true);
+    // Ya retiró el tope del día y aun así puede otra entrega: lo único que la frena es el mes.
+    expect(evaluateDispensation({ member: adult, usage: usage(40, 40), config, grams: 5, at }).ok).toBe(true);
+  });
+
+  it("el mensual sigue siendo acumulado", () => {
     expect(evaluateDispensation({ member: adult, usage: usage(0, 48), config, grams: 3, at }).code).toBe("MONTHLY_LIMIT");
-    // justo en el límite se permite
     expect(evaluateDispensation({ member: adult, usage: usage(20, 45), config, grams: 5, at }).ok).toBe(true);
   });
 

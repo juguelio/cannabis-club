@@ -79,7 +79,7 @@ export default async function DispensarioPage({ searchParams }: { searchParams: 
     <>
       <PageHead
         title="Dispensario"
-        subtitle={`Topes del club: ${fmtGrams(club.limiteDiarioG)} por día y ${fmtGrams(club.limiteMensualG)} por mes.${minorRule} Cada entrega se valida otra vez al confirmar.`}
+        subtitle={`Topes del club: ${fmtGrams(club.limitePorPedidoG)} por pedido y ${fmtGrams(club.limiteMensualG)} por mes.${minorRule} Cada entrega se valida otra vez al confirmar.`}
       />
 
       <DispensaryConsole
