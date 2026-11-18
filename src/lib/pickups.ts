@@ -627,7 +627,8 @@ export async function listPickups() {
       member: true,
       appointment: { select: { scheduledAt: true } },
       // El desglose por variedad es lo que el mostrador imputa: sin esto la reserva dice «15 g» y no «de qué».
-      items: { select: { strainName: true, grams: true }, orderBy: { strainName: "asc" } },
+      // El id y la genética son lo que permite imputar cada variedad contra un lote de ESA genética.
+      items: { select: { id: true, strainId: true, strainName: true, grams: true }, orderBy: { strainName: "asc" } },
     },
   });
   return rows.map((p) => ({
@@ -636,7 +637,7 @@ export async function listPickups() {
     legajo: p.member.legajo,
     memberName: `${p.member.lastName}, ${p.member.firstName}`,
     grams: Number(p.grams),
-    items: p.items.map((i) => ({ strainName: i.strainName, grams: Number(i.grams) })),
+    items: p.items.map((i) => ({ id: i.id, strainId: i.strainId, strainName: i.strainName, grams: Number(i.grams) })),
     status: p.status,
     aporteEstimado: p.aporteEstimado == null ? null : Number(p.aporteEstimado),
     pickupLabel: p.appointment
