@@ -8,6 +8,7 @@ import { getSession } from "@/lib/auth";
 import { getClub, limitsFromClub } from "@/lib/club";
 import { monthUsageByMember } from "@/lib/usage";
 import { memberIdsByName } from "@/lib/member-search";
+import { componerDireccion } from "@/lib/direccion";
 import { Avatar, Chip, Empty, Meter, PageHead, Panel } from "@/components/ui";
 import { AccessRequests } from "@/components/access-requests";
 import { ValidacionAcciones } from "@/components/validacion-acciones";
@@ -108,9 +109,9 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
                   <div className="cell-meta" style={{ marginTop: 2 }}>
                     {r.deliveryMode === "ENVIO"
                       ? r.address && r.postalCode
-                        ? `Envío · ${r.address}${r.locality ? `, ${r.locality}` : ""}${r.province ? `, ${r.province}` : ""} · CP ${r.postalCode}`
+                        ? `Envío · ${componerDireccion(r.address, r.locality, r.province)} · CP ${r.postalCode}`
                         : "Envío · falta domicilio o código postal: pedile que lo complete antes de aprobar"
-                      : `Retiro en el club${r.address ? ` · domicilio declarado: ${r.address}` : ""}`}
+                      : `Retiro en el club${r.address ? ` · domicilio declarado: ${componerDireccion(r.address)}` : ""}`}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 8 }}>
                     {["DNI_FRENTE", "DNI_DORSO", "REPROCANN"].map((tipo) => {
