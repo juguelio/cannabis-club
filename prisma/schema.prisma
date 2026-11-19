@@ -140,7 +140,7 @@ model Club {
   domicilioLegal           String?
   /// Tope por pedido (antes «tope diario»): el club pidió que el tope sea por solicitud, no por día.
   /// El nombre de la columna en la base sigue siendo `limiteDiarioG` para no migrar datos.
-  limitePorPedidoG            Decimal  @default(25) @map("limiteDiarioG") @db.Decimal(6, 2)
+  limitePorPedidoG         Decimal  @default(25) @map("limiteDiarioG") @db.Decimal(6, 2)
   limiteMensualG           Decimal  @default(50) @db.Decimal(6, 2)
   /// Con cuántos días de anticipación se avisa que el REPROCANN vence.
   avisoReprocannDias       Int      @default(30)
@@ -345,7 +345,8 @@ model NoticeLog {
   sentAt    DateTime      @default(now())
   /// Quién lo mandó. Vacío cuando lo mandó el trabajo automático de vencimientos.
   byId      String?
-  by        User?         @relation("NoticeSender", fields: [byId], references: [id])
+  /// Restrict, como está en la base desde la migración `avisos_a_socios`: no se borra un usuario con avisos firmados.
+  by        User?         @relation("NoticeSender", fields: [byId], references: [id], onDelete: Restrict)
   /// Aviso generado por el cron (email al socio), no por una persona desde la cola.
   automatic Boolean       @default(false)
   note      String?
@@ -353,6 +354,9 @@ model NoticeLog {
 
   @@index([memberId, kind, sentAt])
   @@index([sentAt])
+  /// Creado en `traslados_y_episodios_de_aviso`. El único parcial por episodio automático
+  /// (`NoticeLog_automatico_episodio_key`) vive sólo en SQL: Prisma no declara índices parciales.
+  @@index([memberId, kind, episode])
 }
 
 model User {
@@ -520,13 +524,13 @@ model Strain {
 /// el socio elige su combo y el club arma exactamente eso. El nombre de la cepa se congela: si la
 /// variedad se renombra o se da de baja, la reserva vieja sigue diciendo lo mismo que dijo.
 model PickupItem {
-  id         String        @id @default(cuid())
-  pickupId   String
-  pickup     PickupRequest @relation(fields: [pickupId], references: [id], onDelete: Cascade)
-  strainId   String
-  strain     Strain        @relation(fields: [strainId], references: [id])
-  strainName String
-  grams      Decimal       @db.Decimal(10, 2)
+  id             String        @id @default(cuid())
+  pickupId       String
+  pickup         PickupRequest @relation(fields: [pickupId], references: [id], onDelete: Cascade)
+  strainId       String
+  strain         Strain        @relation(fields: [strainId], references: [id])
+  strainName     String
+  grams          Decimal       @db.Decimal(10, 2)
   /// La entrega que imputó este ítem. Único: un ítem reservado se entrega una sola vez.
   /// Sin esto la reserva de tres variedades sólo se podía cerrar con una entrega del total
   /// (la segunda con el mismo `pickupId` rebotaba con PICKUP_NOT_OPEN).
