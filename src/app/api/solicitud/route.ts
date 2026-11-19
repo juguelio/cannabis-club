@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { route, body } from "@/lib/api";
 import { badRequest, conflict, unauthorized } from "@/lib/errors";
@@ -7,7 +8,6 @@ import { clientIp } from "@/lib/http";
 import { leerSesionSolicitud } from "@/lib/onboarding";
 import { docFingerprint } from "@/lib/privacy";
 import { encryptText } from "@/lib/docs-crypto";
-import { normalizarCp } from "@/lib/verificacion-rules";
 import {
   AFFIDAVIT_VERSION,
   esDocumentoDelMismoLegajo,
@@ -22,10 +22,8 @@ const schema = z.object({
   phone: z.string().trim().min(1),
   address: z.string().trim().min(1),
   locality: z.string().trim().optional().nullable(),
-  // Opcional: el que sólo retira en el club no lo necesita, pero sin él no hay envío. Se pide acá
-  // —una vez, al entrar— y no tres semanas después, cuando el socio ya está verificado y el portal
-  // no le ofrece dónde completarlo.
-  postalCode: z.string().trim().optional().nullable(),
+  // El código postal no se pide acá: `AccessRequest` no lo guarda y el domicilio completo se declara
+  // en el paso de validación (`MemberVerification`), que es el que lo lleva al legajo.
   docNumber: z.string().trim().min(1),
   reprocannNumber: z.string().trim().min(1),
   reprocannExpiresAt: z.string().min(8),
@@ -101,6 +99,8 @@ export const POST = route(async (req) => {
   });
   if (duplicado && !esSuPropioLegajo) throw conflict("DOCUMENTO_YA_REGISTRADO", "Ese documento ya tiene legajo en el club.");
 
+  // El payload se tipa contra el modelo: una clave que `AccessRequest` no tiene no compila y no
+  // llega a producción como 500 «Error interno» (pasó con `postalCode`, que vive en la verificación).
   const datos = {
     firstName: input.firstName,
     lastName: input.lastName,
@@ -108,7 +108,6 @@ export const POST = route(async (req) => {
     phone: input.phone,
     address: input.address,
     locality: input.locality ?? null,
-    postalCode: input.postalCode ? normalizarCp(input.postalCode) : null,
     docHash: huella.docHash,
     docLast4: huella.docLast4,
     docNumberCipher: encryptText(input.docNumber.replace(/\D/g, "")),
@@ -123,7 +122,7 @@ export const POST = route(async (req) => {
     reviewedAt: null,
     reviewedById: null,
     rejectionReason: null,
-  };
+  } satisfies Omit<Prisma.AccessRequestUncheckedCreateInput, "userId">;
 
   const solicitud = previa
     ? await prisma.accessRequest.update({ where: { id: previa.id }, data: datos, select: { id: true, status: true } })
