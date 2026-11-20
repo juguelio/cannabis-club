@@ -9,7 +9,8 @@ import { draftLines, gramsOf, lineProblems, pickupCoverage, round2, setProblems,
 import { MemberPicker, type PickerMember } from "./member-picker";
 import { useToast } from "./toast";
 
-type Batch = { id: string; code: string; strain: string; strainId: string; balanceG: number; thcPct: number | null };
+/** `unreleased`: el club exige la firma de calidad y el lote todavía no la tiene; el servidor rechaza la entrega. */
+type Batch = { id: string; code: string; strain: string; strainId: string; balanceG: number; thcPct: number | null; unreleased?: boolean };
 type QueueItem = {
   key: string;
   memberId: string;
@@ -64,7 +65,7 @@ export function DispensaryConsole({
   // Una reserva sólo se cierra si el mostrador la atiende explícitamente (R01): por enlace o tocándola en la cola.
   const initialRes = initial ? queue.find((q) => q.memberId === initial && q.pickupId && (!initialPickupId || q.pickupId === initialPickupId)) : undefined;
   const [memberId, setMemberId] = useState(initial);
-  const [batchId, setBatchId] = useState(batches.length === 1 ? batches[0].id : "");
+  const [batchId, setBatchId] = useState(batches.length === 1 && !batches[0].unreleased ? batches[0].id : "");
   const [grams, setGrams] = useState(initialRes?.pickupG ? String(initialRes.pickupG) : "");
   const [pickupId, setPickupId] = useState<string | null>(initialRes?.pickupId ?? null);
   // Atender una reserva con variedades: una fila por genética, con la cantidad reservada ya puesta.
@@ -231,7 +232,7 @@ export function DispensaryConsole({
 
   const presets = [2, 5, 10, 20].filter((p) => !status || p <= maxAllowed + 1e-9);
   const monthPct = (v: number) => (status ? Math.min(100, (v / status.limits.monthlyG) * 100) : 0);
-  const dayPct = (v: number) => (status ? Math.min(100, (v / status.limits.perOrderG) * 100) : 0);
+  const orderPct = (v: number) => (status ? Math.min(100, (v / status.limits.perOrderG) * 100) : 0);
   const deliveredDraft = byVariety ? linesTotal : amount;
 
   return (
@@ -313,7 +314,7 @@ export function DispensaryConsole({
                       >
                         <option value="">Elegir lote…</option>
                         {candidates.map((b) => (
-                          <option key={b.id} value={b.id}>{b.code} · {g(b.balanceG)}{b.thcPct != null ? ` · ${b.thcPct}% THC` : ""}</option>
+                          <option key={b.id} value={b.id} disabled={b.unreleased}>{b.code} · {g(b.balanceG)}{b.thcPct != null ? ` · ${b.thcPct}% THC` : ""}{b.unreleased ? " · falta liberar" : ""}</option>
                         ))}
                       </select>
                     ) : (
@@ -338,13 +339,13 @@ export function DispensaryConsole({
                     role="radio"
                     aria-checked={b.id === batchId}
                     className="lot"
-                    aria-disabled={thcBlocked || undefined}
+                    aria-disabled={thcBlocked || b.unreleased || undefined}
                     onClick={() => { setBatchId(b.id); setFailure(null); }}
                   >
                     <span className="lot-dot" aria-hidden />
                     <span style={{ minWidth: 0 }}>
                       <span className="cell-main" style={{ display: "block" }}>{b.strain}</span>
-                      <span className="cell-meta">{b.code}{b.thcPct != null ? ` · ${b.thcPct}% THC` : ""}{thcBlocked ? " · no apto por edad" : ""}</span>
+                      <span className="cell-meta">{b.code}{b.thcPct != null ? ` · ${b.thcPct}% THC` : ""}{thcBlocked ? " · no apto por edad" : ""}{b.unreleased ? " · falta la firma de calidad" : ""}</span>
                     </span>
                     <span className="lot-g">{g(b.balanceG)}</span>
                   </button>
@@ -446,11 +447,12 @@ export function DispensaryConsole({
                   <span className="gauge-used" style={{ width: `${monthPct(status.usage.monthGrams)}%` }} />
                   <span className="gauge-now" style={{ left: `${monthPct(status.usage.monthGrams)}%`, width: `${Math.max(0, monthPct(status.usage.monthGrams + deliveredDraft) - monthPct(status.usage.monthGrams))}%` }} />
                 </div>
-                <div className="gauge-row" style={{ marginTop: 12 }}><span>Hoy</span><span><b>{g(r2(status.usage.dayGrams + deliveredDraft))}</b> de {g(status.limits.perOrderG)}</span></div>
-                <div className="gauge-track" data-over={status.usage.dayGrams + deliveredDraft > status.limits.perOrderG + 1e-9}>
-                  <span className="gauge-used" style={{ width: `${dayPct(status.usage.dayGrams)}%` }} />
-                  <span className="gauge-now" style={{ left: `${dayPct(status.usage.dayGrams)}%`, width: `${Math.max(0, dayPct(status.usage.dayGrams + deliveredDraft) - dayPct(status.usage.dayGrams))}%` }} />
+                {/* El tope del club es por pedido, no por día (#20): se mide esta entrega sola. Lo de hoy queda como dato. */}
+                <div className="gauge-row" style={{ marginTop: 12 }}><span>Este pedido</span><span><b>{g(r2(deliveredDraft))}</b> de {g(status.limits.perOrderG)}</span></div>
+                <div className="gauge-track" data-over={deliveredDraft > status.limits.perOrderG + 1e-9}>
+                  <span className="gauge-now" style={{ left: 0, width: `${orderPct(deliveredDraft)}%` }} />
                 </div>
+                {status.usage.dayGrams > 0 ? <div className="cell-meta" style={{ marginTop: 6 }}>Hoy ya retiró {g(r2(status.usage.dayGrams))} · sin tope diario</div> : null}
               </div>
             ) : null}
 
