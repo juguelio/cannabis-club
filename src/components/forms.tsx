@@ -36,7 +36,7 @@ export function LoginForm({ google = false }: { google?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
   return (
-    <form
+    <form method="post"
       className="stack"
       style={{ gap: 14 }}
       onSubmit={async (e) => {
@@ -95,7 +95,7 @@ export function MemberForm() {
   const [busy, setBusy] = useState(false);
   const [consent, setConsent] = useState("");
   return (
-    <form
+    <form method="post"
       className="stack"
       onSubmit={async (e) => {
         e.preventDefault();
@@ -202,7 +202,7 @@ export function BatchForm({ strains, onDone }: { strains: { id: string; name: st
   const [stage, setStage] = useState("PROPAGACION");
   const [busy, setBusy] = useState(false);
   return (
-    <form
+    <form method="post"
       className="stack"
       style={{ gap: 14 }}
       onSubmit={async (e) => {
@@ -282,7 +282,7 @@ export function HarvestForm({ batch, onDone }: { batch: { id: string; code: stri
   const [busy, setBusy] = useState(false);
   const dryStep = batch.wetWeightG != null;
   return (
-    <form
+    <form method="post"
       className="stack"
       style={{ gap: 12 }}
       onSubmit={async (e) => {
@@ -337,7 +337,7 @@ export function MovementForm({ batches, batchId, onDone }: { batches?: { id: str
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <form
+    <form method="post"
       className="stack"
       style={{ gap: 12 }}
       onSubmit={async (e) => {
