@@ -45,6 +45,25 @@ export function edadEn(nacimiento: Date, hoy: Date) {
   return edad;
 }
 
+export type CampoFechaAlta = "birthDate" | "reprocannExpiresAt";
+
+export function limitesFechasAlta(hoy = new Date()) {
+  const anio = hoy.getUTCFullYear() - MIN_EDAD;
+  const mes = hoy.getUTCMonth();
+  const ultimoDia = new Date(Date.UTC(anio, mes + 1, 0)).getUTCDate();
+  const corte = new Date(Date.UTC(anio, mes, Math.min(hoy.getUTCDate(), ultimoDia)));
+  return { hoy: hoy.toISOString().slice(0, 10), nacimientoMaximo: corte.toISOString().slice(0, 10) };
+}
+
+export function motivoFechaBloqueada(campo: CampoFechaAlta, dia: string, limites: ReturnType<typeof limitesFechasAlta>) {
+  if (campo === "reprocannExpiresAt") {
+    if (dia < limites.hoy) return "El REPROCANN está vencido: renovalo antes de presentarte.";
+  } else {
+    if (dia > limites.hoy) return "La fecha de nacimiento no puede ser futura.";
+    if (dia > limites.nacimientoMaximo) return `Con la fecha ingresada todavía no cumpliste ${MIN_EDAD} años, la edad mínima para asociarte. Si el año está mal escrito, corregilo.`;
+  }
+}
+
 const fecha = (v: string | Date | null | undefined) => {
   if (!v) return null;
   const d = v instanceof Date ? v : new Date(`${v}T00:00:00Z`);
@@ -62,8 +81,8 @@ export function validarSolicitud(input: SolicitudInput, hoy = new Date()): Error
   const nacimiento = fecha(input.birthDate);
   if (!nacimiento) errores.push({ campo: "birthDate", mensaje: input.birthDate ? "Revisá el día, mes y año de nacimiento." : FALTA_NACIMIENTO });
   else {
-    if (nacimiento > hoy) errores.push({ campo: "birthDate", mensaje: "La fecha de nacimiento no puede ser futura." });
-    else if (edadEn(nacimiento, hoy) < MIN_EDAD) errores.push({ campo: "birthDate", mensaje: `Con la fecha ingresada todavía no cumpliste ${MIN_EDAD} años, la edad mínima para asociarte. Si el año está mal escrito, corregilo.` });
+    const mensaje = motivoFechaBloqueada("birthDate", nacimiento.toISOString().slice(0, 10), limitesFechasAlta(hoy));
+    if (mensaje) errores.push({ campo: "birthDate", mensaje });
   }
 
   const tel = soloDigitos(input.phone);
@@ -82,8 +101,10 @@ export function validarSolicitud(input: SolicitudInput, hoy = new Date()): Error
 
   const vence = fecha(input.reprocannExpiresAt);
   if (!vence) errores.push({ campo: "reprocannExpiresAt", mensaje: input.reprocannExpiresAt ? "Revisá el día, mes y año de vencimiento del REPROCANN." : FALTA_VENCIMIENTO });
-  else if (vence < new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate())))
-    errores.push({ campo: "reprocannExpiresAt", mensaje: "El REPROCANN está vencido: renovalo antes de presentarte." });
+  else {
+    const mensaje = motivoFechaBloqueada("reprocannExpiresAt", vence.toISOString().slice(0, 10), limitesFechasAlta(hoy));
+    if (mensaje) errores.push({ campo: "reprocannExpiresAt", mensaje });
+  }
 
   if (!input.affidavitAccepted) errores.push({ campo: "affidavitAccepted", mensaje: CONFIRMAR_DECLARACION });
 

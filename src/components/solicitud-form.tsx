@@ -6,6 +6,7 @@ import { useState } from "react";
 import { api, ApiError } from "@/lib/client";
 import { validarSolicitud } from "@/lib/access-request";
 import { z } from "zod";
+import { FechaAlta } from "./fecha-alta";
 import Link from "next/link";
 
 const solicitudSchema = z.record(z.string(), z.unknown()).superRefine((values, ctx) => {
@@ -313,10 +314,7 @@ export function SolicitudForm({
             </label>
           </div>
           <div className="field-row">
-            <label className="label">
-              Fecha de nacimiento
-              <Input className="input" type="date" required {...campos("birthDate")} />
-            </label>
+            <FechaAlta name="birthDate" label="Fecha de nacimiento" />
             <label className="label">
               DNI
               <Input className="input tnum" inputMode="numeric" placeholder="30123456" required {...campos("docNumber")} />
@@ -343,10 +341,7 @@ export function SolicitudForm({
               N° de REPROCANN
               <Input className="input tnum" required {...campos("reprocannNumber")} />
             </label>
-            <label className="label">
-              Vence
-              <Input className="input" type="date" required {...campos("reprocannExpiresAt")} />
-            </label>
+            <FechaAlta name="reprocannExpiresAt" label="Vence" />
           </div>
           <label className="label">
             Tipo de consumo

@@ -1324,3 +1324,18 @@ select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(-
   row-gap: 0;
 }
 .check > .field-error { grid-column: 2; grid-row: 2; }
+
+.fecha-alta { min-width: 0; }
+.fecha-alta-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px; }
+.fecha-alta-control > button { grid-column: 2; grid-row: 1; }
+.fecha-alta-control > .field-error { grid-column: 1 / -1; }
+.fecha-alta-control input::-webkit-calendar-picker-indicator { display: none; }
+.fecha-alta-panel { margin-top: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.fecha-alta-mes { display: flex; align-items: center; justify-content: space-between; }
+.fecha-alta-mes input { min-width: 0; max-width: 65%; }
+.fecha-alta-dias { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; gap: 2px; }
+.fecha-alta-dias > span { color: var(--muted); font-size: .8rem; }
+.fecha-alta-dias button { min-height: 32px; border-radius: 4px; cursor: pointer; }
+.fecha-alta-dias button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: -2px; }
+.fecha-alta-dias button[aria-disabled="true"] { color: var(--muted); background: var(--paper-2); text-decoration: line-through; cursor: not-allowed; }
+.fecha-alta-motivo { margin-top: 6px; padding: 6px 8px; background: var(--ink); color: var(--paper); border-radius: 4px; font-size: .875rem; }

@@ -5,6 +5,7 @@ import {
   edadEn,
   faltantesParaAprobar,
   legajoSiguiente,
+  limitesFechasAlta,
   soloDigitos,
   validarRechazo,
   validarSolicitud,
@@ -48,6 +49,14 @@ describe("validarSolicitud", () => {
   it("rechaza fechas imposibles aunque JavaScript pueda normalizarlas", () => {
     const errores = validarSolicitud({ ...base, birthDate: "1990-02-30", reprocannExpiresAt: "2027-02-29" }, hoy);
     expect(errores.map(error => error.campo)).toEqual(["birthDate", "reprocannExpiresAt"]);
+  });
+
+  it("el calendario admite el cumpleaños 18 y el vencimiento de hoy incluso en años bisiestos", () => {
+    for (const [hoyISO, corte] of [["2024-02-29", "2006-02-28"], ["2026-02-28", "2008-02-28"], ["2026-03-01", "2008-03-01"]]) {
+      const dia = new Date(hoyISO + "T12:00:00Z");
+      expect(limitesFechasAlta(dia)).toEqual({ hoy: hoyISO, nacimientoMaximo: corte });
+      expect(validarSolicitud({ ...base, birthDate: corte, reprocannExpiresAt: hoyISO }, dia)).toEqual([]);
+    }
   });
 
   it("un REPROCANN vencido no se puede presentar", () => {
