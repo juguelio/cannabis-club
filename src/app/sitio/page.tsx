@@ -7,7 +7,7 @@ import { getAnySession } from "@/lib/auth";
 import { getBrandView } from "@/lib/brand-db";
 import { prisma } from "@/lib/db";
 import { CLUB_ID } from "@/lib/club";
-import { whatsappHref } from "@/lib/brand";
+import { FUENTE_GOTICA, whatsappHref } from "@/lib/brand";
 import { catalogoDelClub } from "@/lib/variedades";
 import { VariedadCard } from "@/components/variedad-card";
 import { BrandMark } from "@/components/brand-mark";
@@ -193,7 +193,7 @@ export default async function SitioPage() {
         <div className="s-wrap">
           <Link href="/sitio" className="s-brand">
             <BrandMark info={mark} />
-            <span className="s-brand-name s-wordmark">{view.nombre}</span>
+            <span className="s-brand-name s-inicio-gotico" style={{ fontFamily: FUENTE_GOTICA }}>{view.nombre}</span>
           </Link>
           <nav className="s-nav" aria-label="Secciones">
             <a href="#que-es">Qué es</a>
@@ -217,7 +217,7 @@ export default async function SitioPage() {
             <div>
               <h1 className="s-big">
                 <small>Asociación civil · cultivo solidario</small>
-                {brand.lema || view.nombre}
+                <span className="s-inicio-gotico" style={{ fontFamily: FUENTE_GOTICA }}>{brand.lema || view.nombre}</span>
               </h1>
               <p className="s-lead">{parrafos[0] && parrafos[0].length >= 120 && parrafos[0].length <= 320 ? parrafos[0] : lead}</p>
               <div className="s-actions">
@@ -312,11 +312,12 @@ export default async function SitioPage() {
         {parrafos.length ? (
           <section className="s-sec s-on-tint" id="quienes-somos">
             <div className="s-wrap s-about">
-              <div>
-                <h2 className="s-big" style={{ marginBottom: 28 }}><small>Quiénes somos</small><span className="s-wordmark">{view.nombre}</span></h2>
-                {parrafos.map((p, i) => <p key={i}>{p}</p>)}
-              </div>
-              {view.img.emblema ? <img className="s-about-mark" src={view.img.emblema} alt="" loading="lazy" decoding="async" /> : view.img.logo ? <img className="s-about-mark" src={view.img.logo} alt="" loading="lazy" decoding="async" /> : null}
+              <h2 className="s-big">
+                <small>Quiénes somos</small>
+                <img className="s-about-mark" src={view.img.emblema || view.img.logo || "/logo-republica.png"}
+                  alt={view.nombre} loading="lazy" decoding="async" />
+              </h2>
+              <div>{parrafos.map((p, i) => <p key={i}>{p}</p>)}</div>
             </div>
           </section>
         ) : null}
