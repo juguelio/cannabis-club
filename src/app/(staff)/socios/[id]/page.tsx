@@ -13,6 +13,7 @@ import { VoidButton } from "@/components/forms";
 import { MemberEditor, MemberStatusActions, PortalAccess } from "@/components/member-editor";
 import { AccountPanel } from "@/components/account-panel";
 import { memberAccount } from "@/lib/account";
+import { documentosDelLegajo, type DocumentoDeLegajo } from "@/lib/verificacion";
 import {
   age, AUDIT_ACTION, CONSUMPTION, daysToExpiry, FIELD_LABEL, fmtDate, fmtGrams, fmtWhen, MEMBER_STATUS, plural, reprocannIssue, SIGNATURE,
 } from "@/lib/labels";
@@ -38,11 +39,13 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
   ]);
   if (!member) notFound();
 
-  const [usage, activity, account, consents] = await Promise.all([
+  const [usage, activity, account, consents, documentos] = await Promise.all([
     memberUsage(prisma, member.id, club.timezone),
     prisma.auditLog.findMany({ where: { entity: "Member", entityId: member.id }, orderBy: { createdAt: "desc" }, take: 12, include: { actor: { select: { name: true } } } }),
     memberAccount(member.id, 12),
     memberConsents(member.id),
+    // Los archivos son de administración: el mostrador entrega con el padrón, no abre el legajo.
+    session.role === "ADMIN" ? documentosDelLegajo(member.id) : Promise.resolve([] as DocumentoDeLegajo[]),
   ]);
   const limits = limitsFromClub(club);
   const years = member.birthDate ? age(member.birthDate) : null;
@@ -220,6 +223,37 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
               {member.notes ? <p className="muted" style={{ margin: "14px 0 0", fontSize: 14, whiteSpace: "pre-line" }}>{member.notes}</p> : null}
             </div>
           </Panel>
+
+          {session.role === "ADMIN" ? (
+            <Panel
+              title="Documentación del legajo"
+              subtitle="Los archivos que subió el socio: el DNI y la credencial del REPROCANN, cifrados en el servidor. Cada apertura queda registrada en la auditoría."
+            >
+              <div className="panel-body">
+                {documentos.length === 0 ? (
+                  <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+                    Sin archivos cargados. Aparecen acá cuando el socio presenta su DNI y su REPROCANN desde el portal.
+                  </p>
+                ) : (
+                  <ul className="rows">
+                    {documentos.map((d) => (
+                      <li key={d.id}>
+                        <div className="grow">
+                          <div style={{ fontWeight: 550 }}>{d.etiqueta}</div>
+                          <div className="cell-meta">
+                            {d.origen} · {fmtDate(d.uploadedAt)} · {Math.max(1, Math.round(d.size / 1024))} KB
+                          </div>
+                        </div>
+                        <a className="btn btn-quiet btn-sm" href={d.href} target="_blank" rel="noreferrer">
+                          Ver
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </Panel>
+          ) : null}
 
           <Panel title="Consentimientos" subtitle="Por finalidad: el socio puede autorizar sus datos y negar la imagen. Revocar deja la fecha, no borra el registro.">
             <div className="panel-body">
