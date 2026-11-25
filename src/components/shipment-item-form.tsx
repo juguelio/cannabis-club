@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, Select, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, Select, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -29,8 +29,7 @@ export function ShipmentItemForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(event: React.FormEvent, reportFields: ReportFields) {
-    event.preventDefault();
+  async function submit(_: FormSubmission, reportFields: ReportFields) {
     setBusy(true);
     setError(null);
     try {

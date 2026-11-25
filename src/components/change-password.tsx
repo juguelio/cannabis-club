@@ -1,27 +1,23 @@
 "use client";
 
-import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, errMsg } from "@/lib/client";
 
+import { z } from "zod";
+
+const passwordSchema = z.object({ current: z.string(), next: z.string(), repeat: z.string() })
+  .refine(({ next, repeat }) => next === repeat, { path: ["repeat"], message: "Las dos claves nuevas no coinciden." });
+
 /** Cambio de clave propio: al guardar, el servidor invalida las sesiones viejas. */
 export function ChangePasswordForm({ redirectTo = "/portal", label = "Guardar clave" }: { redirectTo?: string; label?: string }) {
   const router = useRouter();
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [repeat, setRepeat] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit(e: React.FormEvent, reportFields: ReportFields) {
-    e.preventDefault();
-    if (next !== repeat) {
-      setError(null);
-      reportFields([{ campo: "repeat", mensaje: "Las dos claves nuevas no coinciden." }]);
-      return;
-    }
+  async function submit({ values: { current, next } }: FormSubmission, reportFields: ReportFields) {
     setBusy(true);
     setError(null);
     try {
@@ -36,19 +32,19 @@ export function ChangePasswordForm({ redirectTo = "/portal", label = "Guardar cl
   }
 
   return (
-    <ValidatedForm className="stack" style={{ gap: 14 }} onSubmit={submit}>
+    <ValidatedForm schema={passwordSchema} className="stack" style={{ gap: 14 }} onSubmit={submit}>
       <div>
         <label className="label" htmlFor="pw-current">Clave actual (la temporal)</label>
-        <Input id="pw-current" className="input" type="password" autoComplete="current-password" name="current" value={current} onChange={(e) => setCurrent(e.target.value)} required />
+        <Input id="pw-current" className="input" type="password" autoComplete="current-password" name="current" required />
       </div>
       <div>
         <label className="label" htmlFor="pw-next">Clave nueva</label>
-        <Input id="pw-next" className="input" type="password" autoComplete="new-password" minLength={8} name="next" value={next} onChange={(e) => setNext(e.target.value)} required />
+        <Input id="pw-next" className="input" type="password" autoComplete="new-password" minLength={8} name="next" required />
         <span className="hint">Mínimo 8 caracteres, con letras. No puede ser sólo números.</span>
       </div>
       <div>
         <label className="label" htmlFor="pw-repeat">Repetir la clave nueva</label>
-        <Input id="pw-repeat" className="input" type="password" autoComplete="new-password" minLength={8} name="repeat" value={repeat} onChange={(e) => setRepeat(e.target.value)} required />
+        <Input id="pw-repeat" className="input" type="password" autoComplete="new-password" minLength={8} name="repeat" required />
       </div>
       {error ? <div className="note note-warn" role="alert">{error}</div> : null}
       <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { ApiError } from "@/lib/client";
 
@@ -17,9 +17,6 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [capacity, setCapacity] = useState<Record<string, number>>(
-    Object.fromEntries(rules.map((r) => [r.id, r.capacity])),
-  );
   const [nuevoDia, setNuevoDia] = useState("");
   const [motivo, setMotivo] = useState("");
 
@@ -59,8 +56,7 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
     }
   }
 
-  async function addClosedDay(e: React.FormEvent, reportFields: ReportFields) {
-    e.preventDefault();
+  async function addClosedDay(_: FormSubmission, reportFields: ReportFields) {
     if (!nuevoDia) return;
     setBusy(true); setError(null);
     try {
@@ -130,20 +126,21 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
                   <td className="cell-meta tnum">{hhmm(r.startMin)}–{hhmm(r.endMin)}</td>
                   <td className="cell-meta tnum">{r.slotMin}′</td>
                   <td>
-                    <input
-                      className="input tnum"
-                      style={{ width: 64 }}
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={capacity[r.id] ?? r.capacity}
-                      onChange={(e) => setCapacity((c) => ({ ...c, [r.id]: Number(e.target.value) }))}
-                      onBlur={() => {
-                        const v = capacity[r.id] ?? r.capacity;
-                        if (v !== r.capacity) saveRule(r, { capacity: v });
-                      }}
-                      aria-label={`Cupo ${WEEKDAYS[r.weekday]} ${hhmm(r.startMin)}`}
-                    />
+                    <ValidatedForm shouldFocusError={false} onSubmit={({ values }) => {
+                      const capacity = Number(values.capacity);
+                      if (capacity !== r.capacity) return saveRule(r, { capacity });
+                    }}>
+                      <Input name="capacity" required
+                        className="input tnum"
+                        style={{ width: 64 }}
+                        type="number"
+                        min={1}
+                        max={20}
+                        defaultValue={r.capacity}
+                        onBlur={event => event.currentTarget.form?.requestSubmit()}
+                        aria-label={`Cupo ${WEEKDAYS[r.weekday]} ${hhmm(r.startMin)}`}
+                      />
+                    </ValidatedForm>
                   </td>
                   <td>
                     <button

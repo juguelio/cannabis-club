@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, Select } from "./validated-form";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -191,7 +193,7 @@ export function CheckoutEntrega({
   }
 
   return (
-    <div className="checkout-paso">
+    <ValidatedForm onSubmit={continuar} className="checkout-paso">
       <PasosPedido actual={1} />
 
       <div className="checkout-head">
@@ -348,7 +350,7 @@ export function CheckoutEntrega({
               <div className="dir-grid">
                 <div>
                   <label className="label" htmlFor="c-cp">Código postal</label>
-                  <input
+                  <Input
                     id="c-cp"
                     onBlur={() => setRevisados(r => ({ ...r, cp: true }))}
                     aria-invalid={errorCp || undefined} aria-describedby={errorCp ? "error-cp" : undefined}
@@ -371,17 +373,17 @@ export function CheckoutEntrega({
                 <div>
                   <label className="label" htmlFor="c-loc">Localidad</label>
                   {localidades.length > 1 ? (
-                    <select id="c-loc" className="input" value={localidad} onChange={(e) => setLocalidad(e.target.value)}>
+                    <Select id="c-loc" className="input" value={localidad} onChange={(e) => setLocalidad(e.target.value)}>
                       <option value="">Elegí tu localidad</option>
                       {localidades.map((l) => <option key={l} value={l}>{l}</option>)}
-                    </select>
+                    </Select>
                   ) : (
-                    <input id="c-loc" className="input" value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Sale del código" />
+                    <Input id="c-loc" className="input" value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Sale del código" />
                   )}
                 </div>
                 <div>
                   <label className="label" htmlFor="c-prov">Provincia</label>
-                  <input id="c-prov" className="input" value={provincia} onChange={(e) => setProvincia(e.target.value)} placeholder="Sale del código" />
+                  <Input id="c-prov" className="input" value={provincia} onChange={(e) => setProvincia(e.target.value)} placeholder="Sale del código" />
                 </div>
               </div>
               {cpEstado === "buscando" ? <span className="cell-meta">Buscando la localidad…</span> : null}
@@ -389,7 +391,7 @@ export function CheckoutEntrega({
 
               <div>
                 <label className="label" htmlFor="c-dir">Calle y número</label>
-                <input id="c-dir" onBlur={() => setRevisados(r => ({ ...r, calle: true }))} aria-invalid={errorCalle || undefined} aria-describedby={errorCalle ? "error-calle" : undefined} className="input" value={calle} onChange={(e) => setCalle(e.target.value)} placeholder="Los Notros 195, piso 2 depto B" />
+                <Input id="c-dir" onBlur={() => setRevisados(r => ({ ...r, calle: true }))} aria-invalid={errorCalle || undefined} aria-describedby={errorCalle ? "error-calle" : undefined} className="input" value={calle} onChange={(e) => setCalle(e.target.value)} placeholder="Los Notros 195, piso 2 depto B" />
                 {errorCalle && <small className="field-error" id="error-calle">Ingresá calle y número, con al menos cuatro caracteres.</small>}
               </div>
             </>
@@ -411,7 +413,7 @@ export function CheckoutEntrega({
 
           <div>
             <label className="label" htmlFor="c-ind">Indicaciones para quien entrega (opcional)</label>
-            <input
+            <Input
               id="c-ind"
               className="input"
               value={indicaciones}
@@ -434,7 +436,7 @@ export function CheckoutEntrega({
       {error ? <div className="note note-danger" role="alert">{error}</div> : null}
 
       <div className="checkout-cta">
-        <button type="button" className="btn btn-lg btn-block" disabled={!entregaLista || busy} onClick={continuar}>
+        <button type="submit" className="btn btn-lg btn-block" disabled={!entregaLista || busy}>
           {busy
             ? "Reservando…"
             : aporte != null
@@ -449,6 +451,6 @@ export function CheckoutEntrega({
               : !zonaElegida ? "Elegí una zona de envío para continuar." : "Completá el código postal y la calle."}
         </span>
       </div>
-    </div>
+    </ValidatedForm>
   );
 }

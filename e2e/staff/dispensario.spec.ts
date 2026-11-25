@@ -70,7 +70,7 @@ test.describe("dispensario", () => {
       const firmar = ficha.getByRole("button", { name: "Firmar liberación" });
       await firmar.click();
       const form = ficha.locator("form").filter({ has: firmar });
-      await expect(form.getByRole("alert")).toContainText("4 campos");
+      await expect(form.locator('[aria-invalid="true"]')).toHaveCount(4);
       for (const check of await form.getByRole("checkbox").all()) await check.check();
       const [firma] = await Promise.all([
         ficha.waitForResponse(r => r.url().endsWith("/release") && r.request().method() === "POST"),

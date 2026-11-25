@@ -1,3 +1,4 @@
+import { Input, ValidatedForm } from "@/components/validated-form";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -59,10 +60,10 @@ export default async function CierrePage({ searchParams }: { searchParams: Promi
         title="Cierre del día"
         subtitle={`${dia} · entregas, stock y auditoría del dispensario`}
         actions={
-          <form method="get" className="flex items-center gap-2">
-            <input className="input" type="date" name="d" defaultValue={dia} aria-label="Día a cerrar" />
+          <ValidatedForm method="get" className="flex items-center gap-2">
+            <Input className="input" type="date" name="d" defaultValue={dia} aria-label="Día a cerrar" />
             <button className="btn btn-secondary">Ver</button>
-          </form>
+          </ValidatedForm>
         }
       />
 

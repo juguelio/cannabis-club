@@ -1,17 +1,18 @@
 "use client";
 
-import { ValidatedForm, FieldErrorSummary, Input, Select, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, Select, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { useState } from "react";
 import { api, ApiError } from "@/lib/client";
+import { validarSolicitud } from "@/lib/access-request";
+import { z } from "zod";
 import Link from "next/link";
 
-const etiquetas = {
-  firstName: "Nombre", lastName: "Apellido", birthDate: "Fecha de nacimiento", docNumber: "DNI",
-  phone: "Teléfono", locality: "Localidad", address: "Domicilio", reprocannNumber: "N.º de REPROCANN",
-  reprocannExpiresAt: "Vencimiento del REPROCANN", consumptionType: "Tipo de consumo",
-  affidavitAccepted: "Declaración jurada",
-};
+const solicitudSchema = z.record(z.string(), z.unknown()).superRefine((values, ctx) => {
+  for (const { campo, mensaje } of validarSolicitud(values)) {
+    ctx.addIssue({ code: "custom", path: [campo], message: mensaje });
+  }
+});
 
 type Documento = { id: string; tipo: string; mime: string; size: number };
 export type EstadoSolicitud = {
@@ -69,7 +70,7 @@ export function SolicitudForm({
   const [archivoConError, setArchivoConError] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const [previa, setPrevia] = useState<Record<string, string>>({});
-  const [datos, setDatos] = useState({
+  const datosIniciales = {
     // El padrón ya sabe nombre, teléfono y domicilio: se precargan y la persona corrige lo que falte.
     firstName: padron?.firstName ?? "",
     lastName: padron?.lastName ?? "",
@@ -81,17 +82,14 @@ export function SolicitudForm({
     reprocannNumber: "",
     reprocannExpiresAt: "",
     consumptionType: "LUDICO",
-    affidavitAccepted: false,
-  });
+  };
 
-  const campos = (k: keyof typeof datos) => ({
+  const campos = (k: keyof typeof datosIniciales) => ({
     name: k,
-    value: datos[k] as string,
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setDatos({ ...datos, [k]: e.target.value }),
+    defaultValue: datosIniciales[k],
   });
 
-  async function presentar(e: React.FormEvent, reportFields: ReportFields) {
-    e.preventDefault();
+  async function presentar({ values: datos }: FormSubmission, reportFields: ReportFields) {
     setError(null);
     setEnviando(true);
     try {
@@ -206,7 +204,7 @@ export function SolicitudForm({
                         aria-label={`${cargado(d.tipo) ? "Reemplazar" : "Subir"} ${d.label}`}
                       />
                     </label>
-                    {archivoConError === d.tipo && error && <small className="field-error" id={`archivo-error-${d.tipo}`}>{error}</small>}
+                    {archivoConError === d.tipo && error && <small role="alert" className="field-error" id={`archivo-error-${d.tipo}`}>{error}</small>}
                     <small className="muted" style={{ fontSize: 11.5, display: "block", marginTop: 4 }}>
                       JPG, PNG o PDF · hasta 6 MB
                     </small>
@@ -214,7 +212,6 @@ export function SolicitudForm({
                 ))}
               </div>
             </div>
-            {error && <p className="note note-danger" role="alert">No pudimos cargar {DOCS.find(d => d.tipo === archivoConError)?.label}. Revisá el archivo indicado.</p>}
             <p className="hint">
               Podés reemplazar cualquier archivo mientras la solicitud está en revisión. Las fotos quedan cifradas y
               sólo las abre la persona que revisa tu legajo.
@@ -227,7 +224,7 @@ export function SolicitudForm({
 
   // Sin solicitud (o rechazada): formulario.
   return (
-    <ValidatedForm className="stack" customSummary onChange={() => setError(null)} onSubmit={presentar}>
+    <ValidatedForm schema={solicitudSchema} className="stack" onChange={() => setError(null)} onSubmit={presentar}>
       {estado?.status === "RECHAZADA" && (
         <div className="panel">
           <div className="panel-head">
@@ -353,7 +350,7 @@ export function SolicitudForm({
           </div>
           <label className="label">
             Tipo de consumo
-            <Select className="select" name="consumptionType" value={datos.consumptionType} onChange={(e) => setDatos({ ...datos, consumptionType: e.target.value })}>
+            <Select className="select" {...campos("consumptionType")}>
               <option value="LUDICO">Lúdico</option>
               <option value="TERAPEUTICO">Terapéutico</option>
             </Select>
@@ -361,8 +358,7 @@ export function SolicitudForm({
           <label className="check">
             <Input
               type="checkbox"
-              name="affidavitAccepted" required checked={datos.affidavitAccepted}
-              onChange={(e) => setDatos({ ...datos, affidavitAccepted: e.target.checked })}
+              name="affidavitAccepted" required
             />
             Declaro que los datos son verdaderos y que el cultivo es para mi consumo personal (Ley 27.350 y REPROCANN).
           </label>
@@ -377,7 +373,6 @@ export function SolicitudForm({
             </Link>{" "}
             del club.
           </p>
-          <FieldErrorSummary labels={etiquetas} />
           {error && <p className="note note-danger" role="alert">{error}</p>}
           <div>
             <button className="btn btn-lg" type="submit" disabled={enviando}>

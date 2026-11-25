@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, type FormSubmission, type ReportFields } from "./validated-form";
 import { Panel } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { api } from "@/lib/client";
+
+import { clubSettingsFields } from "@/lib/club-settings";
+
+const cobroSchema = clubSettingsFields.pick({ cobro: true });
 
 export type CobroInicial = {
   alias: string;
@@ -22,27 +26,16 @@ export type CobroInicial = {
 export function CobroForm({ initial }: { initial: CobroInicial }) {
   const router = useRouter();
   const toast = useToast();
-  const [c, setC] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const set = (k: keyof CobroInicial, v: string) => setC((prev) => ({ ...prev, [k]: v }));
-
-  async function guardar(_: React.FormEvent, reportFields: ReportFields) {
+  async function guardar({ values }: FormSubmission, reportFields: ReportFields) {
     setBusy(true);
     setError(null);
     try {
       await api("/api/club", {
         method: "PATCH",
-        body: {
-          cobro: {
-            alias: c.alias.trim(),
-            cbu: c.cbu.trim(),
-            titular: c.titular.trim(),
-            banco: c.banco.trim(),
-            nota: c.nota.trim(),
-          },
-        },
+        body: values,
       });
       toast({ tone: "ok", title: "Datos de cobro guardados", text: "El portal ya los muestra en cada pedido." });
       router.refresh();
@@ -54,7 +47,7 @@ export function CobroForm({ initial }: { initial: CobroInicial }) {
   }
 
   return (
-    <ValidatedForm onSubmit={guardar}>
+    <ValidatedForm schema={cobroSchema} onSubmit={guardar}>
     <Panel
       title="Datos de cobro"
       subtitle="A dónde transfiere el socio el aporte. Se muestra en el portal junto al monto y el socio sube el comprobante."
@@ -62,27 +55,26 @@ export function CobroForm({ initial }: { initial: CobroInicial }) {
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
         <label className="field">
           <span>Alias</span>
-          <Input className="input" name="cobro.alias" value={c.alias} onChange={(e) => set("alias", e.target.value)} placeholder="republica.ong" />
+          <Input className="input" name="cobro.alias" defaultValue={initial.alias} placeholder="republica.ong" />
         </label>
         <label className="field">
           <span>CBU (22 dígitos)</span>
-          <Input className="input tnum" name="cobro.cbu" value={c.cbu} onChange={(e) => set("cbu", e.target.value)} placeholder="0000000000000000000000" />
+          <Input className="input tnum" name="cobro.cbu" defaultValue={initial.cbu} placeholder="0000000000000000000000" />
         </label>
         <label className="field">
           <span>Titular de la cuenta</span>
-          <Input className="input" name="cobro.titular" value={c.titular} onChange={(e) => set("titular", e.target.value)} placeholder="Asociación Civil…" />
+          <Input className="input" name="cobro.titular" defaultValue={initial.titular} placeholder="Asociación Civil…" />
         </label>
         <label className="field">
           <span>Banco</span>
-          <Input className="input" name="cobro.banco" value={c.banco} onChange={(e) => set("banco", e.target.value)} placeholder="Banco…" />
+          <Input className="input" name="cobro.banco" defaultValue={initial.banco} placeholder="Banco…" />
         </label>
       </div>
       <label className="field" style={{ marginTop: 12 }}>
         <span>Nota para el socio (opcional)</span>
         <Input
           className="input"
-          name="cobro.nota" value={c.nota}
-          onChange={(e) => set("nota", e.target.value)}
+          name="cobro.nota" defaultValue={initial.nota}
           placeholder="Ej. transferí antes del mediodía y subí el comprobante el mismo día"
         />
       </label>

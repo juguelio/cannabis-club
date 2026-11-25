@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ValidatedForm } from "@/components/validated-form";
+import { ValidatedForm, Select } from "@/components/validated-form";
 import { ReportDates } from "@/components/report-dates";
 import { Download } from "lucide-react";
 import { getSession } from "@/lib/auth";
@@ -51,7 +51,7 @@ export default async function ReportesPage() {
                 ) : null}
                 {r.filter === "year" ? (
                   <div><label className="label" htmlFor={`${r.slug}-y`}>Año</label>
-                    <select className="select" id={`${r.slug}-y`} name="anio" defaultValue={thisYear}>{years.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+                    <Select className="select" id={`${r.slug}-y`} name="anio" defaultValue={thisYear}>{years.map((y) => <option key={y} value={y}>{y}</option>)}</Select>
                   </div>
                 ) : null}
                 <div><button className="btn btn-quiet"><Download aria-hidden />Descargar CSV</button></div>

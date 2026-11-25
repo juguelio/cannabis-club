@@ -399,7 +399,7 @@ export function DispensaryConsole({
             </div>
           </div>
         ) : (
-          <ValidatedForm onSubmit={(e) => { e.preventDefault(); void (byVariety ? submitVariety() : submit()); }}>
+          <ValidatedForm onSubmit={() => byVariety ? submitVariety() : submit()}>
             <div className="scale-member">
               <span className="avatar" aria-hidden>{status ? status.member.name.split(", ").reverse().map((p) => p[0]).join("") : "··"}</span>
               <div style={{ minWidth: 0 }}>

@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input } from "./validated-form";
+
 import { useRef, useState } from "react";
 import { Camera, FileText, Upload } from "lucide-react";
 import { errMsg } from "@/lib/client";
@@ -97,6 +99,7 @@ export function ComprobantePago({
 
   async function subir() {
     if (!archivo) {
+      setCampoError("archivo");
       setError("Primero subí el comprobante.");
       return;
     }
@@ -141,7 +144,7 @@ export function ComprobantePago({
   }
 
   return (
-    <div className="comprobante" style={{ marginTop: 8, display: "grid", gap: 10 }}>
+    <ValidatedForm onSubmit={subir} className="comprobante" style={{ marginTop: 8, display: "grid", gap: 10 }}>
       {pago === "RECHAZADO" ? (
         <span className="chip chip-danger">Comprobante rechazado{pagoMotivo ? `: ${pagoMotivo}` : ""}</span>
       ) : null}
@@ -166,7 +169,7 @@ export function ComprobantePago({
       {cobro.nota ? <p className="muted" style={{ margin: 0 }}>{cobro.nota}</p> : null}
 
       {/* Zona del archivo: se puede tocar, soltar o sacar una foto. */}
-      <input
+      <Input
         ref={camara}
         type="file"
         aria-invalid={campoError === "archivo" && error ? true : undefined}
@@ -177,7 +180,7 @@ export function ComprobantePago({
         className="sr-only"
         aria-label="Sacar una foto del comprobante"
       />
-      <input
+      <Input
         ref={galeria}
         type="file"
         aria-invalid={campoError === "archivo" && error ? true : undefined}
@@ -248,13 +251,13 @@ export function ComprobantePago({
         </div>
       )}
 
-      {campoError === "archivo" && error && <small className="field-error" id={`archivo-error-${pickupId}`}>{error}</small>}
+      {campoError === "archivo" && error && <small role="alert" className="field-error" id={`archivo-error-${pickupId}`}>{error}</small>}
       <div className="flex items-center gap-2 flex-wrap">
         <label className="field" style={{ margin: 0 }}>
           <span>N° de operación (opcional)</span>
-          <input
+          <Input
             className="input"
-            value={referencia}
+            name="referencia" value={referencia}
             onChange={(ev) => setReferencia(ev.target.value)}
             placeholder="Ej. 0012345"
             style={{ maxWidth: 180 }}
@@ -263,17 +266,17 @@ export function ComprobantePago({
         {otroMonto ? (
           <label className="field" style={{ margin: 0 }}>
             <span>Monto transferido</span>
-            <input
+            <Input
               className="input tnum"
               inputMode="decimal"
               aria-invalid={campoError === "monto" && error ? true : undefined}
               aria-describedby={campoError === "monto" && error ? `monto-error-${pickupId}` : undefined}
-              value={monto}
+              name="monto" value={monto}
               onChange={(ev) => { setMonto(ev.target.value); if (campoError === "monto") setError(null); }}
               placeholder={aporteEstimado != null ? String(Math.round(total ?? aporteEstimado)) : "0"}
               style={{ maxWidth: 140 }}
             />
-            {campoError === "monto" && error && <small className="field-error" id={`monto-error-${pickupId}`}>{error}</small>}
+            {campoError === "monto" && error && <small role="alert" className="field-error" id={`monto-error-${pickupId}`}>{error}</small>}
           </label>
         ) : (
           <button type="button" className="cobro-copiar" style={{ alignSelf: "end" }} onClick={() => setOtroMonto(true)}>
@@ -282,15 +285,15 @@ export function ComprobantePago({
         )}
       </div>
 
-      {error ? <p className="form-error" style={{ margin: 0 }} role="alert">{campoError ? "No se pudo presentar el comprobante. Revisá el dato señalado." : error}</p> : null}
+      {error && !campoError ? <p className="form-error" style={{ margin: 0 }} role="alert">{error}</p> : null}
 
-      <button type="button" className="btn btn-lg btn-block" disabled={busy || !archivo} onClick={subir}>
+      <button type="submit" className="btn btn-lg btn-block" disabled={busy || !archivo}>
         {busy ? "Subiendo…" : archivo ? "Subir comprobante" : "Primero subí el comprobante"}
       </button>
 
       <p className="muted" style={{ margin: 0, fontSize: 12 }}>
         {ESTADO_PAGO_LABEL[pago]}. Sin comprobante el pedido no se cierra.
       </p>
-    </div>
+    </ValidatedForm>
   );
 }

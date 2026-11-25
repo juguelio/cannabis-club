@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { ApiError } from "@/lib/client";
 
@@ -39,8 +39,7 @@ export function DatosLegalesForm({ initial }: { initial: Valores }) {
   const faltan = faltantesLegales(valores);
   const completos = DATOS_LEGALES.length - faltan.length;
 
-  async function guardar(e: React.FormEvent, reportFields: ReportFields) {
-    e.preventDefault();
+  async function guardar(_: FormSubmission, reportFields: ReportFields) {
     setBusy(true);
     setError(null);
     try {

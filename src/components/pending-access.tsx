@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, ShieldQuestion, X } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { Chip, Empty, Panel } from "./ui";
+import { ValidatedForm, Select } from "./validated-form";
 import { useToast } from "./toast";
 
 type Pendiente = {
@@ -83,33 +84,33 @@ export function PendingAccess({ pendientes, candidatos }: { pendientes: Pendient
                     </div>
                   </td>
                   <td style={{ minWidth: 220 }}>
-                    <select
-                      className="input"
-                      value={valor}
-                      aria-label={`Legajo para ${p.email}`}
-                      onChange={(e) => setElegido((s) => ({ ...s, [p.id]: e.target.value }))}
-                    >
-                      <option value="">Elegí el legajo…</option>
-                      {opciones.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.legajo} · {c.nombre}
-                          {p.sugerido?.id === c.id ? " (email coincide)" : ""}
-                        </option>
-                      ))}
-                    </select>
+                    <ValidatedForm id={`acceso-${p.id}`} onSubmit={({ values }) => actuar(
+                      p.id,
+                      () => api(`/api/users/${p.id}/approve`, { body: { memberId: values.memberId } }),
+                      { title: "Acceso habilitado", text: `${p.email} ya puede entrar con Google.` },
+                    )}>
+                      <Select required name="memberId"
+                        className="input"
+                        value={valor}
+                        aria-label={`Legajo para ${p.email}`}
+                        onChange={(e) => setElegido((s) => ({ ...s, [p.id]: e.target.value }))}
+                      >
+                        <option value="">Elegí el legajo…</option>
+                        {opciones.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.legajo} · {c.nombre}
+                            {p.sugerido?.id === c.id ? " (email coincide)" : ""}
+                          </option>
+                        ))}
+                      </Select>
+                    </ValidatedForm>
                   </td>
                   <td>
                     <div className="flex flex-wrap items-center justify-end gap-1.5">
                       <button
                         className="btn btn-sm"
                         disabled={busy === p.id || !valor}
-                        onClick={() =>
-                          actuar(
-                            p.id,
-                            () => api(`/api/users/${p.id}/approve`, { body: { memberId: valor } }),
-                            { title: "Acceso habilitado", text: `${p.email} ya puede entrar con Google.` },
-                          )
-                        }
+                        type="submit" form={`acceso-${p.id}`}
                       >
                         <Check aria-hidden /> Habilitar
                       </button>

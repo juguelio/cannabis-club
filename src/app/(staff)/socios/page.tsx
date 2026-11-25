@@ -1,3 +1,4 @@
+import { Input, ValidatedForm } from "@/components/validated-form";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
@@ -274,14 +275,14 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
             </Link>
           ))}
         </nav>
-        <form action="/socios" role="search" className="flex items-center gap-2" style={{ marginLeft: "auto", flex: "1 1 260px", maxWidth: 380 }}>
-          {estado ? <input type="hidden" name="estado" value={estado} /> : null}
-          {filtro ? <input type="hidden" name="filtro" value={filtro} /> : null}
+        <ValidatedForm method="get" action="/socios" role="search" className="flex items-center gap-2" style={{ marginLeft: "auto", flex: "1 1 260px", maxWidth: 380 }}>
+          {estado ? <Input type="hidden" name="estado" value={estado} /> : null}
+          {filtro ? <Input type="hidden" name="filtro" value={filtro} /> : null}
           <div style={{ position: "relative", flex: 1 }}>
             <Search aria-hidden style={{ position: "absolute", left: 11, top: 12, width: 17, height: 17, color: "var(--muted)" }} />
-            <input className="input" name="q" defaultValue={query ?? ""} aria-label="Buscar en el padrón" placeholder="Legajo, apellido, DNI o REPROCANN" style={{ paddingLeft: 36 }} />
+            <Input className="input" name="q" defaultValue={query ?? ""} aria-label="Buscar en el padrón" placeholder="Legajo, apellido, DNI o REPROCANN" style={{ paddingLeft: 36 }} />
           </div>
-        </form>
+        </ValidatedForm>
       </div>
 
       <Panel>

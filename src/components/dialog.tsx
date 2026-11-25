@@ -87,8 +87,7 @@ export function ReasonDialog({
     <Dialog open={open} onClose={onClose} title={title} labelledBy="reason-title">
       <ValidatedForm
         onSubmit={(e) => {
-          e.preventDefault();
-          const v = String(new FormData(e.currentTarget).get("reason") ?? "").trim();
+          const v = String(e.values.reason ?? "").trim();
           onConfirm(v);
         }}
       >

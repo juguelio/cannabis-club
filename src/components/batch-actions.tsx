@@ -32,7 +32,7 @@ export function BatchActions({ id, stage }: { id: string; stage: string }) {
 
   return (
     <ValidatedForm className="flex flex-col gap-2" onSubmit={(event, report) => {
-      const button = (event.nativeEvent as SubmitEvent).submitter;
+      const button = event.submitter;
       if (button instanceof HTMLButtonElement) return move(button.value, report);
     }}>
       <Input name="reason" aria-label="Motivo del cambio de etapa"

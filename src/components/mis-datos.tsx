@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -39,8 +39,7 @@ export function MisDatos({ inicial, volverHref }: { inicial: DatosOperativos; vo
 
   const sucio = (Object.keys(f) as (keyof typeof f)[]).some((k) => f[k].trim() !== (guardado[k] ?? ""));
 
-  async function guardar(e: React.FormEvent, reportFields: ReportFields) {
-    e.preventDefault();
+  async function guardar(_: FormSubmission, reportFields: ReportFields) {
     setBusy(true);
     setFalta(null);
     try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -50,8 +50,7 @@ export function AccountPanel({
   const debe = balance > 0.009;
   const aFavor = balance < -0.009;
 
-  async function pay(event: React.FormEvent, reportFields: ReportFields) {
-    event.preventDefault();
+  async function pay(_: FormSubmission, reportFields: ReportFields) {
     const value = Number(amount.replace(",", "."));
     if (!Number.isFinite(value) || value <= 0) {
       setError(null);

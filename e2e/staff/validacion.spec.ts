@@ -19,11 +19,12 @@ for (const caso of formularios) {
     const boton = page.getByRole("button", { name: caso.guardar, exact: true });
     const form = page.locator("form").filter({ has: boton });
     await boton.click();
-    await expect(form.getByRole("alert")).toContainText(/antes de continuar/);
+    await expect(form.getByRole("alert")).toHaveCount(0);
     for (const campo of caso.campos) {
       const control = form.locator(`[name="${campo}"]`);
       await expect(control).toHaveAttribute("aria-invalid", "true");
       await expect(control).toHaveAccessibleDescription(/Completá/);
+      await expect(form.locator(`[name="${campo}"] + .field-error`)).toBeVisible();
     }
   });
 }
@@ -35,11 +36,11 @@ test("alta de socio muestra juntos los errores del servidor y conserva los datos
   await page.getByLabel("DNI", { exact: true }).fill("12");
   await page.getByLabel("Nacimiento").fill("1990-02-03");
   await page.getByRole("button", { name: "Crear legajo" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "3 campos" })).toContainText("3 campos");
+  await expect(page.locator('[aria-invalid="true"]')).toHaveCount(3);
   await expect(page.getByLabel("Apellido")).toHaveAccessibleDescription("Ingresá el apellido");
   await expect(page.getByLabel("DNI", { exact: true })).toHaveAccessibleDescription("Documento inválido");
   await page.getByLabel("Apellido").fill("García");
-  await expect(page.getByRole("alert").filter({ hasText: "2 campos" })).toContainText("2 campos");
+  await expect(page.locator('[aria-invalid="true"]')).toHaveCount(2);
   await expect(page.getByLabel("Nacimiento")).toHaveValue("1990-02-03");
 });
 
@@ -143,4 +144,35 @@ test("una cuenta nueva de dispensario cambia la clave temporal y entra al mostra
   } finally {
     await nuevo.close();
   }
+});
+
+test("un cupo fuera de rango se corrige antes de guardar la franja", async ({ page }) => {
+  await page.goto("/calendario");
+  await page.getByText("Franjas de atención y cupos", { exact: true }).click();
+  const cupo = page.getByRole("spinbutton", { name: /^Cupo / }).first();
+  const original = await cupo.inputValue();
+  const cambios: number[] = [];
+  await page.route("**/api/schedule-rules/*", async route => {
+    cambios.push(route.request().postDataJSON().capacity);
+    await route.fulfill({ json: {} });
+  });
+  await cupo.fill("21");
+  await cupo.blur();
+  await expect(cupo).toHaveAccessibleDescription(/máximo permitido es 20/);
+  expect(cambios).toEqual([]);
+  const nuevo = original === "2" ? 3 : 2;
+  await cupo.fill(String(nuevo));
+  await cupo.blur();
+  await expect.poll(() => cambios).toEqual([nuevo]);
+  await expect(cupo).not.toHaveAttribute("aria-invalid", "true");
+});
+
+test("el catálogo señala la foto rechazada en la variedad elegida", async ({ page }) => {
+  await page.goto("/configuracion?seccion=catalogo");
+  const fotos = page.locator('input[type="file"][aria-label*="foto de"]');
+  const foto = fotos.first();
+  await foto.setInputFiles({ name: "foto.txt", mimeType: "text/plain", buffer: Buffer.from("prueba") });
+  await expect(foto).toHaveAccessibleDescription("La foto tiene que ser JPG, PNG o WEBP.");
+  await expect(page.locator('input[type="file"][aria-invalid="true"]')).toHaveCount(1);
+  await expect(foto.locator("xpath=../following-sibling::*[1]")).toBeVisible();
 });

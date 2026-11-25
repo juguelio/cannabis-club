@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, Select, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, Select, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -51,8 +51,7 @@ export function AppointmentsBoard({ initial, today, members }: { initial: DayBoa
     }
   }
 
-  async function reserve(event: React.FormEvent<HTMLFormElement>, reportFields: ReportFields) {
-    event.preventDefault();
+  async function reserve(_: FormSubmission, reportFields: ReportFields) {
     if (slot == null || !memberId) return;
     setBusy(true);
     try {

@@ -40,18 +40,17 @@ export function MemberEditor({ id, initial, isAdmin }: { id: string; initial: De
       <Dialog open={open} onClose={() => setOpen(false)} title="Editar legajo" labelledBy="edit-title" className="dlg-wide">
         <ValidatedForm
           onSubmit={async (e, reportFields) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget);
+            const { values } = e;
             const payload: Record<string, unknown> = {};
             for (const key of ["phone", "email", "address", "reprocannNumber", "reprocannStatus", "reprocannExpiresAt", "consentSignedAt", "consumptionType", "notes"] as const) {
-              const v = String(f.get(key) ?? "").trim();
+              const v = String(values[key] ?? "").trim();
               if (v !== initial[key]) payload[key] = v;
             }
-            const forecast = String(f.get("monthlyForecastG") ?? "").trim().replace(",", ".");
+            const forecast = String(values.monthlyForecastG ?? "").trim().replace(",", ".");
             if (forecast !== initial.monthlyForecastG) payload.monthlyForecastG = forecast === "" ? null : Number(forecast);
             if (isAdmin) {
               for (const key of ["firstName", "lastName", "birthDate"] as const) {
-                const v = String(f.get(key) ?? "").trim();
+                const v = String(values[key] ?? "").trim();
                 if (v && v !== initial[key]) payload[key] = v;
               }
             }

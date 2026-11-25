@@ -1,5 +1,6 @@
 "use client";
 
+import { ValidatedForm } from "@/components/validated-form";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
@@ -136,9 +137,9 @@ function ShellInner({ clubName, mark, userName, userRole, clubConfigured, pendin
             <b>{userName}</b>
             <span>{ROLE[userRole] ?? userRole}</span>
           </div>
-          <form action="/api/auth/logout" method="post">
+          <ValidatedForm action="/api/auth/logout" method="post">
             <button className="rail-out" type="submit" aria-label="Cerrar sesión" title="Cerrar sesión"><LogOut size={16} /></button>
-          </form>
+          </ValidatedForm>
         </div>
       </aside>
 
@@ -180,9 +181,9 @@ export function MemberShell({ clubName, mark, userName, children }: { clubName: 
             <div className="truncate wordmark member-top-club">{clubName}</div>
             <div className="member-top-sub">Portal del socio · {userName}</div>
           </div>
-          <form action="/api/auth/logout" method="post">
+          <ValidatedForm action="/api/auth/logout" method="post">
             <button className="rail-out" type="submit" aria-label="Cerrar sesión" title="Cerrar sesión"><LogOut size={16} /></button>
-          </form>
+          </ValidatedForm>
         </div>
       </header>
       <main className="member-main">{children}</main>

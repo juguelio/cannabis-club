@@ -1,3 +1,4 @@
+import { ValidatedForm } from "@/components/validated-form";
 import { redirect } from "next/navigation";
 import { getAnySession } from "@/lib/auth";
 import { ChangePasswordForm } from "@/components/change-password";
@@ -14,7 +15,7 @@ export default async function StaffPasswordPage() {
       <h1>Elegí tu clave</h1>
       <p>La clave que te dio administración es temporal. Cambiala antes de continuar.</p>
       <ChangePasswordForm redirectTo="/" />
-      <form action="/api/auth/logout" method="post"><button className="btn btn-quiet">Cerrar sesión</button></form>
+      <ValidatedForm action="/api/auth/logout" method="post"><button className="btn btn-quiet">Cerrar sesión</button></ValidatedForm>
     </main>
   );
 }

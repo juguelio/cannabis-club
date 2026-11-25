@@ -1316,3 +1316,11 @@ details.card > div { min-width: 0; max-width: 100%; }
   color: var(--danger, #a02525);
   font-size: .875rem;
 }
+
+select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--danger); }
+.check:has(> .field-error) {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  row-gap: 0;
+}
+.check > .field-error { grid-column: 2; grid-row: 2; }

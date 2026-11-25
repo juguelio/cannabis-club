@@ -40,15 +40,14 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
     <ValidatedForm
       className="stack"
       onSubmit={async (e, reportFields) => {
-        e.preventDefault();
         if (busy) return;
-        const form = new FormData(e.currentTarget);
+        const form = e.values;
         const values: Record<string, unknown> = {};
-        for (const [key] of identity) values[key] = String(form.get(key) ?? "");
-        for (const [key] of limits) values[key] = key === "thcMaxMenor" && form.get(key) === "" ? null : Number(String(form.get(key)).replace(",", "."));
-        for (const [key] of money) values[key] = form.get(key) === "" ? null : Number(String(form.get(key)).replace(",", "."));
-        values.requiereReprocann = form.get("requiereReprocann") === "on";
-        values.requiereLiberacion = form.get("requiereLiberacion") === "on";
+        for (const [key] of identity) values[key] = String(form[key] ?? "");
+        for (const [key] of limits) values[key] = key === "thcMaxMenor" && form[key] === "" ? null : Number(String(form[key]).replace(",", "."));
+        for (const [key] of money) values[key] = form[key] === "" ? null : Number(String(form[key]).replace(",", "."));
+        values.requiereReprocann = form.requiereReprocann === true;
+        values.requiereLiberacion = form.requiereLiberacion === true;
         const parsed = clubSettings.safeParse(values);
         setError(null);
         if (!parsed.success) { reportFields(parsed.error.issues); return; }

@@ -47,18 +47,23 @@ export function TeamManager({ users, meId }: { users: User[]; meId: string }) {
               <tr key={u.id} style={u.active ? undefined : { opacity: 0.55 }}>
                 <td><div className="cell-main">{u.name}{u.id === meId ? " (vos)" : ""}</div><div className="cell-meta">{u.email}{u.active ? "" : " · desactivada"}</div></td>
                 <td>
-                  <select
-                    className="select"
-                    style={{ minHeight: 34, width: "auto", padding: "4px 8px" }}
-                    aria-label={`Rol de ${u.name}`}
-                    value={u.role}
-                    disabled={busy === u.id || u.id === meId || !u.active}
-                    onChange={(e) => patch(u, { role: e.target.value }, `${u.name}: ${ROLE[e.target.value]}`)}
-                  >
-                    <option value="DISPENSADOR">Dispensario</option>
-                    <option value="OPERADOR">Operador</option>
-                    <option value="ADMIN">Administración</option>
-                  </select>
+                  <ValidatedForm onSubmit={({ values }) => {
+                    const role = String(values.role);
+                    return patch(u, { role }, `${u.name}: ${ROLE[role]}`);
+                  }}>
+                    <Select name="role"
+                      className="select"
+                      style={{ minHeight: 34, width: "auto", padding: "4px 8px" }}
+                      aria-label={`Rol de ${u.name}`}
+                      value={u.role}
+                      disabled={busy === u.id || u.id === meId || !u.active}
+                      onChange={event => event.currentTarget.form?.requestSubmit()}
+                    >
+                      <option value="DISPENSADOR">Dispensario</option>
+                      <option value="OPERADOR">Operador</option>
+                      <option value="ADMIN">Administración</option>
+                    </Select>
+                  </ValidatedForm>
                 </td>
                 <td className="cell-meta hide-sm">{u.lastLoginAt ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(u.lastLoginAt)) : "Nunca"}</td>
                 <td className="num">
@@ -80,12 +85,11 @@ export function TeamManager({ users, meId }: { users: User[]; meId: string }) {
       <Dialog open={creating} onClose={() => setCreating(false)} title="Sumar al equipo" labelledBy="team-new">
         <ValidatedForm
           onSubmit={async (e, reportFields) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget);
+            const { values } = e;
             setBusy("new");
             setError(null);
             try {
-              await api("/api/users", { body: { name: f.get("name"), email: f.get("email"), role: f.get("role"), password: f.get("password") } });
+              await api("/api/users", { body: { name: values.name, email: values.email, role: values.role, password: values.password } });
               toast({ tone: "ok", title: "Cuenta creada", text: "Pasale el email y la clave en persona." });
               setCreating(false);
               router.refresh();
@@ -113,9 +117,8 @@ export function TeamManager({ users, meId }: { users: User[]; meId: string }) {
       <Dialog open={resetFor != null} onClose={() => setResetFor(null)} title={`Clave nueva para ${resetFor?.name ?? ""}`} labelledBy="team-reset">
         <ValidatedForm
           onSubmit={async (e, reportFields) => {
-            e.preventDefault();
             if (!resetFor) return;
-            const pw = String(new FormData(e.currentTarget).get("password") ?? "");
+            const pw = String(e.values.password ?? "");
             setBusy(resetFor.id);
             setError(null);
             try {

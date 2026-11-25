@@ -180,7 +180,7 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
             }));
             return;
           }
-          const button = (event.nativeEvent as SubmitEvent).submitter;
+          const button = event.submitter;
           return button instanceof HTMLButtonElement && button.value === "preview" ? previsualizar() : guardar();
         }}>
         <div className="grid gap-3 sm:grid-cols-2">

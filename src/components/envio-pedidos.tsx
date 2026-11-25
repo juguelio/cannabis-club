@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Select } from "./validated-form";
+import { ValidatedForm, Select, type ReportFields } from "./validated-form";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -39,13 +39,9 @@ export function EnvioPedidos({ pedidos, traslados, lotes }: { pedidos: Pedido[];
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<Record<string, string>>({});
 
-  async function cargar(pedido: Pedido) {
+  async function cargar(pedido: Pedido, report: ReportFields) {
     const ship = shipmentId[pedido.id] ?? traslados[0]?.id ?? "";
     const batch = batchId[pedido.id] ?? "";
-    if (!ship || !batch) {
-      setError((e) => ({ ...e, [pedido.id]: "Elegí el traslado y el lote." }));
-      return;
-    }
     setBusy(pedido.id);
     setError((e) => ({ ...e, [pedido.id]: "" }));
     try {
@@ -55,7 +51,7 @@ export function EnvioPedidos({ pedidos, traslados, lotes }: { pedidos: Pedido[];
       toast({ tone: "ok", title: "Cargado en el traslado", text: "Falta la DDJJ del socio para despachar." });
       router.refresh();
     } catch (err) {
-      setError((e) => ({ ...e, [pedido.id]: errMsg(err) }));
+      if (!report(err)) setError((e) => ({ ...e, [pedido.id]: errMsg(err) }));
     } finally {
       setBusy(null);
     }
@@ -76,10 +72,10 @@ export function EnvioPedidos({ pedidos, traslados, lotes }: { pedidos: Pedido[];
           <div className="cell-meta" style={{ marginTop: 4 }}>
             {p.direccion ?? "sin dirección"}
           </div>
-          <ValidatedForm onSubmit={() => cargar(p)} className="flex items-end gap-2 flex-wrap" style={{ marginTop: 10 }}>
+          <ValidatedForm onSubmit={(_, report) => cargar(p, report)} className="flex items-end gap-2 flex-wrap" style={{ marginTop: 10 }}>
             <label className="stack" style={{ gap: 4 }}>
               <span className="cell-meta">Traslado</span>
-              <Select required
+              <Select required name="shipmentId"
                 className="input"
                 value={shipmentId[p.id] ?? traslados[0]?.id ?? ""}
                 onChange={(e) => setShipmentId((s) => ({ ...s, [p.id]: e.target.value }))}
@@ -91,7 +87,7 @@ export function EnvioPedidos({ pedidos, traslados, lotes }: { pedidos: Pedido[];
             </label>
             <label className="stack" style={{ gap: 4 }}>
               <span className="cell-meta">Lote</span>
-              <Select required className="input" value={batchId[p.id] ?? ""} onChange={(e) => setBatchId((s) => ({ ...s, [p.id]: e.target.value }))}>
+              <Select required name="batchId" className="input" value={batchId[p.id] ?? ""} onChange={(e) => setBatchId((s) => ({ ...s, [p.id]: e.target.value }))}>
                 <option value="">Elegir lote…</option>
                 {lotes.map((l) => (
                   <option key={l.id} value={l.id}>

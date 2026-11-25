@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, Select, Textarea, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, Select, Textarea, type FormSubmission, type ReportFields } from "./validated-form";
 /* eslint-disable @next/next/no-img-element -- vista previa de imágenes locales (data URL) */
 
 import { useMemo, useRef, useState } from "react";
@@ -14,7 +14,7 @@ import { api, errMsg } from "@/lib/client";
 import { BrandMark } from "./brand-mark";
 import { useToast } from "./toast";
 
-type ImageState = { url: string | null; change?: string | null };
+type ImageState = { error?: string; url: string | null; change?: string | null };
 
 const COLOR_FIELDS: { key: keyof Brand["colores"]; label: string; hint: string }[] = [
   { key: "primario", label: "Primario", hint: "Botones, medidores y pestaña activa." },
@@ -27,7 +27,9 @@ const COLOR_FIELDS: { key: keyof Brand["colores"]; label: string; hint: string }
 /** Achica la imagen en el navegador antes de subirla: el servidor solo valida. */
 async function shrink(file: File, kind: ImageKind): Promise<string> {
   const spec = IMAGE_KINDS[kind];
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await createImageBitmap(file).catch(() => {
+    throw new Error("No pudimos leer la imagen. Elegí un archivo PNG, JPG o WebP que puedas abrir en tu dispositivo.");
+  });
   let side: number = spec.maxSide;
   for (let attempt = 0; attempt < 6; attempt++) {
     const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
@@ -95,7 +97,7 @@ export function BrandEditor({
       setImages((s) => ({ ...s, [kind]: { url, change: url } }));
       setDirty(true);
     } catch (err) {
-      setError(errMsg(err));
+      setImages(s => ({ ...s, [kind]: { ...s[kind], error: errMsg(err) } }));
     }
   }
 
@@ -104,7 +106,7 @@ export function BrandEditor({
     setDirty(true);
   }
 
-  async function save(_: React.FormEvent, reportFields: ReportFields) {
+  async function save(_: FormSubmission, reportFields: ReportFields) {
     const parsed = brandSchema.safeParse(brand);
     setError(null);
     if (!parsed.success) {
@@ -367,15 +369,16 @@ function ImageSlot({ kind, state, onPick, onDrop }: { kind: ImageKind; state: Im
   const spec = IMAGE_KINDS[kind];
   return (
     <div className={`img-slot img-slot--${kind}`}>
-      <button type="button" className="img-slot-box" onClick={() => input.current?.click()} aria-label={`${state.url ? "Cambiar" : "Cargar"} ${spec.label.toLowerCase()}`}>
+      <button type="button" className="img-slot-box" aria-describedby={state.error ? `imagen-error-${kind}` : undefined} onClick={() => input.current?.click()} aria-label={`${state.url ? "Cambiar" : "Cargar"} ${spec.label.toLowerCase()}`}>
         {state.url ? <img src={state.url} alt="" /> : <ImagePlus aria-hidden />}
       </button>
       <div className="img-slot-meta">
         <b>{spec.label}</b>
+        {state.error && <small className="field-error" id={`imagen-error-${kind}`} role="alert">{state.error}</small>}
         <span className="hint" style={{ marginTop: 2 }}>{state.change ? "Sin guardar" : state.url ? "Cargada" : "Sin imagen"}</span>
         {state.url ? <button type="button" className="btn btn-sm btn-ghost" onClick={onDrop}><Trash2 aria-hidden />Quitar</button> : null}
       </div>
-      <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { onPick(e.target.files?.[0]); e.target.value = ""; }} />
+      <input ref={input} aria-invalid={state.error ? true : undefined} aria-describedby={state.error ? `imagen-error-${kind}` : undefined} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { onPick(e.target.files?.[0]); e.target.value = ""; }} />
     </div>
   );
 }

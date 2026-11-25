@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -32,15 +32,8 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
   const [sampleUntil, setSampleUntil] = useState("");
   const [noAnalysis, setNoAnalysis] = useState(false);
 
-  const allChecked = ITEMS.every((i) => check[i.key]);
-
-  async function submit(event: React.FormEvent, reportFields: ReportFields) {
-    event.preventDefault();
+  async function submit(_: FormSubmission, reportFields: ReportFields) {
     const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
-    if (!allChecked) {
-      setError("Marcá los cuatro controles: la liberación se firma con la revisión hecha.");
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -102,7 +95,7 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
         <div><label className="label" htmlFor="r-until">Guardar hasta</label><Input id="r-until" type="date" className="input" name="sampleUntil" value={sampleUntil} onChange={(e) => setSampleUntil(e.target.value)} /></div>
       </div>
       <label className="check">
-        <Input type="checkbox" checked={noAnalysis} onChange={(e) => setNoAnalysis(e.target.checked)} />
+        <Input type="checkbox" name="noAnalysisAcknowledged" checked={noAnalysis} onChange={(e) => setNoAnalysis(e.target.checked)} />
         <span>Liberar sin análisis<span className="hint">La ficha del lote va a decir &quot;pendiente de análisis&quot;. No se inventa ningún valor.</span></span>
       </label>
       {error ? <div className="note note-warn" role="alert">{error}</div> : null}
@@ -123,10 +116,9 @@ export function RecallForm({ id, code, affected }: { id: string; code: string; a
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(event: React.FormEvent, reportFields: ReportFields) {
-    event.preventDefault();
+  async function submit(_: FormSubmission, reportFields: ReportFields) {
     if (reason.trim().length < 5) {
-      setError("Escribí el motivo del retiro: queda en el registro y lo ve el socio.");
+      reportFields([{ campo: "reason", mensaje: "Escribí el motivo del retiro con al menos cinco caracteres." }]);
       return;
     }
     setBusy(true);

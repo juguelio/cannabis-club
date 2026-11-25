@@ -1,5 +1,6 @@
 "use client";
 
+import { Input, ValidatedForm } from "./validated-form";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileUp } from "lucide-react";
@@ -31,16 +32,33 @@ export function PadronImport() {
     }
   }
 
+  async function importar() {
+    if (!csv || !data?.preview.length || busy) return;
+    setBusy(true);
+    try {
+      const r = await api<{ created: number }>("/api/members/import", { body: { csv, commit: true } });
+      toast({ tone: "ok", title: `${r.created} socios importados`, text: "Quedaron como pendientes de alta." });
+      setData(null);
+      setCsv(null);
+      setFileName("");
+      router.push("/socios?estado=PENDIENTE");
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="panel">
       <div className="panel-head"><div>
         <h2 className="panel-title">Importar el padrón</h2>
         <p className="panel-sub">Subí la planilla que ya usa el club, guardada como CSV. Se reconocen columnas como Apellido, Nombre, DNI, Nacimiento, Teléfono, Email, REPROCANN, Vencimiento y Consumo. Los socios entran como pendientes: activarlos sigue siendo una decisión del club.</p>
       </div></div>
-      <div className="panel-body stack" style={{ gap: 14 }}>
+      <ValidatedForm onSubmit={importar} className="panel-body stack" style={{ gap: 14 }}>
         <label className="btn btn-quiet" style={{ alignSelf: "flex-start" }}>
           <FileUp aria-hidden />{fileName || "Elegir archivo CSV"}
-          <input
+          <Input name="csv"
             aria-invalid={error || data?.issues.length ? true : undefined}
             aria-describedby={error ? "csv-error" : data?.issues.length ? "csv-filas" : undefined}
             disabled={busy}
@@ -94,30 +112,15 @@ export function PadronImport() {
               <button
                 className="btn"
                 disabled={busy || data.preview.length === 0}
-                onClick={async () => {
-                  if (!csv) return;
-                  setBusy(true);
-                  try {
-                    const r = await api<{ created: number }>("/api/members/import", { body: { csv, commit: true } });
-                    toast({ tone: "ok", title: `${r.created} socios importados`, text: "Quedaron como pendientes de alta." });
-                    setData(null);
-                    setCsv(null);
-                    setFileName("");
-                    router.push("/socios?estado=PENDIENTE");
-                  } catch (err) {
-                    setError(errMsg(err));
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
+                type="submit"
               >
                 Importar {data.preview.length} {data.preview.length === 1 ? "socio" : "socios"}
               </button>
-              <button className="btn btn-ghost" onClick={() => { setData(null); setCsv(null); setFileName(""); }}>Descartar</button>
+              <button type="button" className="btn btn-ghost" onClick={() => { setData(null); setCsv(null); setFileName(""); }}>Descartar</button>
             </div>
           </>
         ) : null}
-      </div>
+      </ValidatedForm>
     </section>
   );
 }

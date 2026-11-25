@@ -3,7 +3,7 @@ import { expect, test } from "../fixtures";
 test("login vacío muestra los dos campos y permite corregir uno por vez", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("button", { name: "Ingresar", exact: true }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "2 campos" })).toContainText("2 campos");
+  await expect(page.locator('[aria-invalid="true"]')).toHaveCount(2);
   const email = page.getByLabel("Email");
   await expect(email).toBeFocused();
   await expect(email).toHaveAccessibleDescription("Completá este campo.");

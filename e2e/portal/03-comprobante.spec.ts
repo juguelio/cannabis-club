@@ -22,7 +22,7 @@ test.describe("comprobante", () => {
     await input.setInputFiles({ name: "vacio.txt", mimeType: "text/plain", buffer: Buffer.from("no soy un comprobante") });
 
     await expect(input).toHaveAccessibleDescription(/foto|imagen|JPG|PNG|PDF/i);
-    await expect(page.getByText("No se pudo presentar el comprobante. Revisá el dato señalado.")).toBeVisible();
+    await expect(page.locator(".comprobante .field-error")).toBeVisible();
   });
 
   test("subir la foto cierra el pedido y avisa que queda en revisión", async ({ page }) => {

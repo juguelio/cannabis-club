@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { ApiError } from "@/lib/client";
 
@@ -29,6 +29,7 @@ const num = (v: string | number | null) => (v == null ? "" : String(Number(v)));
 export function CatalogoManager() {
   const [strains, setStrains] = useState<Strain[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [erroresFoto, setErroresFoto] = useState<Record<string, string>>({});
   const [aviso, setAviso] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const [nueva, setNueva] = useState({ name: "", genetics: "", thcPct: "", cbdPct: "" });
@@ -50,8 +51,10 @@ export function CatalogoManager() {
     if (!file) return;
     setError(null);
     setAviso(null);
-    if (file.size > MAX) return setError("La foto supera los 3 MB.");
-    if (!MIMES.includes(file.type)) return setError("La foto tiene que ser JPG, PNG o WEBP.");
+    const errorFoto = (mensaje: string) => setErroresFoto(prev => ({ ...prev, [id]: mensaje }));
+    errorFoto("");
+    if (file.size > MAX) return errorFoto("La foto supera los 3 MB.");
+    if (!MIMES.includes(file.type)) return errorFoto("La foto tiene que ser JPG, PNG o WEBP.");
     setSubiendo(id);
     try {
       const r = await fetch(`/api/strains/${id}/foto`, { method: "POST", headers: { "Content-Type": file.type }, body: file });
@@ -60,7 +63,7 @@ export function CatalogoManager() {
       setAviso("Foto actualizada. El sitio y el portal ya la muestran.");
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No pudimos subir la foto.");
+      errorFoto(err instanceof Error ? err.message : "No pudimos subir la foto.");
     } finally {
       setSubiendo(null);
     }
@@ -97,8 +100,7 @@ export function CatalogoManager() {
     }
   }
 
-  async function crear(e: React.FormEvent, reportFields: ReportFields) {
-    e.preventDefault();
+  async function crear(_: FormSubmission, reportFields: ReportFields) {
     setError(null);
     setAviso(null);
     setCreando(true);
@@ -178,6 +180,8 @@ export function CatalogoManager() {
                       {subiendo === s.id ? "Subiendo…" : s.fotoVersion > 0 ? "Cambiar foto" : "Subir foto"}
                       <input
                         type="file"
+                        aria-invalid={erroresFoto[s.id] ? true : undefined}
+                        aria-describedby={erroresFoto[s.id] ? `foto-error-${s.id}` : undefined}
                         accept={MIMES.join(",")}
                         disabled={subiendo === s.id}
                         onChange={(e) => subirFoto(s.id, e.target.files?.[0])}
@@ -185,6 +189,7 @@ export function CatalogoManager() {
                         aria-label={`${s.fotoVersion > 0 ? "Cambiar" : "Subir"} foto de ${s.name}`}
                       />
                     </label>
+                    {erroresFoto[s.id] && <small className="field-error" role="alert" id={`foto-error-${s.id}`}>{erroresFoto[s.id]}</small>}
                     {s.fotoVersion > 0 ? (
                       <button className="btn btn-sm btn-ghost" type="button" onClick={() => quitarFoto(s.id)} disabled={subiendo === s.id}>
                         <Trash2 aria-hidden style={{ width: 15, height: 15 }} />

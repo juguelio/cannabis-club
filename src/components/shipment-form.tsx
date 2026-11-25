@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, Select, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, Select, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -14,20 +14,11 @@ export function ShipmentForm({ defaultFrom }: { defaultFrom: string }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"AEREO" | "TERRESTRE">("TERRESTRE");
-  const [fromAddress, setFromAddress] = useState(defaultFrom);
-  const [toAddress, setToAddress] = useState("");
-  const [carrierName, setCarrierName] = useState("");
-  const [carrierDoc, setCarrierDoc] = useState("");
-  const [plannedAt, setPlannedAt] = useState("");
-  const [noticeRef, setNoticeRef] = useState("");
-  const [notes, setNotes] = useState("");
-
-  async function submit(event: React.FormEvent, reportFields: ReportFields) {
-    event.preventDefault();
+  async function submit({ values }: FormSubmission, reportFields: ReportFields) {
     setBusy(true);
     setError(null);
     try {
+      const { mode, fromAddress, toAddress, carrierName, carrierDoc, plannedAt, noticeRef, notes } = values;
       const res = await api<{ shipment: { id: string; code: string } }>("/api/shipments", {
         body: { mode, fromAddress, toAddress, carrierName, carrierDoc: carrierDoc || undefined, plannedAt: plannedAt || undefined, noticeRef: noticeRef || undefined, notes: notes || undefined },
       });
@@ -49,42 +40,42 @@ export function ShipmentForm({ defaultFrom }: { defaultFrom: string }) {
       <div className="grid-2">
         <div>
           <label className="label" htmlFor="sh-mode">Cómo viaja</label>
-          <Select className="input" id="sh-mode" name="mode" value={mode} onChange={(e) => setMode(e.target.value as "AEREO" | "TERRESTRE")}>
+          <Select className="input" id="sh-mode" name="mode" defaultValue="TERRESTRE">
             <option value="TERRESTRE">Terrestre</option>
             <option value="AEREO">Aéreo</option>
           </Select>
         </div>
         <div>
           <label className="label" htmlFor="sh-planned">Fecha prevista</label>
-          <Input className="input" id="sh-planned" type="date" name="plannedAt" value={plannedAt} onChange={(e) => setPlannedAt(e.target.value)} />
+          <Input className="input" id="sh-planned" type="date" name="plannedAt" />
         </div>
       </div>
       <div>
         <label className="label" htmlFor="sh-from">Sale desde</label>
-        <Input className="input" id="sh-from" name="fromAddress" value={fromAddress} onChange={(e) => setFromAddress(e.target.value)} maxLength={160} required />
+        <Input className="input" id="sh-from" name="fromAddress" defaultValue={defaultFrom} maxLength={160} required />
       </div>
       <div>
         <label className="label" htmlFor="sh-to">Destino</label>
-        <Input className="input" id="sh-to" placeholder="San Martín de los Andes, Neuquén" name="toAddress" value={toAddress} onChange={(e) => setToAddress(e.target.value)} maxLength={160} required />
+        <Input className="input" id="sh-to" placeholder="San Martín de los Andes, Neuquén" name="toAddress" maxLength={160} required />
       </div>
       <div className="grid-2">
         <div>
           <label className="label" htmlFor="sh-carrier">Quién lo lleva</label>
-          <Input className="input" id="sh-carrier" placeholder="Nombre y apellido del responsable" name="carrierName" value={carrierName} onChange={(e) => setCarrierName(e.target.value)} maxLength={120} required />
+          <Input className="input" id="sh-carrier" placeholder="Nombre y apellido del responsable" name="carrierName" maxLength={120} required />
         </div>
         <div>
           <label className="label" htmlFor="sh-doc">Documento del responsable</label>
-          <Input className="input" id="sh-doc" name="carrierDoc" value={carrierDoc} onChange={(e) => setCarrierDoc(e.target.value)} maxLength={20} />
+          <Input className="input" id="sh-doc" name="carrierDoc" maxLength={20} />
         </div>
       </div>
       <div>
         <label className="label" htmlFor="sh-notice">Aviso previo a la autoridad</label>
-        <Input className="input" id="sh-notice" placeholder="Número o constancia del aviso (si corresponde)" name="noticeRef" value={noticeRef} onChange={(e) => setNoticeRef(e.target.value)} maxLength={120} />
+        <Input className="input" id="sh-notice" placeholder="Número o constancia del aviso (si corresponde)" name="noticeRef" maxLength={120} />
         <span className="hint">Si el traslado lo requiere, dejá la constancia: es lo que se muestra en un control.</span>
       </div>
       <div>
         <label className="label" htmlFor="sh-notes">Notas</label>
-        <Input className="input" id="sh-notes" name="notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={400} />
+        <Input className="input" id="sh-notes" name="notes" maxLength={400} />
       </div>
       {error ? <div className="note note-warn" role="alert">{error}</div> : null}
       <div className="flex gap-2">

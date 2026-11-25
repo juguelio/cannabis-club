@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, Select, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, Select, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -44,8 +44,7 @@ export function PreciosForm({ initial }: { initial: Precios }) {
 
   const set = <K extends keyof Precios>(k: K, v: Precios[K]) => setP((prev) => ({ ...prev, [k]: v }));
 
-  async function guardar(e: React.FormEvent, reportFields: ReportFields) {
-    e.preventDefault();
+  async function guardar(_: FormSubmission, reportFields: ReportFields) {
     setBusy(true);
     setError(null);
     try {

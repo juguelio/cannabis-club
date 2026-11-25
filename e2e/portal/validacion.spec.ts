@@ -7,7 +7,7 @@ test("Mis datos devuelve todos los errores y conserva la ayuda del código posta
   await cp.fill("xxx");
   await telefono.fill("12");
   await page.getByRole("button", { name: "Guardar mis datos" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "2 campos" })).toContainText("2 campos");
+  await expect(page.locator('[aria-invalid="true"]')).toHaveCount(2);
   await expect(cp).toHaveAccessibleDescription(/Cuatro números.*código postal son 4 números/);
   await expect(telefono).toHaveAccessibleDescription(/teléfono no parece completo/);
   await telefono.fill("2944123456");

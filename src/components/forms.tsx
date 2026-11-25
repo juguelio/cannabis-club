@@ -10,11 +10,11 @@ import { useToast } from "./toast";
 import { ReasonDialog } from "./dialog";
 import { ORIGIN, REPROCANN_STATUS, STAGE } from "@/lib/labels";
 
-const num = (v: FormDataEntryValue | null) => {
+const num = (v: unknown) => {
   const s = String(v ?? "").trim().replace(",", ".");
   return s === "" ? undefined : Number(s);
 };
-const str = (v: FormDataEntryValue | null) => {
+const str = (v: unknown) => {
   const s = String(v ?? "").trim();
   return s === "" ? undefined : s;
 };
@@ -42,12 +42,11 @@ export function LoginForm({ google = false }: { google?: boolean }) {
       className="stack"
       style={{ gap: 14 }}
       onSubmit={async (e, reportFields) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
+        const { values } = e;
         setBusy(true);
         setError(null);
         try {
-          const data = await api<{ user: { role: string } }>("/api/auth/login", { body: { email: f.get("email"), password: f.get("password") } });
+          const data = await api<{ user: { role: string } }>("/api/auth/login", { body: { email: values.email, password: values.password } });
           router.push(data.user?.role === "SOCIO" ? "/portal" : "/");
           router.refresh();
         } catch (err) {
@@ -100,28 +99,27 @@ export function MemberForm() {
     <ValidatedForm method="post"
       className="stack"
       onSubmit={async (e, reportFields) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
+        const { values } = e;
         setError(null);
         setBusy(true);
         try {
           const res = await api<{ member: { id: string; legajo: number; lastName: string } }>("/api/members", {
             body: {
-              firstName: f.get("firstName"),
-              lastName: f.get("lastName"),
-              docNumber: f.get("docNumber"),
-              birthDate: f.get("birthDate"),
-              phone: str(f.get("phone")),
-              email: str(f.get("email")),
-              address: str(f.get("address")),
-              reprocannNumber: str(f.get("reprocannNumber")),
-              reprocannStatus: f.get("reprocannStatus"),
-              reprocannExpiresAt: str(f.get("reprocannExpiresAt")),
-              consumptionType: f.get("consumptionType"),
-              monthlyForecastG: num(f.get("monthlyForecastG")),
-              consentSignedAt: str(f.get("consentSignedAt")),
-              notes: str(f.get("notes")),
-              status: f.get("activate") === "on" ? "ACTIVO" : "PENDIENTE",
+              firstName: values.firstName,
+              lastName: values.lastName,
+              docNumber: values.docNumber,
+              birthDate: values.birthDate,
+              phone: str(values.phone),
+              email: str(values.email),
+              address: str(values.address),
+              reprocannNumber: str(values.reprocannNumber),
+              reprocannStatus: values.reprocannStatus,
+              reprocannExpiresAt: str(values.reprocannExpiresAt),
+              consumptionType: values.consumptionType,
+              monthlyForecastG: num(values.monthlyForecastG),
+              consentSignedAt: str(values.consentSignedAt),
+              notes: str(values.notes),
+              status: values.activate === true && Boolean(consent) ? "ACTIVO" : "PENDIENTE",
             },
           });
           toast({ tone: "ok", title: `Legajo ${res.member.legajo} creado`, text: `${res.member.lastName} ya está en el padrón.` });
@@ -208,25 +206,24 @@ export function BatchForm({ strains, onDone }: { strains: { id: string; name: st
       className="stack"
       style={{ gap: 14 }}
       onSubmit={async (e, reportFields) => {
-        e.preventDefault();
-        const form = e.currentTarget;
-        const f = new FormData(form);
+        const form = e.form;
+        const { values } = e;
         setError(null);
         setBusy(true);
         try {
           const res = await api<{ batch: { code: string } }>("/api/batches", {
             body: {
-              code: f.get("code"),
-              strainId: f.get("strainId"),
-              originType: f.get("originType"),
-              originProviderName: str(f.get("originProviderName")),
-              plantsCount: num(f.get("plantsCount")),
-              room: str(f.get("room")),
+              code: values.code,
+              strainId: values.strainId,
+              originType: values.originType,
+              originProviderName: str(values.originProviderName),
+              plantsCount: num(values.plantsCount),
+              room: str(values.room),
               stage,
-              plantedAt: str(f.get("plantedAt")),
-              thcPct: num(f.get("thcPct")),
-              cbdPct: num(f.get("cbdPct")),
-              dryWeightG: stage === "DISPONIBLE" ? num(f.get("dryWeightG")) : undefined,
+              plantedAt: str(values.plantedAt),
+              thcPct: num(values.thcPct),
+              cbdPct: num(values.cbdPct),
+              dryWeightG: stage === "DISPONIBLE" ? num(values.dryWeightG) : undefined,
             },
           });
           toast({ tone: "ok", title: `Lote ${res.batch.code} creado` });
@@ -288,15 +285,14 @@ export function HarvestForm({ batch, onDone }: { batch: { id: string; code: stri
       className="stack"
       style={{ gap: 12 }}
       onSubmit={async (e, reportFields) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
+        const { values } = e;
         setError(null);
         setBusy(true);
         try {
           await api(`/api/batches/${batch.id}/harvest`, {
             body: dryStep
-              ? { dryWeightG: num(f.get("dryWeightG")), thcPct: num(f.get("thcPct")), cbdPct: num(f.get("cbdPct")) }
-              : { wetWeightG: num(f.get("wetWeightG")), harvestedAt: str(f.get("harvestedAt")) },
+              ? { dryWeightG: num(values.dryWeightG), thcPct: num(values.thcPct), cbdPct: num(values.cbdPct) }
+              : { wetWeightG: num(values.wetWeightG), harvestedAt: str(values.harvestedAt) },
           });
           toast({ tone: "ok", title: dryStep ? `Peso seco registrado: ${batch.code} disponible` : `Cosecha de ${batch.code} registrada` });
           onDone?.();
@@ -343,13 +339,12 @@ export function MovementForm({ batches, batchId, onDone }: { batches?: { id: str
       className="stack"
       style={{ gap: 12 }}
       onSubmit={async (e, reportFields) => {
-        e.preventDefault();
-        const form = e.currentTarget;
-        const f = new FormData(form);
+        const form = e.form;
+        const { values } = e;
         setError(null);
         setBusy(true);
         try {
-          await api("/api/movements", { body: { batchId: batchId ?? f.get("batchId"), type: f.get("type"), grams: num(f.get("grams")), reason: f.get("reason") } });
+          await api("/api/movements", { body: { batchId: batchId ?? values.batchId, type: values.type, grams: num(values.grams), reason: values.reason } });
           toast({ tone: "ok", title: "Movimiento registrado en el libro" });
           form.reset();
           onDone?.();

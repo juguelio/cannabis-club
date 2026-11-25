@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+import { ValidatedForm, Input, type FormSubmission, type ReportFields } from "./validated-form";
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -71,8 +71,7 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
   const tienePresentacion = !!estado.presentacion;
   const faltan = DOCS.map((d) => d.tipo).filter((t) => !subidos[t]);
 
-  async function guardarDatos(e: React.FormEvent, reportFields: ReportFields) {
-    e.preventDefault();
+  async function guardarDatos(_: FormSubmission, reportFields: ReportFields) {
     setBusy("datos");
     setDocConError(null);
     setError(null);
@@ -308,7 +307,7 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
                         onChange={() => void subirDoc(d.tipo)}
                       />
                     </label>
-                    {docConError === d.tipo && error && <small id={`doc-error-${d.tipo}`} className="field-error">{error}</small>}
+                    {docConError === d.tipo && error && <small role="alert" id={`doc-error-${d.tipo}`} className="field-error">{error}</small>}
                     {busy === d.tipo ? <span className="cell-meta">Subiendo…</span> : null}
                   </div>
                 </li>
@@ -327,9 +326,9 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
         ) : null}
       </div>
 
-      {error ? (
+      {error && !docConError ? (
         <div className="note note-danger" role="alert">
-          <div>{docConError ? `No se pudo cargar ${DOCS.find(d => d.tipo === docConError)?.label}. Revisá el archivo indicado.` : error}</div>
+          <div>{error}</div>
         </div>
       ) : null}
 

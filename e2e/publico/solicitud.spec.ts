@@ -29,14 +29,15 @@ test("alta pública: corrige varios datos, presenta la solicitud y reemplaza un 
   await form.getByRole("checkbox").check();
   const continuar = page.getByRole("button", { name: "Continuar a la documentación" });
   await continuar.click();
-  await expect(form.getByRole("alert")).toContainText("2 campos");
+  await expect(form.locator('[aria-invalid="true"]')).toHaveCount(2);
   await expect(form.locator('[name="phone"]')).toHaveAccessibleDescription(/código de área/);
   await expect(form.locator('[name="docNumber"]')).toHaveAccessibleDescription(/7 u 8/);
   await form.locator('[name="docNumber"]').fill("45444333");
   await form.locator('[name="phone"]').fill("2944123456");
   await form.locator('[name="birthDate"]').fill(new Date().toISOString().slice(0, 10));
   await continuar.click();
-  await expect(form.getByRole("alert")).toContainText(/Fecha de nacimiento.*todavía no cumpliste 18 años/);
+  await expect(form.locator('[name="birthDate"] + .field-error')).toHaveText(/todavía no cumpliste 18 años/);
+  await expect(form.getByText(/todavía no cumpliste 18 años/)).toHaveCount(1);
   await expect(form.locator('[name="birthDate"]')).toHaveAccessibleDescription(/edad mínima para asociarte/);
   await form.locator('[name="birthDate"]').fill("1990-01-01");
   await page.route("**/api/solicitud", route => route.request().method() === "POST"
@@ -51,7 +52,7 @@ test("alta pública: corrige varios datos, presenta la solicitud y reemplaza un 
   const frente = page.getByLabel("Subir DNI (frente)", { exact: true });
   await frente.setInputFiles({ name: "archivo.txt", mimeType: "text/plain", buffer: Buffer.from("prueba") });
   await expect(frente).toHaveAccessibleDescription(/JPG, PNG, WEBP o PDF/);
-  await expect(page.getByRole("alert").filter({ hasText: "DNI (frente)" })).toContainText("DNI (frente)");
+  await expect(page.locator("#archivo-error-DNI_FRENTE")).toBeVisible();
   await frente.setInputFiles({ name: "dni.png", mimeType: "image/png", buffer: PNG_1X1 });
   await expect(page.getByLabel("Reemplazar DNI (frente)", { exact: true })).toBeAttached();
   await page.reload();
