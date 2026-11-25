@@ -91,7 +91,7 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
             </Panel>
           ) : null}
 
-          <Panel title="Calidad y liberación" subtitle="Nada sale del lote sin la firma de calidad, y no puede firmarla quien registró la cosecha.">
+          <Panel title="Calidad y liberación" subtitle="La firma registra quién habilitó el lote y cuándo. Administración puede liberar su propio ingreso.">
             <div className="panel-body stack" style={{ gap: 14 }}>
               {(() => {
                 const ficha = fichaState({ stage: batch.stage, thcPct: batch.thcPct == null ? null : Number(batch.thcPct), cbdPct: batch.cbdPct == null ? null : Number(batch.cbdPct), labResult: batch.labResult, recalledAt: batch.recalledAt });
@@ -115,7 +115,7 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
                       <Link className="btn btn-sm btn-quiet" href={`/stock/${batch.id}/etiqueta`}>Etiqueta con QR</Link>
                       <Link className="btn btn-sm btn-quiet" href={`/lote/${batch.code}`} target="_blank">Ficha pública</Link>
                     </div>
-                    {!batch.releasedAt && !ficha.recalled ? <ReleaseForm id={batch.id} code={batch.code} /> : null}
+                    {!batch.releasedAt && !ficha.recalled ? <ReleaseForm id={batch.id} code={batch.code} isAdmin={session.role === "ADMIN"} /> : null}
                     {!ficha.recalled && session.role === "ADMIN" ? <RecallForm id={batch.id} code={batch.code} affected={recall.length} /> : null}
                   </>
                 );

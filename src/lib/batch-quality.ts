@@ -5,8 +5,7 @@ import { conflict, badRequest } from "./errors";
  * Calidad del lote: liberación con firma, ficha técnica neutra y recall.
  *
  * Reglas de dominio (REA 5.1–5.4):
- * - Nada sale de un lote sin que alguien firme que está apto, y esa firma no puede ser
- *   la de la misma persona que registró la cosecha (segunda firma).
+ * - Administración puede firmar su propio ingreso. Para operadores se exige una revisión independiente.
  * - Sin análisis, la ficha lo dice ("pendiente"); nunca se inventa un número.
  * - El recall no borra nada: marca el lote, bloquea entregas y avisa a quien lo recibió.
  */
@@ -27,6 +26,7 @@ export type ReleaseInput = {
   stage: string;
   dryWeightG: number | null;
   actorId: string;
+  isAdmin: boolean;
   harvestActorId?: string | null;
   checklist: Checklist;
   hasAnalysis: boolean;
@@ -47,6 +47,7 @@ export function canRelease(input: ReleaseInput): ReleaseCheck {
   if (!(Number(input.dryWeightG ?? 0) > 0)) {
     return { ok: false, code: "NO_DRY_WEIGHT", message: "Sin peso seco no hay stock que liberar." };
   }
+  if (input.isAdmin) return { ok: true };
   if (input.harvestActorId && input.harvestActorId === input.actorId) {
     return {
       ok: false,
@@ -99,6 +100,7 @@ async function harvestActorOf(batchId: string) {
 export async function releaseBatch(input: {
   batchId: string;
   actorId: string;
+  isAdmin: boolean;
   checklist: Checklist;
   thcPct?: number | null;
   cbdPct?: number | null;
@@ -112,6 +114,7 @@ export async function releaseBatch(input: {
 }) {
   const batch = await prisma.batch.findUnique({ where: { id: input.batchId } });
   if (!batch) throw badRequest("BATCH_NOT_FOUND", "El lote no existe.");
+  if (batch.recalledAt) throw conflict("BATCH_RECALLED", "El lote fue retirado del mercado.");
   if (batch.releasedAt) throw conflict("ALREADY_RELEASED", "El lote ya está liberado.");
 
   const harvestActorId = await harvestActorOf(batch.id);
@@ -121,6 +124,7 @@ export async function releaseBatch(input: {
     dryWeightG: batch.dryWeightG == null ? null : Number(batch.dryWeightG),
     actorId: input.actorId,
     harvestActorId,
+    isAdmin: input.isAdmin,
     checklist: input.checklist,
     hasAnalysis,
     noAnalysisAcknowledged: input.noAnalysisAcknowledged,
@@ -130,19 +134,19 @@ export async function releaseBatch(input: {
   const now = new Date();
   return prisma.$transaction(async (tx) => {
     const updated = await tx.batch.update({
-      where: { id: batch.id },
+      where: { id: batch.id, releasedAt: null, recalledAt: null, stage: batch.stage },
       data: {
         releasedAt: now,
         releasedById: input.actorId,
-        releaseNote: input.note?.trim() || null,
+        releaseNote: input.note?.trim() || undefined,
         stage: "DISPONIBLE",
         thcPct: input.thcPct == null ? undefined : input.thcPct,
         cbdPct: input.cbdPct == null ? undefined : input.cbdPct,
-        labName: input.labName?.trim() || null,
-        labDate: input.labDate ? new Date(`${input.labDate}T00:00:00.000Z`) : null,
-        labResult: input.labResult?.trim() || null,
-        sampleRetainedG: input.sampleRetainedG == null ? null : input.sampleRetainedG,
-        sampleUntil: input.sampleUntil ? new Date(`${input.sampleUntil}T00:00:00.000Z`) : null,
+        labName: input.labName?.trim() || undefined,
+        labDate: input.labDate ? new Date(`${input.labDate}T00:00:00.000Z`) : undefined,
+        labResult: input.labResult?.trim() || undefined,
+        sampleRetainedG: input.sampleRetainedG ?? undefined,
+        sampleUntil: input.sampleUntil ? new Date(`${input.sampleUntil}T00:00:00.000Z`) : undefined,
       },
     });
     await tx.auditLog.create({
@@ -152,6 +156,7 @@ export async function releaseBatch(input: {
         entity: "Batch",
         entityId: batch.id,
         payload: {
+          liberadoPorAdministrador: input.isAdmin,
           checklist: input.checklist,
           sinAnalisis: !hasAnalysis,
           thcPct: input.thcPct ?? null,
