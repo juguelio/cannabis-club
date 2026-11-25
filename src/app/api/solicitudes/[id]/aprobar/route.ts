@@ -70,18 +70,19 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
         consumptionType: solicitud.consumptionType,
         consentSignedAt: solicitud.submittedAt,
         consentVersion: AFFIDAVIT_VERSION,
+        // El club aprobó mirando los mismos documentos que mira en la re-validación: el legajo queda validado
+        // y puede reservar sin pasar por el trámite otra vez. Sin esto el socio recién aprobado entraba al
+        // portal y le pedía «Validá tus datos», con el mostrador rechazándole la reserva.
+        verificationStatus: "VERIFICADO" as const,
+        verificationAt: new Date(),
       };
 
-    // El club aprobó mirando los mismos documentos que mira en la re-validación: el legajo queda validado
-    // y puede reservar sin pasar por el trámite otra vez.
     const member = reclamado
       ? await tx.member.update({
           where: { id: reclamado.id },
           data: {
             ...datosLegajo,
             admittedAt: reclamado.admittedAt ?? new Date(),
-            verificationStatus: "VERIFICADO",
-            verificationAt: new Date(),
             notes: [reclamado.notes, "Acceso reclamado desde el portal (ya estaba en el padrón)."].filter(Boolean).join("\n"),
           },
           select: { id: true, legajo: true },
