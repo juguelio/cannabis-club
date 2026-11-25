@@ -11,6 +11,7 @@ import { memberUsage } from "@/lib/dispensary";
 import { Avatar, Chip, Empty, Meter, Note, Panel } from "@/components/ui";
 import { VoidButton } from "@/components/forms";
 import { MemberEditor, MemberStatusActions, PortalAccess } from "@/components/member-editor";
+import { DocumentacionSocio, HistorialSocio } from "@/components/member-record";
 import { AccountPanel } from "@/components/account-panel";
 import { memberAccount } from "@/lib/account";
 import {
@@ -21,16 +22,16 @@ export const metadata = { title: "Legajo" };
 
 const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
-export default async function SocioDetalle({ params }: { params: Promise<{ id: string }> }) {
+export default async function SocioDetalle({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ historial?: string; pagina?: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const { id } = await params;
+  const [{ id }, consulta] = await Promise.all([params, searchParams]);
   const [member, club] = await Promise.all([
     prisma.member.findUnique({
       where: { id },
       include: {
         user: { select: { email: true, active: true, lastLoginAt: true } },
-        dispensations: { orderBy: { occurredAt: "desc" }, take: 30, include: { batch: { include: { strain: true } }, operator: { select: { name: true } } } },
+        dispensations: { orderBy: { occurredAt: "desc" }, take: 30, include: { batch: { select: { code: true, strain: { select: { name: true } } } }, operator: { select: { name: true } } } },
         pickups: { where: { status: { in: ["SOLICITADA", "CONFIRMADA"] } }, include: { appointment: { select: { scheduledAt: true } } } },
       },
     }),
@@ -67,7 +68,7 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
             <div className="profile-meta">
               <span>Legajo {member.legajo}</span>
               <span>{maskDoc(member.docLast4)}</span>
-              <span>{years} años</span>
+              {years !== null && <span>{years} años</span>}
               <span>{CONSUMPTION[member.consumptionType]}</span>
             </div>
             <div className="profile-chips">
@@ -106,6 +107,10 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
         ) : null}
       </div>
 
+      {session.role === "ADMIN" && <div className="grid-2" style={{ marginBottom: 16 }}>
+        <DocumentacionSocio memberId={id} />
+        <HistorialSocio memberId={id} vista={consulta.historial} pagina={consulta.pagina} />
+      </div>}
       <div className="grid-2">
         <div className="stack">
           {/* El mostrador entrega con el tope y el padrón; la cuenta corriente es de administración. */}
@@ -213,7 +218,8 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
               <dl className="dl">
                 <dt>Teléfono</dt><dd>{member.phone ? <a href={`tel:${member.phone.replace(/\s/g, "")}`}>{member.phone}</a> : "—"}</dd>
                 <dt>Email</dt><dd>{member.email ?? "—"}</dd>
-                <dt>Domicilio</dt><dd>{member.address ?? "—"}</dd>
+                <dt>Domicilio</dt><dd>{[member.address, member.locality, member.province, member.postalCode].filter(Boolean).join(", ") || "—"}</dd>
+                <dt>Verificación</dt><dd>{member.verificationStatus.toLowerCase().replaceAll("_", " ")}{member.verificationAt && ` · ${fmtDate(member.verificationAt)}`}</dd>
                 <dt>Nacimiento</dt><dd>{fmtDate(member.birthDate)}</dd>
                 <dt>Documento</dt><dd>{maskDoc(member.docLast4)}{member.docVerifiedAt ? ` · verificado el ${fmtDate(member.docVerifiedAt)}` : ""}</dd>
               </dl>

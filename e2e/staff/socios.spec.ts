@@ -1,3 +1,4 @@
+import { PNG_1X1 } from "../helpers";
 import { expect, test } from "../fixtures";
 
 /**
@@ -80,4 +81,45 @@ test.describe("padrón", () => {
     await expect(page.locator("body")).not.toContainText(/Application error|Internal Server Error/);
     await expect(page.locator("body")).not.toContainText("30111222");
   });
+});
+
+test("el administrador consulta los archivos ya verificados y el historial desde el legajo", async ({ page, browser }) => {
+  await page.goto("/socios");
+  await page.getByRole("link", { name: /Gómez, María/ }).first().click();
+  await expect(page).toHaveURL(/\/socios\/[^/?]+$/);
+  const perfil = page.url();
+  await expect(page.getByRole("heading", { name: "Documentación del socio" })).toBeVisible();
+  const archivo = page.getByRole("link", { name: "DNI (frente)", exact: true });
+  const url = await archivo.getAttribute("href");
+  expect(url).toMatch(/^\/api\/verificaciones\//);
+  const response = await page.request.get(url!);
+  expect(response.status()).toBe(200);
+  expect(response.headers()["cache-control"]).toContain("no-store");
+  expect(await response.body()).toEqual(PNG_1X1);
+  const nuevo = await page.request.post("/api/shipments", { data: { fromAddress: "Sede central", toAddress: "Destino del legajo", carrierName: "Transporte de prueba" } });
+  expect(nuevo.status()).toBe(201);
+  const { shipment } = await nuevo.json();
+  const { batches } = await (await page.request.get("/api/batches")).json();
+  const memberId = new URL(perfil).pathname.split("/").pop();
+  const item = await page.request.post(`/api/shipments/${shipment.id}/items`, { data: { memberId, batchId: batches[0].id, grams: 3 } });
+  expect(item.status(), await item.text()).toBe(201);
+  const nav = page.getByRole("navigation", { name: "Historial del socio" });
+  for (const label of ["Envíos", "Turnos", "Entregas", "Avisos", "Pedidos"]) {
+    await nav.getByRole("link", { name: label, exact: true }).click();
+    await expect(page.locator("#historial-socio h3")).toHaveText(label);
+    if (label === "Envíos") {
+      const historial = page.locator("#historial-socio");
+      await expect(historial.getByRole("link", { name: shipment.code })).toHaveAttribute("href", `/traslados/${shipment.id}`);
+      await expect(historial).toContainText("Destino del legajo");
+    }
+  }
+  const operador = await browser.newContext({ storageState: "e2e/.state/operador.json" });
+  try {
+    const vista = await operador.newPage();
+    await vista.goto(perfil);
+    await expect(vista.getByRole("heading", { name: "Documentación del socio" })).toHaveCount(0);
+    expect((await vista.request.get(new URL(url!, perfil).href)).status()).toBe(403);
+  } finally {
+    await operador.close();
+  }
 });
