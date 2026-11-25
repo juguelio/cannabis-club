@@ -10,25 +10,28 @@ import { docFingerprint } from "@/lib/privacy";
 import { encryptText } from "@/lib/docs-crypto";
 import {
   AFFIDAVIT_VERSION,
+  CONFIRMAR_DECLARACION,
+  FALTA_NACIMIENTO,
+  FALTA_VENCIMIENTO,
   esDocumentoDelMismoLegajo,
   esReclamoDeLegajo,
   validarSolicitud,
 } from "@/lib/access-request";
 
 const schema = z.object({
-  firstName: z.string().trim().min(1),
-  lastName: z.string().trim().min(1),
-  birthDate: z.string().min(8),
-  phone: z.string().trim().min(1),
-  address: z.string().trim().min(1),
+  firstName: z.string().trim().default(""),
+  lastName: z.string().trim().default(""),
+  birthDate: z.string({ error: FALTA_NACIMIENTO }).default(""),
+  phone: z.string().trim().default(""),
+  address: z.string().trim().default(""),
   locality: z.string().trim().optional().nullable(),
   // El código postal no se pide acá: `AccessRequest` no lo guarda y el domicilio completo se declara
   // en el paso de validación (`MemberVerification`), que es el que lo lleva al legajo.
-  docNumber: z.string().trim().min(1),
-  reprocannNumber: z.string().trim().min(1),
-  reprocannExpiresAt: z.string().min(8),
+  docNumber: z.string().trim().default(""),
+  reprocannNumber: z.string().trim().default(""),
+  reprocannExpiresAt: z.string({ error: FALTA_VENCIMIENTO }).default(""),
   consumptionType: z.enum(["LUDICO", "TERAPEUTICO"]).optional(),
-  affidavitAccepted: z.boolean(),
+  affidavitAccepted: z.boolean({ error: CONFIRMAR_DECLARACION }).default(false),
 });
 
 const TIPOS = ["DNI_FRENTE", "DNI_DORSO", "REPROCANN"];

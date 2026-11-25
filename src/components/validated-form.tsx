@@ -61,19 +61,18 @@ type FormProps = Omit<ComponentProps<"form">, "onSubmit"> & {
 export function ValidatedForm({ onSubmit, children, schema, shouldFocusError = true, ...props }: FormProps) {
   const [element, setElement] = useState<HTMLFormElement | null>(null);
   const base = useMemo(() => z.record(z.string(), z.unknown()).transform((values, ctx) => {
+    const parsed = schema?.safeParse(values);
+    if (parsed && !parsed.success) {
+      for (const issue of parsed.error.issues) {
+        ctx.addIssue({ code: "custom", path: issue.path.length ? issue.path : ["root", "server"], message: issue.message });
+      }
+    }
     for (const field of controls(element)) {
       if (!field.willValidate || !field.name) continue;
       const message = fieldMessage(field, get(values, field.name));
       if (message) ctx.addIssue({ code: "custom", path: field.name.split("."), message });
     }
-    if (schema) {
-      const parsed = schema.safeParse(values);
-      if (parsed.success) return parsed.data;
-      for (const issue of parsed.error.issues) {
-        ctx.addIssue({ code: "custom", path: issue.path.length ? issue.path : ["root", "server"], message: issue.message });
-      }
-    }
-    return values;
+    return parsed?.success ? parsed.data : values;
   }), [element, schema]);
   const methods = useForm<Values>({ resolver: zodResolver(base), shouldUnregister: true, shouldFocusError });
   const { errors } = methods.formState;

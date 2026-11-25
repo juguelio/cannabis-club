@@ -363,7 +363,7 @@ export function SolicitudForm({
             Declaro que los datos son verdaderos y que el cultivo es para mi consumo personal (Ley 27.350 y REPROCANN).
           </label>
           <p className="note" style={{ fontSize: 13, display: "block" }}>
-            Al enviar la solicitud aceptás los{" "}
+            Al presentar la solicitud aceptás los{" "}
             <Link href="/terminos" target="_blank">
               Términos y Condiciones
             </Link>{" "}
@@ -376,7 +376,7 @@ export function SolicitudForm({
           {error && <p className="note note-danger" role="alert">{error}</p>}
           <div>
             <button className="btn btn-lg" type="submit" disabled={enviando}>
-              {enviando ? "Guardando…" : "Continuar a la documentación"}
+              {enviando ? "Presentando solicitud…" : "Presentar solicitud y subir documentos"}
             </button>
           </div>
         </div>

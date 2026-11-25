@@ -27,13 +27,42 @@ test("alta pública: corrige varios datos, presenta la solicitud y reemplaza un 
     phone: "11", address: "Calle 123", reprocannNumber: "12345678", reprocannExpiresAt: "2099-12-31" };
   for (const [nombre, valor] of Object.entries(datos)) await form.locator(`[name="${nombre}"]`).fill(valor);
   await form.getByRole("checkbox").check();
-  const continuar = page.getByRole("button", { name: "Continuar a la documentación" });
+  const continuar = page.getByRole("button", { name: "Presentar solicitud y subir documentos" });
   await continuar.click();
   await expect(form.locator('[aria-invalid="true"]')).toHaveCount(2);
   await expect(form.locator('[name="phone"]')).toHaveAccessibleDescription(/código de área/);
   await expect(form.locator('[name="docNumber"]')).toHaveAccessibleDescription(/7 u 8/);
+  await expect(form.locator('[name="docNumber"]')).toBeFocused();
+  let envios = 0;
+  page.on("request", req => { if (req.url().endsWith("/api/solicitud") && req.method() === "POST") envios++; });
+  const invalidos = { ...datos, docNumber: "45A444333", phone: "29X44123456", birthDate: "", reprocannExpiresAt: "", affidavitAccepted: false };
+  for (const campo of ["docNumber", "phone", "birthDate", "reprocannExpiresAt"] as const) {
+    await form.locator(`[name="${campo}"]`).fill(invalidos[campo]);
+  }
+  await form.getByRole("checkbox").uncheck();
+  await continuar.click();
+  const mensajes = {
+    docNumber: "Ingresá los 7 u 8 dígitos del DNI sin letras.",
+    phone: "Ingresá el teléfono sin letras. Podés usar espacios, guiones, paréntesis y el signo +.",
+    birthDate: "Ingresá tu fecha de nacimiento.",
+    reprocannExpiresAt: "Ingresá la fecha de vencimiento de tu REPROCANN.",
+    affidavitAccepted: "Para presentar la solicitud, confirmá la declaración.",
+  };
+  const respuesta = await page.request.post("/api/solicitud", { data: invalidos });
+  expect(respuesta.status()).toBe(400);
+  const { details } = await respuesta.json();
+  for (const [campo, mensaje] of Object.entries(mensajes)) {
+    await expect(form.locator(`[name="${campo}"]`)).toHaveAccessibleDescription(mensaje);
+    expect(details).toContainEqual({ campo, mensaje });
+  }
+  expect(envios).toBe(0);
+  await form.getByRole("checkbox").check();
+  await form.locator('[name="reprocannExpiresAt"]').fill("2000-01-01");
+  await continuar.click();
+  await expect(form.locator('[name="reprocannExpiresAt"]')).toHaveAccessibleDescription(/vencido/);
+  await form.locator('[name="reprocannExpiresAt"]').fill(datos.reprocannExpiresAt);
   await form.locator('[name="docNumber"]').fill("45444333");
-  await form.locator('[name="phone"]').fill("2944123456");
+  await form.locator('[name="phone"]').fill("2944 12-3456");
   await form.locator('[name="birthDate"]').fill(new Date().toISOString().slice(0, 10));
   await continuar.click();
   await expect(form.locator('[name="birthDate"] + .field-error')).toHaveText(/todavía no cumpliste 18 años/);
@@ -46,6 +75,8 @@ test("alta pública: corrige varios datos, presenta la solicitud y reemplaza un 
   await continuar.click();
   await expect(form.getByRole("alert")).toContainText("La solicitud no quedó presentada");
   await expect(form.locator('[name="firstName"]')).toHaveValue("Ana");
+  await expect(form.locator('[name="birthDate"]')).toHaveValue(datos.birthDate);
+  await expect(form.locator('[name="reprocannExpiresAt"]')).toHaveValue(datos.reprocannExpiresAt);
   await page.unroute("**/api/solicitud");
   await continuar.click();
   await expect(page.getByRole("heading", { name: "Solicitud recibida" })).toBeVisible();

@@ -45,6 +45,11 @@ describe("validarSolicitud", () => {
     expect(validarSolicitud({ ...base, docNumber: "3012345" }, hoy)).toEqual([]);
   });
 
+  it("rechaza fechas imposibles aunque JavaScript pueda normalizarlas", () => {
+    const errores = validarSolicitud({ ...base, birthDate: "1990-02-30", reprocannExpiresAt: "2027-02-29" }, hoy);
+    expect(errores.map(error => error.campo)).toEqual(["birthDate", "reprocannExpiresAt"]);
+  });
+
   it("un REPROCANN vencido no se puede presentar", () => {
     const r = validarSolicitud({ ...base, reprocannExpiresAt: "2026-01-01" }, hoy);
     expect(r.find((e) => e.campo === "reprocannExpiresAt")?.mensaje).toMatch(/vencido/);

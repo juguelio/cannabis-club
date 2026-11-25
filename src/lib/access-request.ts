@@ -5,6 +5,9 @@
 
 export const AFFIDAVIT_VERSION = "2026-10";
 export const MIN_EDAD = 18;
+export const FALTA_NACIMIENTO = "Ingresá tu fecha de nacimiento.";
+export const FALTA_VENCIMIENTO = "Ingresá la fecha de vencimiento de tu REPROCANN.";
+export const CONFIRMAR_DECLARACION = "Para presentar la solicitud, confirmá la declaración.";
 export const DNI_MIN_DIGITOS = 7;
 export const DNI_MAX_DIGITOS = 8;
 
@@ -45,7 +48,9 @@ export function edadEn(nacimiento: Date, hoy: Date) {
 const fecha = (v: string | Date | null | undefined) => {
   if (!v) return null;
   const d = v instanceof Date ? v : new Date(`${v}T00:00:00Z`);
-  return Number.isNaN(d.getTime()) ? null : d;
+  if (Number.isNaN(d.getTime())) return null;
+  if (typeof v === "string" && d.toISOString().slice(0, 10) !== v) return null;
+  return d;
 };
 
 /** Devuelve la lista de problemas; vacía significa que se puede presentar. */
@@ -55,30 +60,32 @@ export function validarSolicitud(input: SolicitudInput, hoy = new Date()): Error
   if (texto(input.lastName).length < 2) errores.push({ campo: "lastName", mensaje: "Escribí tu apellido con al menos dos caracteres." });
 
   const nacimiento = fecha(input.birthDate);
-  if (!nacimiento) errores.push({ campo: "birthDate", mensaje: "Falta la fecha de nacimiento." });
+  if (!nacimiento) errores.push({ campo: "birthDate", mensaje: input.birthDate ? "Revisá el día, mes y año de nacimiento." : FALTA_NACIMIENTO });
   else {
     if (nacimiento > hoy) errores.push({ campo: "birthDate", mensaje: "La fecha de nacimiento no puede ser futura." });
     else if (edadEn(nacimiento, hoy) < MIN_EDAD) errores.push({ campo: "birthDate", mensaje: `Con la fecha ingresada todavía no cumpliste ${MIN_EDAD} años, la edad mínima para asociarte. Si el año está mal escrito, corregilo.` });
   }
 
   const tel = soloDigitos(input.phone);
-  if (tel.length < 8) errores.push({ campo: "phone", mensaje: "Ingresá el teléfono con código de área y al menos 8 números en total." });
+  if (/[^0-9 +().-]/.test(texto(input.phone))) errores.push({ campo: "phone", mensaje: "Ingresá el teléfono sin letras. Podés usar espacios, guiones, paréntesis y el signo +." });
+  else if (tel.length < 8) errores.push({ campo: "phone", mensaje: "Ingresá el teléfono con código de área y al menos 8 números en total." });
 
   if (texto(input.address).length < 5) errores.push({ campo: "address", mensaje: "Ingresá tu domicilio con al menos cinco caracteres." });
 
   const dni = soloDigitos(input.docNumber);
-  if (dni.length < DNI_MIN_DIGITOS || dni.length > DNI_MAX_DIGITOS)
+  if (/[^0-9 .-]/.test(texto(input.docNumber))) errores.push({ campo: "docNumber", mensaje: "Ingresá los 7 u 8 dígitos del DNI sin letras." });
+  else if (dni.length < DNI_MIN_DIGITOS || dni.length > DNI_MAX_DIGITOS)
     errores.push({ campo: "docNumber", mensaje: "El DNI tiene 7 u 8 dígitos." });
 
   if (soloDigitos(input.reprocannNumber).length < 4)
     errores.push({ campo: "reprocannNumber", mensaje: "El número de REPROCANN debe incluir al menos cuatro dígitos. Revisalo en tu credencial." });
 
   const vence = fecha(input.reprocannExpiresAt);
-  if (!vence) errores.push({ campo: "reprocannExpiresAt", mensaje: "Falta el vencimiento del REPROCANN." });
+  if (!vence) errores.push({ campo: "reprocannExpiresAt", mensaje: input.reprocannExpiresAt ? "Revisá el día, mes y año de vencimiento del REPROCANN." : FALTA_VENCIMIENTO });
   else if (vence < new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate())))
     errores.push({ campo: "reprocannExpiresAt", mensaje: "El REPROCANN está vencido: renovalo antes de presentarte." });
 
-  if (!input.affidavitAccepted) errores.push({ campo: "affidavitAccepted", mensaje: "Tenés que aceptar la declaración jurada." });
+  if (!input.affidavitAccepted) errores.push({ campo: "affidavitAccepted", mensaje: CONFIRMAR_DECLARACION });
 
   return errores;
 }
