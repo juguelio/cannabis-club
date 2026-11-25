@@ -16,6 +16,14 @@ describe("base del ingreso con Google", () => {
     ).toBe("https://www.republicacannabis.com.ar");
   });
 
+  it("desde `.org.ar` la vuelta se queda en `.org.ar` aunque el canónico sea el alias de Vercel", () => {
+    // En producción `APP_BASE_URL` es el alias de Vercel: sin esto, el `redirect_uri` cambiaba de
+    // dominio, la cookie de `state` no viajaba y el ingreso moría en «el intento venció».
+    expect(
+      baseUrlDelFlujo({ origin: "https://republicacannabis.org.ar", host: "republicacannabis.org.ar" }, CANONICA),
+    ).toBe("https://republicacannabis.org.ar");
+  });
+
   it("el deploy de Vercel sirve para probar y no se pisa con el canónico", () => {
     expect(
       baseUrlDelFlujo({ origin: "https://cannabis-club-abc123-patagonia-sounds.vercel.app", host: "cannabis-club-abc123-patagonia-sounds.vercel.app" }, CANONICA),
@@ -49,10 +57,14 @@ describe("base del ingreso con Google", () => {
   it("reconoce los hosts de la app y descarta los parecidos", () => {
     expect(esHostDeLaApp("republicacannabis.com.ar")).toBe(true);
     expect(esHostDeLaApp("www.republicacannabis.com.ar")).toBe(true);
+    // `.org.ar` es el otro dominio del club: si no se reconoce, el ingreso arranca acá y vuelve por el canónico.
+    expect(esHostDeLaApp("republicacannabis.org.ar")).toBe(true);
+    expect(esHostDeLaApp("www.republicacannabis.org.ar")).toBe(true);
     expect(esHostDeLaApp("localhost:3300")).toBe(true);
     expect(esHostDeLaApp("cannabis-club-mauve.vercel.app")).toBe(true);
     // Trampas: un dominio que sólo contiene el nombre, o un Vercel de otro proyecto.
     expect(esHostDeLaApp("republicacannabis.com.ar.evil.test")).toBe(false);
+    expect(esHostDeLaApp("republicacannabis.org.ar.evil.test")).toBe(false);
     // Preview con sufijo del team: sí es del proyecto.
     expect(esHostDeLaApp("cannabis-club-njji9hhpo-patagonia-sounds.vercel.app")).toBe(true);
     expect(esHostDeLaApp("otro.vercel.app")).toBe(false);
