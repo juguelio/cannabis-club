@@ -23,7 +23,7 @@
 .s-top .s-wrap { display: flex; align-items: center; gap: 20px; height: 70px; }
 .s-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 0; }
 .s-brand-name { font-size: 25px; line-height: 1.1; color: var(--on-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.s-inicio-gotico { font-weight: 400; letter-spacing: 0; text-transform: none; line-height: 1.1; }
+.s-inicio-serif { font-family: "Spectral", Georgia, serif; font-weight: 600; letter-spacing: -.015em; text-transform: none; line-height: 1.1; }
 .s-nav { display: flex; gap: 22px; margin-left: auto; font-size: 14px; font-weight: 600; }
 .s-nav a { text-decoration: none; color: var(--on-dark-2); }
 .s-nav a:hover { color: var(--accent-on-dark); }

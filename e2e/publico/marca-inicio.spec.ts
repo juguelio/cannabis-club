@@ -3,7 +3,7 @@ import { expect, test } from "../fixtures";
 import { E2E_DATABASE_URL } from "../env";
 import { CLUB_ID } from "../../src/lib/club";
 
-test("la portada usa la letra gótica y Quiénes somos muestra el logo en escritorio y móvil", async ({ page }) => {
+test("la portada usa Spectral y Quiénes somos muestra el logo en escritorio y móvil", async ({ page }) => {
   const db = new PrismaClient({ datasourceUrl: E2E_DATABASE_URL });
   const where = { id: CLUB_ID };
   const { marca } = await db.club.findUniqueOrThrow({ where, select: { marca: true } });
@@ -17,9 +17,10 @@ test("la portada usa la letra gótica y Quiénes somos muestra el logo en escrit
       await page.goto("/sitio");
       const titular = page.locator(".s-hero h1 span");
       await expect(titular).toHaveText("Un club de la salud");
-      await expect(titular).toHaveCSS("font-family", /UnifrakturMaguntia/);
+      await expect(titular).toHaveCSS("font-family", /Spectral/);
+      await expect(page.locator(".s-brand-name")).toHaveCSS("font-family", /Spectral/);
       await page.evaluate(() => document.fonts.ready);
-      expect(await page.evaluate(() => document.fonts.check('24px UnifrakturMaguntia'))).toBe(true);
+      expect(await page.evaluate(() => Array.from(document.fonts).some(font => font.family.includes('Spectral') && font.status === 'loaded'))).toBe(true);
       const seccion = page.locator("#quienes-somos");
       const logo = seccion.getByRole("heading", { name: /Quiénes somos/ }).getByRole("img");
       await logo.scrollIntoViewIfNeeded();

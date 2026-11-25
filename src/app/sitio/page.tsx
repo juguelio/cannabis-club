@@ -7,11 +7,12 @@ import { getAnySession } from "@/lib/auth";
 import { getBrandView } from "@/lib/brand-db";
 import { prisma } from "@/lib/db";
 import { CLUB_ID } from "@/lib/club";
-import { FUENTE_GOTICA, whatsappHref } from "@/lib/brand";
+import { whatsappHref } from "@/lib/brand";
 import { catalogoDelClub } from "@/lib/variedades";
 import { VariedadCard } from "@/components/variedad-card";
 import { BrandMark } from "@/components/brand-mark";
 import { SiteJoinFloat } from "@/components/site-join-float";
+import "@fontsource/spectral/latin-600.css";
 import "./sitio.css";
 
 const SITE_URL = process.env.APP_BASE_URL?.startsWith("https://republicacannabis") ? process.env.APP_BASE_URL : "https://republicacannabis.com.ar";
@@ -193,7 +194,7 @@ export default async function SitioPage() {
         <div className="s-wrap">
           <Link href="/sitio" className="s-brand">
             <BrandMark info={mark} />
-            <span className="s-brand-name s-inicio-gotico" style={{ fontFamily: FUENTE_GOTICA }}>{view.nombre}</span>
+            <span className="s-brand-name s-inicio-serif">{view.nombre}</span>
           </Link>
           <nav className="s-nav" aria-label="Secciones">
             <a href="#que-es">Qué es</a>
@@ -217,7 +218,7 @@ export default async function SitioPage() {
             <div>
               <h1 className="s-big">
                 <small>Asociación civil · cultivo solidario</small>
-                <span className="s-inicio-gotico" style={{ fontFamily: FUENTE_GOTICA }}>{brand.lema || view.nombre}</span>
+                <span className="s-inicio-serif">{brand.lema || view.nombre}</span>
               </h1>
               <p className="s-lead">{parrafos[0] && parrafos[0].length >= 120 && parrafos[0].length <= 320 ? parrafos[0] : lead}</p>
               <div className="s-actions">
