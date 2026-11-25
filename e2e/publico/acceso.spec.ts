@@ -62,6 +62,12 @@ test.describe("sitio abierto", () => {
     await expect(page.locator("body")).toContainText(/privacidad|datos personales/i);
   });
 
+  test("los términos del club están disponibles sin ingresar", async ({ page }) => {
+    const resp = await page.goto("/terminos");
+    expect(resp?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/términos/i);
+  });
+
   test("el sitio informativo abre sin cuenta", async ({ page }) => {
     const resp = await page.goto("/sitio");
     expect(resp?.status()).toBe(200);

@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, errMsg } from "@/lib/client";
@@ -32,7 +34,7 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
 
   const allChecked = ITEMS.every((i) => check[i.key]);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent, reportFields: ReportFields) {
     event.preventDefault();
     const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
     if (!allChecked) {
@@ -59,7 +61,7 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
       setOpen(false);
       router.refresh();
     } catch (err) {
-      setError(errMsg(err));
+      if (!reportFields(err)) setError(errMsg(err));
     } finally {
       setBusy(false);
     }
@@ -77,13 +79,13 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
   }
 
   return (
-    <form className="stack" style={{ gap: 12 }} onSubmit={submit}>
+    <ValidatedForm className="stack" style={{ gap: 12 }} onSubmit={submit}>
       <div className="stack" style={{ gap: 6 }}>
         {ITEMS.map((item) => (
           <label key={item.key} className="check">
-            <input
+            <Input
               type="checkbox"
-              checked={check[item.key]}
+              required name={`checklist.${item.key}`} checked={check[item.key]}
               onChange={(e) => setCheck((c) => ({ ...c, [item.key]: e.target.checked }))}
             />
             <span>{item.label}</span>
@@ -91,16 +93,16 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
         ))}
       </div>
       <div className="field-row">
-        <div><label className="label" htmlFor="r-thc">THC (%)</label><input id="r-thc" className="input tnum" inputMode="decimal" value={thc} onChange={(e) => setThc(e.target.value)} placeholder="pendiente" /></div>
-        <div><label className="label" htmlFor="r-cbd">CBD (%)</label><input id="r-cbd" className="input tnum" inputMode="decimal" value={cbd} onChange={(e) => setCbd(e.target.value)} placeholder="pendiente" /></div>
-        <div><label className="label" htmlFor="r-lab">Laboratorio</label><input id="r-lab" className="input" value={labName} onChange={(e) => setLabName(e.target.value)} /></div>
-        <div><label className="label" htmlFor="r-date">Fecha del análisis</label><input id="r-date" type="date" className="input" value={labDate} onChange={(e) => setLabDate(e.target.value)} /></div>
-        <div><label className="label" htmlFor="r-res">Resultado</label><input id="r-res" className="input" value={labResult} onChange={(e) => setLabResult(e.target.value)} placeholder="Aprobado / rechazado" /></div>
-        <div><label className="label" htmlFor="r-sample">Muestra retenida (g)</label><input id="r-sample" className="input tnum" inputMode="decimal" value={sampleG} onChange={(e) => setSampleG(e.target.value)} /></div>
-        <div><label className="label" htmlFor="r-until">Guardar hasta</label><input id="r-until" type="date" className="input" value={sampleUntil} onChange={(e) => setSampleUntil(e.target.value)} /></div>
+        <div><label className="label" htmlFor="r-thc">THC (%)</label><Input id="r-thc" className="input tnum" inputMode="decimal" name="thcPct" value={thc} onChange={(e) => setThc(e.target.value)} placeholder="pendiente" /></div>
+        <div><label className="label" htmlFor="r-cbd">CBD (%)</label><Input id="r-cbd" className="input tnum" inputMode="decimal" name="cbdPct" value={cbd} onChange={(e) => setCbd(e.target.value)} placeholder="pendiente" /></div>
+        <div><label className="label" htmlFor="r-lab">Laboratorio</label><Input id="r-lab" className="input" name="labName" value={labName} onChange={(e) => setLabName(e.target.value)} /></div>
+        <div><label className="label" htmlFor="r-date">Fecha del análisis</label><Input id="r-date" type="date" className="input" name="labDate" value={labDate} onChange={(e) => setLabDate(e.target.value)} /></div>
+        <div><label className="label" htmlFor="r-res">Resultado</label><Input id="r-res" className="input" name="labResult" value={labResult} onChange={(e) => setLabResult(e.target.value)} placeholder="Aprobado / rechazado" /></div>
+        <div><label className="label" htmlFor="r-sample">Muestra retenida (g)</label><Input id="r-sample" className="input tnum" inputMode="decimal" name="sampleRetainedG" value={sampleG} onChange={(e) => setSampleG(e.target.value)} /></div>
+        <div><label className="label" htmlFor="r-until">Guardar hasta</label><Input id="r-until" type="date" className="input" name="sampleUntil" value={sampleUntil} onChange={(e) => setSampleUntil(e.target.value)} /></div>
       </div>
       <label className="check">
-        <input type="checkbox" checked={noAnalysis} onChange={(e) => setNoAnalysis(e.target.checked)} />
+        <Input type="checkbox" checked={noAnalysis} onChange={(e) => setNoAnalysis(e.target.checked)} />
         <span>Liberar sin análisis<span className="hint">La ficha del lote va a decir &quot;pendiente de análisis&quot;. No se inventa ningún valor.</span></span>
       </label>
       {error ? <div className="note note-warn" role="alert">{error}</div> : null}
@@ -108,7 +110,7 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
         <button className="btn" disabled={busy}>{busy ? "Firmando…" : "Firmar liberación"}</button>
         <button type="button" className="btn btn-quiet" onClick={() => setOpen(false)} disabled={busy}>Cancelar</button>
       </div>
-    </form>
+    </ValidatedForm>
   );
 }
 
@@ -121,7 +123,7 @@ export function RecallForm({ id, code, affected }: { id: string; code: string; a
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent, reportFields: ReportFields) {
     event.preventDefault();
     if (reason.trim().length < 5) {
       setError("Escribí el motivo del retiro: queda en el registro y lo ve el socio.");
@@ -135,7 +137,7 @@ export function RecallForm({ id, code, affected }: { id: string; code: string; a
       setOpen(false);
       router.refresh();
     } catch (err) {
-      setError(errMsg(err));
+      if (!reportFields(err)) setError(errMsg(err));
     } finally {
       setBusy(false);
     }
@@ -153,16 +155,16 @@ export function RecallForm({ id, code, affected }: { id: string; code: string; a
   }
 
   return (
-    <form className="stack" style={{ gap: 10 }} onSubmit={submit}>
+    <ValidatedForm className="stack" style={{ gap: 10 }} onSubmit={submit}>
       <div>
         <label className="label" htmlFor="rc-reason">Motivo del retiro</label>
-        <input id="rc-reason" className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej.: análisis con contaminantes" />
+        <Input required minLength={5} id="rc-reason" className="input" name="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej.: análisis con contaminantes" />
       </div>
       {error ? <div className="note note-warn">{error}</div> : null}
       <div className="flex gap-2">
         <button className="btn" disabled={busy}>{busy ? "Retirando…" : "Confirmar retiro"}</button>
         <button type="button" className="btn btn-quiet" onClick={() => setOpen(false)} disabled={busy}>Cancelar</button>
       </div>
-    </form>
+    </ValidatedForm>
   );
 }

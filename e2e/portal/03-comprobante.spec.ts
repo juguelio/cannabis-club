@@ -14,14 +14,15 @@ test.describe("comprobante", () => {
     await expect(subir).toBeDisabled();
   });
 
-  test("un PDF que no es comprobante no se acepta como imagen", async ({ page }) => {
+  test("el selector explica por qué rechaza un archivo de texto", async ({ page }) => {
     const pedido = await crearPedido(page);
     await page.goto(`/portal/pedido/pago/${pedido}`, { waitUntil: "networkidle" });
 
     const input = page.locator("input[type=file]").last();
     await input.setInputFiles({ name: "vacio.txt", mimeType: "text/plain", buffer: Buffer.from("no soy un comprobante") });
 
-    await expect(page.locator("body")).toContainText(/foto|imagen|JPG|PNG|PDF/i);
+    await expect(input).toHaveAccessibleDescription(/foto|imagen|JPG|PNG|PDF/i);
+    await expect(page.getByText("No se pudo presentar el comprobante. Revisá el dato señalado.")).toBeVisible();
   });
 
   test("subir la foto cierra el pedido y avisa que queda en revisión", async ({ page }) => {

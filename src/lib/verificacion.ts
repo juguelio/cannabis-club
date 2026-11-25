@@ -86,10 +86,10 @@ export async function presentarVerificacion(input: Presentacion & { memberId: st
     vence: input.vence,
     edadMinima: config.edadMinima,
   });
-  if (!res.ok) throw badRequest(res.problema.codigo, res.problema.mensaje);
+  if (!res.ok) throw badRequest(res.problema.codigo, res.problema.mensaje, [res.problema]);
 
   const dom = validarDomicilio(input);
-  if (!dom.ok) throw badRequest(dom.problema.codigo, dom.problema.mensaje);
+  if (!dom.ok) throw badRequest(dom.problema.codigo, dom.problema.mensaje, [dom.problema]);
 
   const member = await prisma.member.findUnique({
     where: { id: input.memberId },

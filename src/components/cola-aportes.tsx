@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input } from "./validated-form";
+
 import { useState } from "react";
 import { Check, ExternalLink, X } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
@@ -160,10 +162,10 @@ export function ColaAportes({ inicial }: { inicial: ComprobanteEnCola[] }) {
                     />
                   )}
                   {abierto === `motivo:${c.id}` ? (
-                    <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+                    <ValidatedForm onSubmit={() => decidir(c.id, "RECHAZAR", motivo)} style={{ marginTop: 8, display: "grid", gap: 6 }}>
                       <label className="field" style={{ margin: 0 }}>
                         <span>Por qué se rechaza (lo lee el socio)</span>
-                        <input
+                        <Input required minLength={5} name="motivo"
                           className="input"
                           value={motivo}
                           onChange={(ev) => setMotivo(ev.target.value)}
@@ -172,13 +174,12 @@ export function ColaAportes({ inicial }: { inicial: ComprobanteEnCola[] }) {
                       </label>
                       <button
                         className="btn btn-sm"
-                        type="button"
-                        disabled={busy === c.id || motivo.trim().length < 5}
-                        onClick={() => decidir(c.id, "RECHAZAR", motivo)}
+                        type="submit"
+                        disabled={busy === c.id}
                       >
                         Confirmar rechazo
                       </button>
-                    </div>
+                    </ValidatedForm>
                   ) : null}
                 </div>
               ) : null}

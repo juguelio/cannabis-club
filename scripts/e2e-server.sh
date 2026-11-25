@@ -14,19 +14,13 @@ if [ ! -f .next/BUILD_ID ]; then
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1091
-. ./.env
-set +a
-
-export DATABASE_URL="${DATABASE_URL/cannabis_club_dev/cannabis_club_e2e}"
+export DATABASE_URL="$(npx tsx -e 'import { E2E_DATABASE_URL } from "./e2e/env"; console.log(E2E_DATABASE_URL)')"
 export DIRECT_URL="$DATABASE_URL"
-export AUTH_SECRET="${AUTH_SECRET:-e2e-secreto-solo-para-tests-0000000000}"
-# Los documentos del legajo se guardan cifrados y `DOC_ENC_KEY` no está en .env (vive en Vercel):
-# sin clave, subir un documento tira «DOC_ENC_KEY no está configurada» y el trámite no se prueba.
-export DOC_ENC_KEY="${DOC_ENC_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
+export AUTH_SECRET="${E2E_AUTH_SECRET:?Iniciá la suite con Playwright}"
+export DOC_HASH_KEY="e2e-indice-solo-para-tests"
+export DOC_ENC_KEY="MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+export APP_BASE_URL="http://127.0.0.1:3500"
 export NODE_ENV=production
-
+export RESEND_API_KEY=""
 npx tsx e2e/reset-db.ts
-
-exec npx next start -p 3500
+exec npx next start --hostname 127.0.0.1 -p 3500

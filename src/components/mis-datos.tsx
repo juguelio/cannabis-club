@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,7 +39,7 @@ export function MisDatos({ inicial, volverHref }: { inicial: DatosOperativos; vo
 
   const sucio = (Object.keys(f) as (keyof typeof f)[]).some((k) => f[k].trim() !== (guardado[k] ?? ""));
 
-  async function guardar(e: React.FormEvent) {
+  async function guardar(e: React.FormEvent, reportFields: ReportFields) {
     e.preventDefault();
     setBusy(true);
     setFalta(null);
@@ -57,6 +59,7 @@ export function MisDatos({ inicial, volverHref }: { inicial: DatosOperativos; vo
       toast({ tone: "ok", title: r.mensaje });
       router.refresh();
     } catch (err) {
+      if (reportFields(err)) return;
       const detalle = errMsg(err);
       setFalta({ mensaje: detalle });
       toast({ tone: "bad", title: "No se pudieron guardar tus datos", text: detalle });
@@ -66,7 +69,7 @@ export function MisDatos({ inicial, volverHref }: { inicial: DatosOperativos; vo
   }
 
   return (
-    <form className="mis-datos" onSubmit={guardar}>
+    <ValidatedForm className="mis-datos" onSubmit={guardar}>
       <section className="panel">
         <div className="panel-head">
           <div>
@@ -80,26 +83,26 @@ export function MisDatos({ inicial, volverHref }: { inicial: DatosOperativos; vo
         <div className="panel-body stack" style={{ gap: 16 }}>
           <div>
             <label className="label" htmlFor="md-dir">Calle y número</label>
-            <input id="md-dir" className="input" value={f.address} onChange={set("address")} autoComplete="street-address" placeholder="Los Notros 195" />
+            <Input id="md-dir" className="input" name="address" value={f.address} onChange={set("address")} autoComplete="street-address" placeholder="Los Notros 195" />
           </div>
 
           <div className="mis-datos-grid">
             <div>
               <label className="label" htmlFor="md-loc">Localidad</label>
-              <input id="md-loc" className="input" value={f.locality} onChange={set("locality")} autoComplete="address-level2" placeholder="San Martín de los Andes" />
+              <Input id="md-loc" className="input" name="locality" value={f.locality} onChange={set("locality")} autoComplete="address-level2" placeholder="San Martín de los Andes" />
             </div>
             <div>
               <label className="label" htmlFor="md-prov">Provincia</label>
-              <input id="md-prov" className="input" value={f.province} onChange={set("province")} autoComplete="address-level1" placeholder="Neuquén" />
+              <Input id="md-prov" className="input" name="province" value={f.province} onChange={set("province")} autoComplete="address-level1" placeholder="Neuquén" />
             </div>
             <div>
               <label className="label" htmlFor="md-cp">Código postal</label>
-              <input id="md-cp" className="input tnum" value={f.postalCode} onChange={set("postalCode")} inputMode="numeric" autoComplete="postal-code" placeholder="8370" aria-describedby="md-cp-hint" />
+              <Input id="md-cp" className="input tnum" name="postalCode" value={f.postalCode} onChange={set("postalCode")} inputMode="numeric" autoComplete="postal-code" placeholder="8370" aria-describedby="md-cp-hint" />
               <span className="hint" id="md-cp-hint">Cuatro números. Sin esto no podemos despachar un envío.</span>
             </div>
             <div>
               <label className="label" htmlFor="md-tel">Teléfono</label>
-              <input id="md-tel" className="input" value={f.phone} onChange={set("phone")} inputMode="tel" autoComplete="tel" placeholder="2944 15 8559" />
+              <Input id="md-tel" className="input" name="phone" value={f.phone} onChange={set("phone")} inputMode="tel" autoComplete="tel" placeholder="2944 15 8559" />
             </div>
           </div>
 
@@ -132,6 +135,6 @@ export function MisDatos({ inicial, volverHref }: { inicial: DatosOperativos; vo
           </p>
         </div>
       </section>
-    </form>
+    </ValidatedForm>
   );
 }

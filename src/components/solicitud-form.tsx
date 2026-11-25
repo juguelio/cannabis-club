@@ -1,7 +1,17 @@
 "use client";
 
+import { ValidatedForm, FieldErrorSummary, Input, Select, type ReportFields } from "./validated-form";
+
 import { useState } from "react";
+import { api, ApiError } from "@/lib/client";
 import Link from "next/link";
+
+const etiquetas = {
+  firstName: "Nombre", lastName: "Apellido", birthDate: "Fecha de nacimiento", docNumber: "DNI",
+  phone: "Teléfono", locality: "Localidad", address: "Domicilio", reprocannNumber: "N.º de REPROCANN",
+  reprocannExpiresAt: "Vencimiento del REPROCANN", consumptionType: "Tipo de consumo",
+  affidavitAccepted: "Declaración jurada",
+};
 
 type Documento = { id: string; tipo: string; mime: string; size: number };
 export type EstadoSolicitud = {
@@ -22,12 +32,6 @@ const DOCS = [
 const MAX = 6 * 1024 * 1024;
 const MIMES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
-async function post<T>(url: string, payload: unknown): Promise<T> {
-  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.message ?? "No pudimos guardar los datos.");
-  return data as T;
-}
 
 export type PadronPrevio = {
   legajo: number;
@@ -62,6 +66,7 @@ export function SolicitudForm({
   const pideGate = !estado;
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [archivoConError, setArchivoConError] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const [previa, setPrevia] = useState<Record<string, string>>({});
   const [datos, setDatos] = useState({
@@ -80,20 +85,36 @@ export function SolicitudForm({
   });
 
   const campos = (k: keyof typeof datos) => ({
+    name: k,
     value: datos[k] as string,
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setDatos({ ...datos, [k]: e.target.value }),
   });
 
-  async function presentar(e: React.FormEvent) {
+  async function presentar(e: React.FormEvent, reportFields: ReportFields) {
     e.preventDefault();
     setError(null);
     setEnviando(true);
     try {
-      await post("/api/solicitud", { ...datos, locality: datos.locality || null });
-      const fresco = await fetch("/api/solicitud").then((r) => r.json());
-      setEstado(fresco.solicitud);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No pudimos guardar los datos.");
+      try {
+        await api("/api/solicitud", { body: { ...datos, locality: datos.locality || null } });
+      } catch (err) {
+        if (reportFields(err)) return;
+        if (!(err instanceof ApiError) || (err.status > 0 && err.status < 500 && err.code !== "YA_PRESENTADA")) {
+          setError(err instanceof Error ? err.message : "No pudimos presentar la solicitud. Volvé a intentar.");
+          return;
+        }
+        // Un envío interrumpido puede haberse guardado. Consultar su estado antes de pedir otro intento.
+      }
+      try {
+        const fresco = await api<{ solicitud: EstadoSolicitud | null }>("/api/solicitud");
+        if (fresco.solicitud && fresco.solicitud.status !== "RECHAZADA") {
+          setEstado(fresco.solicitud);
+        } else {
+          setError("La solicitud no quedó presentada. El servicio de altas no pudo completar el envío. Tus datos siguen en esta pantalla. Volvé a intentar en unos minutos.");
+        }
+      } catch {
+        setError("No pudimos confirmar si el club recibió la solicitud. Conservamos lo que escribiste en esta pantalla. Revisá tu conexión y volvé a intentar en unos minutos.");
+      }
     } finally {
       setEnviando(false);
     }
@@ -101,6 +122,7 @@ export function SolicitudForm({
 
   async function subir(tipo: string, file: File | undefined) {
     if (!file) return;
+    setArchivoConError(tipo);
     setError(null);
     if (file.size > MAX) return setError("El archivo supera los 6 MB.");
     if (!MIMES.includes(file.type)) return setError("Sólo JPG, PNG, WEBP o PDF.");
@@ -175,6 +197,8 @@ export function SolicitudForm({
                       {subiendo === d.tipo ? "Subiendo…" : cargado(d.tipo) ? "Reemplazar archivo" : "Subir archivo"}
                       <input
                         type="file"
+                        aria-invalid={archivoConError === d.tipo && error ? true : undefined}
+                        aria-describedby={archivoConError === d.tipo && error ? `archivo-error-${d.tipo}` : undefined}
                         accept={MIMES.join(",")}
                         disabled={subiendo === d.tipo}
                         onChange={(e) => subir(d.tipo, e.target.files?.[0])}
@@ -182,6 +206,7 @@ export function SolicitudForm({
                         aria-label={`${cargado(d.tipo) ? "Reemplazar" : "Subir"} ${d.label}`}
                       />
                     </label>
+                    {archivoConError === d.tipo && error && <small className="field-error" id={`archivo-error-${d.tipo}`}>{error}</small>}
                     <small className="muted" style={{ fontSize: 11.5, display: "block", marginTop: 4 }}>
                       JPG, PNG o PDF · hasta 6 MB
                     </small>
@@ -189,7 +214,7 @@ export function SolicitudForm({
                 ))}
               </div>
             </div>
-            {error && <p className="note note-danger">{error}</p>}
+            {error && <p className="note note-danger" role="alert">No pudimos cargar {DOCS.find(d => d.tipo === archivoConError)?.label}. Revisá el archivo indicado.</p>}
             <p className="hint">
               Podés reemplazar cualquier archivo mientras la solicitud está en revisión. Las fotos quedan cifradas y
               sólo las abre la persona que revisa tu legajo.
@@ -202,7 +227,7 @@ export function SolicitudForm({
 
   // Sin solicitud (o rechazada): formulario.
   return (
-    <form className="stack" onSubmit={presentar}>
+    <ValidatedForm className="stack" customSummary onChange={() => setError(null)} onSubmit={presentar}>
       {estado?.status === "RECHAZADA" && (
         <div className="panel">
           <div className="panel-head">
@@ -283,65 +308,65 @@ export function SolicitudForm({
           <div className="field-row">
             <label className="label">
               Nombre
-              <input className="input" required {...campos("firstName")} />
+              <Input className="input" required {...campos("firstName")} />
             </label>
             <label className="label">
               Apellido
-              <input className="input" required {...campos("lastName")} />
+              <Input className="input" required {...campos("lastName")} />
             </label>
           </div>
           <div className="field-row">
             <label className="label">
               Fecha de nacimiento
-              <input className="input" type="date" required {...campos("birthDate")} />
+              <Input className="input" type="date" required {...campos("birthDate")} />
             </label>
             <label className="label">
               DNI
-              <input className="input tnum" inputMode="numeric" placeholder="30123456" required {...campos("docNumber")} />
+              <Input className="input tnum" inputMode="numeric" placeholder="30123456" required {...campos("docNumber")} />
             </label>
           </div>
           <div className="field-row">
             <label className="label">
               Teléfono
-              <input className="input" placeholder="294 412 3456" required {...campos("phone")} />
+              <Input className="input" placeholder="294 412 3456" required {...campos("phone")} />
             </label>
             <label className="label">
               Localidad
-              <input className="input" placeholder="San Martín de los Andes" {...campos("locality")} />
+              <Input className="input" placeholder="San Martín de los Andes" {...campos("locality")} />
             </label>
           </div>
           <div className="field-row">
             <label className="label">
               Domicilio
-              <input className="input" required {...campos("address")} />
+              <Input className="input" required {...campos("address")} />
             </label>
           </div>
           <div className="field-row">
             <label className="label">
               N° de REPROCANN
-              <input className="input tnum" required {...campos("reprocannNumber")} />
+              <Input className="input tnum" required {...campos("reprocannNumber")} />
             </label>
             <label className="label">
               Vence
-              <input className="input" type="date" required {...campos("reprocannExpiresAt")} />
+              <Input className="input" type="date" required {...campos("reprocannExpiresAt")} />
             </label>
           </div>
           <label className="label">
             Tipo de consumo
-            <select className="select" value={datos.consumptionType} onChange={(e) => setDatos({ ...datos, consumptionType: e.target.value })}>
+            <Select className="select" name="consumptionType" value={datos.consumptionType} onChange={(e) => setDatos({ ...datos, consumptionType: e.target.value })}>
               <option value="LUDICO">Lúdico</option>
               <option value="TERAPEUTICO">Terapéutico</option>
-            </select>
+            </Select>
           </label>
           <label className="check">
-            <input
+            <Input
               type="checkbox"
-              checked={datos.affidavitAccepted}
+              name="affidavitAccepted" required checked={datos.affidavitAccepted}
               onChange={(e) => setDatos({ ...datos, affidavitAccepted: e.target.checked })}
             />
             Declaro que los datos son verdaderos y que el cultivo es para mi consumo personal (Ley 27.350 y REPROCANN).
           </label>
-          <p className="note" style={{ fontSize: 13 }}>
+          <p className="note" style={{ fontSize: 13, display: "block" }}>
             Al enviar la solicitud aceptás los{" "}
             <Link href="/terminos" target="_blank">
               Términos y Condiciones
@@ -352,7 +377,8 @@ export function SolicitudForm({
             </Link>{" "}
             del club.
           </p>
-          {error && <p className="note note-danger">{error}</p>}
+          <FieldErrorSummary labels={etiquetas} />
+          {error && <p className="note note-danger" role="alert">{error}</p>}
           <div>
             <button className="btn btn-lg" type="submit" disabled={enviando}>
               {enviando ? "Guardando…" : "Continuar a la documentación"}
@@ -362,6 +388,6 @@ export function SolicitudForm({
       </div>
       </>
       ) : null}
-    </form>
+    </ValidatedForm>
   );
 }

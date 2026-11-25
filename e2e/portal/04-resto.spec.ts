@@ -25,11 +25,12 @@ test.describe("mis datos", () => {
 
   test("guarda el domicilio y lo deja dicho", async ({ page }) => {
     await page.goto("/portal/datos");
-    const boton = page.getByRole("button", { name: /Guardar|Actualizar/i }).first();
-    if (await boton.count()) {
-      await boton.click();
-      await expect(page.locator("body")).toContainText(/guardad|listo|ok/i, { timeout: 15_000 });
-    }
+    const domicilio = page.getByLabel("Calle y número");
+    await domicilio.fill("Calle Demo 145");
+    await page.getByRole("button", { name: "Guardar mis datos" }).click();
+    await expect(page.getByRole("button", { name: "Todo guardado" })).toBeDisabled();
+    await page.reload();
+    await expect(domicilio).toHaveValue("Calle Demo 145");
   });
 });
 

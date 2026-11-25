@@ -59,11 +59,11 @@ export async function POST(req: Request) {
     const body = CreateBody.parse(await req.json());
 
     if (body.status === "ACTIVO" && !body.consentSignedAt)
-      throw unprocessable("CONSENT_REQUIRED", "Para dar de alta como activo hace falta la fecha del consentimiento firmado.");
+      throw unprocessable("CONSENT_REQUIRED", "Para dar de alta como activo hace falta la fecha del consentimiento firmado.", { campo: "consentSignedAt" });
     // El número no se archiva: se calcula la huella y se busca por ella (REA 4).
     const doc = docFingerprint(body.docNumber);
     const existing = await prisma.member.findUnique({ where: { docHash: doc.docHash } });
-    if (existing) throw conflict("DOC_EXISTS", `Ese documento ya está en el padrón (legajo ${existing.legajo}).`);
+    if (existing) throw conflict("DOC_EXISTS", `Ese documento ya está en el padrón (legajo ${existing.legajo}).`, { campo: "docNumber" });
 
     const member = await prisma.$transaction(async tx => {
       const last = await tx.member.aggregate({ _max: { legajo: true } });

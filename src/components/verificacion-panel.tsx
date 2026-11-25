@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { api, errMsg } from "@/lib/client";
@@ -63,14 +65,16 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
     Object.fromEntries((inicial.presentacion?.documentos ?? []).map((d) => [d.tipo, d.subido])),
   );
   const [, startTransition] = useTransition();
+  const [docConError, setDocConError] = useState<string | null>(null);
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const tienePresentacion = !!estado.presentacion;
   const faltan = DOCS.map((d) => d.tipo).filter((t) => !subidos[t]);
 
-  async function guardarDatos(e: React.FormEvent) {
+  async function guardarDatos(e: React.FormEvent, reportFields: ReportFields) {
     e.preventDefault();
     setBusy("datos");
+    setDocConError(null);
     setError(null);
     try {
       await api("/api/portal/verificacion", { body: form });
@@ -79,7 +83,7 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
       setEstado((prev) => ({ ...prev, ...r, presentacion: r.presentacion ?? prev.presentacion }));
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(errMsg(err));
+      if (!reportFields(err)) setError(errMsg(err));
     } finally {
       setBusy(null);
     }
@@ -89,6 +93,7 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
     const file = inputs.current[tipo]?.files?.[0];
     if (!file) return;
     setBusy(tipo);
+    setDocConError(tipo);
     setError(null);
     try {
       const res = await fetch(`/api/portal/verificacion/documentos?tipo=${tipo}`, {
@@ -132,46 +137,46 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
           </div>
         </div>
 
-        <form onSubmit={guardarDatos} className="stack" style={{ gap: 14 }}>
+        <ValidatedForm onSubmit={guardarDatos} className="stack" style={{ gap: 14 }}>
           <div className="grid-2">
             <label className="stack" style={{ gap: 6 }}>
               <span className="label">DNI</span>
-              <input
+              <Input
                 className="input"
                 inputMode="numeric"
                 autoComplete="off"
                 placeholder="Sin puntos"
-                value={form.dni}
+                name="dni" value={form.dni}
                 onChange={(e) => setForm((f) => ({ ...f, dni: e.target.value }))}
                 required
               />
             </label>
             <label className="stack" style={{ gap: 6 }}>
               <span className="label">Fecha de nacimiento</span>
-              <input
+              <Input
                 className="input"
                 type="date"
-                value={form.nacimiento}
+                name="nacimiento" value={form.nacimiento}
                 onChange={(e) => setForm((f) => ({ ...f, nacimiento: e.target.value }))}
                 required
               />
             </label>
             <label className="stack" style={{ gap: 6 }}>
               <span className="label">Número de REPROCANN</span>
-              <input
+              <Input
                 className="input"
                 autoComplete="off"
-                value={form.reprocann}
+                name="reprocann" value={form.reprocann}
                 onChange={(e) => setForm((f) => ({ ...f, reprocann: e.target.value }))}
                 required
               />
             </label>
             <label className="stack" style={{ gap: 6 }}>
               <span className="label">Vence el</span>
-              <input
+              <Input
                 className="input"
                 type="date"
-                value={form.vence}
+                name="vence" value={form.vence}
                 onChange={(e) => setForm((f) => ({ ...f, vence: e.target.value }))}
                 required
               />
@@ -207,45 +212,45 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
             <div className="grid-2">
               <label className="stack" style={{ gap: 6, gridColumn: "1 / -1" }}>
                 <span className="label">Calle y número</span>
-                <input
+                <Input
                   className="input"
                   autoComplete="street-address"
                   placeholder="Ej. Tromen 120, casa 9"
-                  value={form.direccion}
+                  name="direccion" value={form.direccion}
                   onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
                   required
                 />
               </label>
               <label className="stack" style={{ gap: 6 }}>
                 <span className="label">Localidad</span>
-                <input
+                <Input
                   className="input"
                   autoComplete="address-level2"
-                  value={form.localidad}
+                  name="localidad" value={form.localidad}
                   onChange={(e) => setForm((f) => ({ ...f, localidad: e.target.value }))}
                   required
                 />
               </label>
               <label className="stack" style={{ gap: 6 }}>
                 <span className="label">Provincia</span>
-                <input
+                <Input
                   className="input"
                   autoComplete="address-level1"
                   placeholder="Ej. Neuquén"
-                  value={form.provincia}
+                  name="provincia" value={form.provincia}
                   onChange={(e) => setForm((f) => ({ ...f, provincia: e.target.value }))}
                   required
                 />
               </label>
               <label className="stack" style={{ gap: 6 }}>
                 <span className="label">Código postal</span>
-                <input
+                <Input
                   className="input"
                   autoComplete="postal-code"
                   inputMode="numeric"
                   placeholder="Ej. 8370"
                   maxLength={8}
-                  value={form.codigoPostal}
+                  name="codigoPostal" value={form.codigoPostal}
                   onChange={(e) => setForm((f) => ({ ...f, codigoPostal: e.target.value }))}
                   required
                 />
@@ -259,7 +264,7 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
             </button>
             <span className="hint">El club revisa contra el documento: se tiene que leer bien.</span>
           </div>
-        </form>
+        </ValidatedForm>
       </div>
 
       <div className="panel">
@@ -294,12 +299,16 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
                         ref={(el) => {
                           inputs.current[d.tipo] = el;
                         }}
+                        aria-label={`${ok ? "Reemplazar" : "Subir"} ${d.label}`}
+                        aria-invalid={docConError === d.tipo && error ? true : undefined}
+                        aria-describedby={docConError === d.tipo && error ? `doc-error-${d.tipo}` : undefined}
                         type="file"
                         accept="image/jpeg,image/png,image/webp,application/pdf"
                         style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
                         onChange={() => void subirDoc(d.tipo)}
                       />
                     </label>
+                    {docConError === d.tipo && error && <small id={`doc-error-${d.tipo}`} className="field-error">{error}</small>}
                     {busy === d.tipo ? <span className="cell-meta">Subiendo…</span> : null}
                   </div>
                 </li>
@@ -320,7 +329,7 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
 
       {error ? (
         <div className="note note-danger" role="alert">
-          <div>{error}</div>
+          <div>{docConError ? `No se pudo cargar ${DOCS.find(d => d.tipo === docConError)?.label}. Revisá el archivo indicado.` : error}</div>
         </div>
       ) : null}
 

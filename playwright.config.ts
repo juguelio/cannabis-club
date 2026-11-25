@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 import { BASE_URL } from "./e2e/env";
 
@@ -12,6 +13,9 @@ import { BASE_URL } from "./e2e/env";
  * - **Servidor de producción** (`next start`), no `next dev`: lo que se prueba es lo que se publica.
  * - Traza y captura sólo cuando algo falla, para que el reporte sirva y no pese 200 MB.
  */
+// Los workers y el servidor de esta corrida comparten una clave efímera.
+process.env.E2E_AUTH_SECRET ??= randomBytes(32).toString("base64");
+
 export default defineConfig({
   testDir: "e2e",
   outputDir: "e2e/.resultados",

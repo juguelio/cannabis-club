@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Textarea } from "./validated-form";
+
 import { useEffect, useRef } from "react";
 
 /** Diálogo modal nativo (<dialog>): foco atrapado, Esc para cerrar, sin librerías. */
@@ -83,7 +85,7 @@ export function ReasonDialog({
 }) {
   return (
     <Dialog open={open} onClose={onClose} title={title} labelledBy="reason-title">
-      <form
+      <ValidatedForm
         onSubmit={(e) => {
           e.preventDefault();
           const v = String(new FormData(e.currentTarget).get("reason") ?? "").trim();
@@ -94,7 +96,7 @@ export function ReasonDialog({
           {description ? <div className="muted" style={{ fontSize: 14 }}>{description}</div> : null}
           <div>
             <label className="label" htmlFor="reason">{reasonLabel}</label>
-            <textarea id="reason" name="reason" className="textarea" required={reasonRequired} minLength={reasonRequired ? 5 : undefined} autoFocus />
+            <Textarea id="reason" name="reason" className="textarea" required={reasonRequired} minLength={reasonRequired ? 5 : undefined} autoFocus />
             {reasonRequired ? <span className="hint">Queda en el registro, con tu nombre y la hora.</span> : null}
           </div>
           {error ? <div className="note note-danger">{error}</div> : null}
@@ -103,7 +105,7 @@ export function ReasonDialog({
           <button type="button" className="btn btn-quiet" onClick={onClose}>Volver</button>
           <button className={`btn ${danger ? "btn-danger-solid" : ""}`} disabled={busy}>{busy ? "Guardando…" : confirmLabel}</button>
         </div>
-      </form>
+      </ValidatedForm>
     </Dialog>
   );
 }

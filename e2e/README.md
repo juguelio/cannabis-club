@@ -4,10 +4,15 @@ Prueban la app entera desde el navegador, contra una base propia que se rehace e
 Nunca tocan `cannabis_club_dev` ni la base de producción.
 
 ```bash
+npx playwright install chromium  # una vez por máquina
 npm run build          # el servidor de los tests usa el build de producción
 npm run e2e            # corre todo y deja el reporte en e2e/.reporte
 npm run e2e:reporte    # abre el último reporte
 ```
+
+La conexión de `.env` debe apuntar a PostgreSQL en esta máquina. El proceso de pruebas usa
+el mismo servidor y una base independiente llamada `cannabis_club_e2e`. La sesión de solicitud
+representa la vuelta de Google con una cuenta de prueba y una clave efímera de la corrida.
 
 Para mirar una sola suite o un solo test:
 

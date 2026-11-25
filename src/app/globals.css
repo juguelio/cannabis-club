@@ -1309,3 +1309,10 @@ details.card > div { min-width: 0; max-width: 100%; }
 .tablero-comprobante { display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); }
 .tablero-difiere { color: #8a2c1f; }
 @media (max-width: 900px) { .tablero-columnas { grid-template-columns: minmax(0, 1fr); } }
+
+.field-error {
+  display: block;
+  margin-top: .25rem;
+  color: var(--danger, #a02525);
+  font-size: .875rem;
+}

@@ -6,7 +6,7 @@ import { expect, test } from "../fixtures";
  * y nadie se entera hasta que el club la necesita.
  */
 const pantallas: Array<[string, string]> = [
-  ["/", "Buenas"],
+  ["/", "Admin"],
   ["/socios", "Socios"],
   ["/socios/nuevo", "Alta"],
   ["/stock", "Stock y lotes"],
@@ -19,6 +19,7 @@ const pantallas: Array<[string, string]> = [
   ["/reportes", "Libros"],
   ["/control", "Control"],
   ["/cierre", "Cierre del día"],
+  ["/cierre-mensual", "Cierre mensual"],
   ["/avisos", "Avisos"],
   ["/configuracion", "Configuración"],
   ["/cartas", "Cartas"],

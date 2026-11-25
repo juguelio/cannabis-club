@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { parseEnv } from "node:util";
 
 /**
  * El puerto 3000 es del bridge de WhatsApp y el 3300 del `next dev` de siempre:
@@ -11,19 +11,7 @@ export const BASE_URL = `http://127.0.0.1:${PORT}`;
 /** Base propia de los tests. Nunca se corre nada contra `cannabis_club_dev` ni contra Neon. */
 export const E2E_DB_NAME = "cannabis_club_e2e";
 
-function leerEnv(): Record<string, string> {
-  const salida: Record<string, string> = {};
-  for (const crudo of readFileSync(resolve(process.cwd(), ".env"), "utf8").split("\n")) {
-    const linea = crudo.trim();
-    if (!linea || linea.startsWith("#")) continue;
-    const corte = linea.indexOf("=");
-    if (corte < 0) continue;
-    salida[linea.slice(0, corte).trim()] = linea.slice(corte + 1).trim().replace(/^["']|["']$/g, "");
-  }
-  return salida;
-}
-
-const env = leerEnv();
+const env = parseEnv(readFileSync(".env", "utf8"));
 
 /** La URL de desarrollo, tal cual está en `.env` (para poder mostrar contra qué base se corrió). */
 export const DATABASE_URL_DEV = env.DATABASE_URL ?? "";
@@ -33,10 +21,16 @@ export const DATABASE_URL_DEV = env.DATABASE_URL ?? "";
  * `?schema=public` se conserva: Prisma lo entiende y psql lo ignora cuando se le pasa la URL limpia.
  */
 export function conBase(url: string, base: string): string {
-  const [sinQuery, query] = url.split("?");
-  const corte = sinQuery.lastIndexOf("/");
-  const conNombre = `${sinQuery.slice(0, corte)}/${base}`;
-  return query ? `${conNombre}?${query}` : conNombre;
+  const target = new URL(url);
+  if (!["127.0.0.1", "localhost", "[::1]"].includes(target.hostname) ||
+      !["postgres:", "postgresql:"].includes(target.protocol) || target.pathname === "/" + base) {
+    throw new Error("Los E2E necesitan una base local de desarrollo distinta de la base de pruebas.");
+  }
+  const schema = target.searchParams.get("schema");
+  target.search = "";
+  if (schema) target.searchParams.set("schema", schema);
+  target.pathname = "/" + base;
+  return target.toString();
 }
 
 export const E2E_DATABASE_URL = DATABASE_URL_DEV ? conBase(DATABASE_URL_DEV, E2E_DB_NAME) : "";

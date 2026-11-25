@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, Select } from "./validated-form";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, UserPlus } from "lucide-react";
@@ -76,8 +78,8 @@ export function TeamManager({ users, meId }: { users: User[]; meId: string }) {
       </div>
 
       <Dialog open={creating} onClose={() => setCreating(false)} title="Sumar al equipo" labelledBy="team-new">
-        <form
-          onSubmit={async (e) => {
+        <ValidatedForm
+          onSubmit={async (e, reportFields) => {
             e.preventDefault();
             const f = new FormData(e.currentTarget);
             setBusy("new");
@@ -88,29 +90,29 @@ export function TeamManager({ users, meId }: { users: User[]; meId: string }) {
               setCreating(false);
               router.refresh();
             } catch (err) {
-              setError(errMsg(err));
+              if (!reportFields(err)) setError(errMsg(err));
             } finally {
               setBusy(null);
             }
           }}
         >
           <div className="dlg-body stack" style={{ gap: 12 }}>
-            <div><label className="label" htmlFor="t-name">Nombre</label><input className="input" id="t-name" name="name" required /></div>
-            <div><label className="label" htmlFor="t-email">Email</label><input className="input" id="t-email" name="email" type="email" required /></div>
+            <div><label className="label" htmlFor="t-name">Nombre</label><Input className="input" id="t-name" name="name" required /></div>
+            <div><label className="label" htmlFor="t-email">Email</label><Input className="input" id="t-email" name="email" type="email" required /></div>
             <div>
               <label className="label" htmlFor="t-role">Rol</label>
-              <select className="select" id="t-role" name="role" defaultValue="OPERADOR"><option value="DISPENSADOR">Dispensario</option><option value="OPERADOR">Operador</option><option value="ADMIN">Administración</option></select>
+              <Select className="select" id="t-role" name="role" defaultValue="OPERADOR"><option value="DISPENSADOR">Dispensario</option><option value="OPERADOR">Operador</option><option value="ADMIN">Administración</option></Select>
             </div>
-            <div><label className="label" htmlFor="t-pass">Clave inicial</label><input className="input" id="t-pass" name="password" type="text" minLength={10} required autoComplete="new-password" /><span className="hint">Al menos 10 caracteres.</span></div>
+            <div><label className="label" htmlFor="t-pass">Clave inicial</label><Input className="input" id="t-pass" name="password" type="text" minLength={10} required autoComplete="new-password" /><span className="hint">Al menos 10 caracteres.</span></div>
             {error ? <div className="note note-danger">{error}</div> : null}
           </div>
           <div className="dlg-foot"><button type="button" className="btn btn-quiet" onClick={() => setCreating(false)}>Cancelar</button><button className="btn" disabled={busy === "new"}>Crear cuenta</button></div>
-        </form>
+        </ValidatedForm>
       </Dialog>
 
       <Dialog open={resetFor != null} onClose={() => setResetFor(null)} title={`Clave nueva para ${resetFor?.name ?? ""}`} labelledBy="team-reset">
-        <form
-          onSubmit={async (e) => {
+        <ValidatedForm
+          onSubmit={async (e, reportFields) => {
             e.preventDefault();
             if (!resetFor) return;
             const pw = String(new FormData(e.currentTarget).get("password") ?? "");
@@ -121,18 +123,18 @@ export function TeamManager({ users, meId }: { users: User[]; meId: string }) {
               toast({ tone: "ok", title: "Clave cambiada" });
               setResetFor(null);
             } catch (err) {
-              setError(errMsg(err));
+              if (!reportFields(err)) setError(errMsg(err));
             } finally {
               setBusy(null);
             }
           }}
         >
           <div className="dlg-body stack" style={{ gap: 12 }}>
-            <div><label className="label" htmlFor="t-np">Clave nueva</label><input className="input" id="t-np" name="password" type="text" minLength={10} required autoComplete="new-password" autoFocus /></div>
+            <div><label className="label" htmlFor="t-np">Clave nueva</label><Input className="input" id="t-np" name="password" type="text" minLength={10} required autoComplete="new-password" autoFocus /></div>
             {error ? <div className="note note-danger">{error}</div> : null}
           </div>
           <div className="dlg-foot"><button type="button" className="btn btn-quiet" onClick={() => setResetFor(null)}>Cancelar</button><button className="btn">Guardar clave</button></div>
-        </form>
+        </ValidatedForm>
       </Dialog>
     </section>
   );

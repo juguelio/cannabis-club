@@ -28,7 +28,7 @@ export const POST = route(async (req) => {
   }
 
   const policy = passwordPolicy(input.next, input.current ?? "");
-  if (!policy.ok) throw badRequest("WEAK_PASSWORD", policy.message);
+  if (!policy.ok) throw badRequest("WEAK_PASSWORD", policy.message, { campo: "next" });
 
   const passwordHash = await hashPassword(input.next.trim());
   const updated = await prisma.$transaction(async (tx) => {

@@ -1,5 +1,9 @@
 "use client";
 
+import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+
+import { ApiError } from "@/lib/client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, CircleAlert, TriangleAlert } from "lucide-react";
@@ -35,7 +39,7 @@ export function DatosLegalesForm({ initial }: { initial: Valores }) {
   const faltan = faltantesLegales(valores);
   const completos = DATOS_LEGALES.length - faltan.length;
 
-  async function guardar(e: React.FormEvent) {
+  async function guardar(e: React.FormEvent, reportFields: ReportFields) {
     e.preventDefault();
     setBusy(true);
     setError(null);
@@ -46,18 +50,18 @@ export function DatosLegalesForm({ initial }: { initial: Valores }) {
         body: JSON.stringify(valores),
       });
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.message ?? "No pudimos guardar los datos legales.");
+      if (!r.ok) throw new ApiError(data.error, data.message ?? "No pudimos guardar los datos legales.", r.status, data.details);
       toast({ tone: "ok", title: "Datos legales guardados", text: "Ya salen en los libros y en el informe semestral." });
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No pudimos guardar los datos legales.");
+      if (!reportFields(err)) setError(err instanceof Error ? err.message : "No pudimos guardar los datos legales.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form className="stack" onSubmit={guardar}>
+    <ValidatedForm className="stack" onSubmit={guardar}>
       {faltan.length ? (
         <div className="note note-warn" role="status">
           <TriangleAlert aria-hidden />
@@ -89,9 +93,9 @@ export function DatosLegalesForm({ initial }: { initial: Valores }) {
               return (
                 <label key={campo} className="label" style={{ gridColumn: ANCHOS[campo] }}>
                   {dato.label}
-                  <input
+                  <Input
                     className="input"
-                    value={valor}
+                    name={campo} value={valor}
                     onChange={(e) => setValores({ ...valores, [campo]: e.target.value })}
                     placeholder={dato.ejemplo}
                     autoComplete="off"
@@ -126,6 +130,6 @@ export function DatosLegalesForm({ initial }: { initial: Valores }) {
           {busy ? "Guardando…" : "Guardar datos legales"}
         </button>
       </div>
-    </form>
+    </ValidatedForm>
   );
 }

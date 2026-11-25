@@ -10,7 +10,7 @@ test.describe("dispensario", () => {
   test("muestra los topes que aplica y quién se espera hoy", async ({ page }) => {
     await page.goto("/dispensario");
     await expect(page.locator("body")).toContainText(/25 g por pedido/);
-    await expect(page.locator("body")).toContainText(/50 g por mes/);
+    await expect(page.locator("body")).toContainText(/\b150 g por mes/);
     await expect(page.locator("body")).toContainText("Esperados hoy");
     await expect(page.locator("body")).toContainText("Gómez, María");
   });
@@ -43,13 +43,15 @@ test.describe("dispensario", () => {
     }
   });
 
-  test("una entrega real deja asiento y descuenta del lote", async ({ page }) => {
+  test("la entrega exige liberación y luego descuenta el peso del lote", async ({ page, browser }) => {
     // Camila no tiene pedidos del portal abiertos: el mostrador abre la balanza, no una reserva.
     await elegirSocioEnMostrador(page, "Aguirre", 12);
 
     // Lote y gramos: los dos datos sin los cuales no hay trazabilidad.
-    const lote = page.getByRole("radio").first();
-    if (await lote.count()) await lote.check().catch(() => page.locator("[role=radiogroup] button").first().click());
+    const antes = await (await page.request.get("/api/batches")).json();
+    const lote = page.getByRole("radio", { name: /L-2026-001/ });
+    await lote.click();
+    await expect(lote).toBeChecked();
 
     const gramos = page.locator("input[placeholder='0']").first();
     await expect(gramos).toBeVisible();
@@ -58,10 +60,37 @@ test.describe("dispensario", () => {
     const confirmar = page.getByRole("button", { name: /Confirmar .*entrega|Confirmar 2/i }).first();
     await expect(confirmar).toBeEnabled();
     await confirmar.click();
-
-    // La pantalla confirma con el peso entregado y el socio queda con su entrega del día.
-    await expect(page.locator("body")).toContainText(/entrega|registrad|2 g/i, { timeout: 15_000 });
-    await expect(page.locator("body")).not.toContainText(/Error interno/);
+    await expect(page.getByText(/todavía no está liberado/)).toBeVisible();
+    const operador = await browser.newContext({ storageState: "e2e/.state/operador.json" });
+    try {
+      const ficha = await operador.newPage();
+      const id = antes.batches.find((b: { code: string }) => b.code === "L-2026-001").id;
+      await ficha.goto(`/stock/${id}`);
+      await ficha.getByRole("button", { name: "Liberar lote", exact: true }).click();
+      const firmar = ficha.getByRole("button", { name: "Firmar liberación" });
+      await firmar.click();
+      const form = ficha.locator("form").filter({ has: firmar });
+      await expect(form.getByRole("alert")).toContainText("4 campos");
+      for (const check of await form.getByRole("checkbox").all()) await check.check();
+      const [firma] = await Promise.all([
+        ficha.waitForResponse(r => r.url().endsWith("/release") && r.request().method() === "POST"),
+        firmar.click(),
+      ]);
+      expect(firma.status(), await firma.text()).toBe(200);
+    } finally {
+      await operador.close();
+    }
+    const [respuesta] = await Promise.all([
+      page.waitForResponse(r => r.url().endsWith("/api/dispensations") && r.request().method() === "POST"),
+      confirmar.click(),
+    ]);
+    expect(respuesta.status(), await respuesta.text()).toBe(201);
+    const creado = await respuesta.json();
+    const despues = await (await page.request.get("/api/batches")).json();
+    const saldo = (rows: { code: string; balanceG: number }[]) => rows.find(row => row.code === "L-2026-001")!.balanceG;
+    expect(creado.dispensation.id).toBeTruthy();
+    expect(saldo(despues.batches)).toBeCloseTo(saldo(antes.batches) - 2);
+    await expect(page.getByRole("link", { name: "Ver legajo", exact: true })).toBeVisible();
   });
 
   test("el tope por pedido se avisa antes de confirmar", async ({ page }) => {

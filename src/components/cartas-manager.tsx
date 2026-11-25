@@ -2,6 +2,8 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { Check, Eye, Mail, Plus, Send, Trash2 } from "lucide-react";
+import { ValidatedForm, Input, Textarea } from "./validated-form";
+import { contenidoCarta } from "@/lib/cartas-schema";
 import { Chip, Note, Panel } from "@/components/ui";
 
 type Bloque = { titulo: string; texto: string; enlaceTexto?: string; enlaceUrl?: string };
@@ -92,6 +94,9 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
       }
       setFaltan([]);
       return data;
+    } catch {
+      setError("Se interrumpió la comunicación con el servidor. Actualizá para comprobar el estado de la carta.");
+      return null;
     } finally {
       setOcupado(null);
     }
@@ -161,22 +166,39 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
         title={editando ? "Editando un borrador" : "Nueva carta"}
         subtitle="Escribís el texto; el diseño lo pone la plantilla. La vista previa es la real. Al aprobar sale en la próxima pasada del cron (8:15), o enseguida con «Enviar ahora»."
       >
+        <ValidatedForm onSubmit={(event, reportFields) => {
+          setError(null);
+          setFaltan([]);
+          const parsed = contenidoCarta.safeParse(cuerpo);
+          if (!parsed.success) {
+            const indices = bloques.flatMap((b, i) => b.titulo.trim() || b.texto.trim() ? [i] : []);
+            reportFields(parsed.error.issues.map(issue => {
+              const path = [...issue.path];
+              if (path[0] === "bloques" && typeof path[1] === "number") path[1] = indices[path[1]];
+              if (path[0] === "apertura") path.length = 1;
+              return { path, message: issue.message };
+            }));
+            return;
+          }
+          const button = (event.nativeEvent as SubmitEvent).submitter;
+          return button instanceof HTMLButtonElement && button.value === "preview" ? previsualizar() : guardar();
+        }}>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">
             Edición
-            <input className={input} placeholder="noviembre 2026" value={form.edicion} onChange={(e) => setForm({ ...form, edicion: e.target.value })} />
+            <Input className={input} placeholder="noviembre 2026" name="edicion" required value={form.edicion} onChange={(e) => setForm({ ...form, edicion: e.target.value })} />
           </label>
           <label className="text-sm">
             Título
-            <input className={input} placeholder="El mes en que el club se ordena" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
+            <Input className={input} placeholder="El mes en que el club se ordena" name="titulo" required value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
           </label>
           <label className="text-sm sm:col-span-2">
             Bajada
-            <input className={input} placeholder="Una o dos líneas que resuman la carta" value={form.copete} onChange={(e) => setForm({ ...form, copete: e.target.value })} />
+            <Input className={input} placeholder="Una o dos líneas que resuman la carta" name="copete" required value={form.copete} onChange={(e) => setForm({ ...form, copete: e.target.value })} />
           </label>
           <label className="text-sm sm:col-span-2">
             Primeros párrafos <span className="text-[var(--muted-foreground)]">(separá con una línea en blanco)</span>
-            <textarea className={`${input} min-h-24`} value={form.apertura} onChange={(e) => setForm({ ...form, apertura: e.target.value })} />
+            <Textarea className={`${input} min-h-24`} name="apertura" required value={form.apertura} onChange={(e) => setForm({ ...form, apertura: e.target.value })} />
           </label>
         </div>
 
@@ -194,11 +216,11 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
                   <Trash2 size={14} />
                 </button>
               </div>
-              <input className={input} placeholder="Título del bloque" value={b.titulo} onChange={(e) => setBloques(bloques.map((x, j) => (j === i ? { ...x, titulo: e.target.value } : x)))} />
-              <textarea className={`${input} mt-2 min-h-16`} placeholder="Texto del bloque" value={b.texto} onChange={(e) => setBloques(bloques.map((x, j) => (j === i ? { ...x, texto: e.target.value } : x)))} />
+              <Input className={input} placeholder="Título del bloque" name={`bloques.${i}.titulo`} value={b.titulo} onChange={(e) => setBloques(bloques.map((x, j) => (j === i ? { ...x, titulo: e.target.value } : x)))} />
+              <Textarea className={`${input} mt-2 min-h-16`} placeholder="Texto del bloque" name={`bloques.${i}.texto`} value={b.texto} onChange={(e) => setBloques(bloques.map((x, j) => (j === i ? { ...x, texto: e.target.value } : x)))} />
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <input className={input} placeholder="Texto del enlace (opcional)" value={b.enlaceTexto ?? ""} onChange={(e) => setBloques(bloques.map((x, j) => (j === i ? { ...x, enlaceTexto: e.target.value } : x)))} />
-                <input className={input} placeholder="https://… (opcional)" value={b.enlaceUrl ?? ""} onChange={(e) => setBloques(bloques.map((x, j) => (j === i ? { ...x, enlaceUrl: e.target.value } : x)))} />
+                <Input className={input} placeholder="Texto del enlace (opcional)" name={`bloques.${i}.enlace.texto`} value={b.enlaceTexto ?? ""} onChange={(e) => setBloques(bloques.map((x, j) => (j === i ? { ...x, enlaceTexto: e.target.value } : x)))} />
+                <Input className={input} placeholder="https://… (opcional)" name={`bloques.${i}.enlace.url`} value={b.enlaceUrl ?? ""} onChange={(e) => setBloques(bloques.map((x, j) => (j === i ? { ...x, enlaceUrl: e.target.value } : x)))} />
               </div>
             </div>
           ))}
@@ -210,11 +232,11 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-sm">
             Botón: texto
-            <input className={input} placeholder="Entrar al portal del socio" value={form.ctaTexto} onChange={(e) => setForm({ ...form, ctaTexto: e.target.value })} />
+            <Input className={input} placeholder="Entrar al portal del socio" name="cta.texto" value={form.ctaTexto} onChange={(e) => setForm({ ...form, ctaTexto: e.target.value })} />
           </label>
           <label className="text-sm">
             Botón: dirección
-            <input className={input} placeholder="https://republicacannabis.com.ar/portal" value={form.ctaUrl} onChange={(e) => setForm({ ...form, ctaUrl: e.target.value })} />
+            <Input className={input} placeholder="https://republicacannabis.com.ar/portal" name="cta.url" value={form.ctaUrl} onChange={(e) => setForm({ ...form, ctaUrl: e.target.value })} />
           </label>
         </div>
 
@@ -228,10 +250,10 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
         )}
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={previsualizar} disabled={ocupado !== null} className="btn btn-sm btn-quiet">
+          <button type="submit" value="preview" disabled={ocupado !== null} className="btn btn-sm btn-quiet">
             <Eye size={14} /> Ver vista previa
           </button>
-          <button type="button" onClick={guardar} disabled={ocupado !== null} className="btn btn-sm">
+          <button type="submit" value="guardar" disabled={ocupado !== null} className="btn btn-sm">
             <Check size={14} /> {editando ? "Guardar cambios" : "Guardar borrador"}
           </button>
           {editando && (
@@ -241,6 +263,7 @@ export function CartasManager({ cartasIniciales, padron, soloLectura = false }: 
           )}
         </div>
 
+        </ValidatedForm>
         {html && (
           <div className="mt-4">
             <div className="mb-2 text-xs text-[var(--muted-foreground)]">Así se ve en el correo:</div>

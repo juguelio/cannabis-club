@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { E2E_DATABASE_URL, E2E_DB_NAME, psqlUrl } from "./env";
 
 /**
@@ -11,14 +11,14 @@ import { E2E_DATABASE_URL, E2E_DB_NAME, psqlUrl } from "./env";
  * el arnés, no por la app.
  */
 function psql(url: string, sql: string) {
-  execSync(`psql "${psqlUrl(url)}" -v ON_ERROR_STOP=1 -q -c ${JSON.stringify(sql)}`, {
+  execFileSync("psql", [psqlUrl(url), "-v", "ON_ERROR_STOP=1", "-q", "-c", sql], {
     stdio: ["ignore", "pipe", "pipe"],
     encoding: "utf8",
   });
 }
 
 if (!E2E_DATABASE_URL) throw new Error("Falta DATABASE_URL en .env: no sé contra qué servidor crear la base de test");
-if (!E2E_DATABASE_URL.includes(E2E_DB_NAME)) {
+if (new URL(E2E_DATABASE_URL).pathname !== "/" + E2E_DB_NAME || process.env.DATABASE_URL !== E2E_DATABASE_URL) {
   throw new Error(`La base de test tiene que llamarse ${E2E_DB_NAME}: ${E2E_DATABASE_URL.replace(/\/\/.*@/, "//***@")}`);
 }
 
@@ -29,8 +29,8 @@ psql(admin, `DROP DATABASE IF EXISTS "${E2E_DB_NAME}" WITH (FORCE)`);
 psql(admin, `CREATE DATABASE "${E2E_DB_NAME}"`);
 
 const env = { ...process.env, DATABASE_URL: E2E_DATABASE_URL, DIRECT_URL: E2E_DATABASE_URL };
-execSync("npx prisma migrate deploy", { stdio: "pipe", env });
-execSync("npm run db:seed", { stdio: "pipe", env });
+execFileSync("npx", ["prisma", "migrate", "deploy"], { stdio: "pipe", env });
+execFileSync("npm", ["run", "db:seed"], { stdio: "pipe", env });
 
 // La suite crea varios pedidos con el mismo socio; con el tope de 50 g del club se queda sin margen a
 // mitad de camino y los últimos tests fallan por cupo, no por la app. Se le da aire sólo acá.

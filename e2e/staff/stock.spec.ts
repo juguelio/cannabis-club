@@ -28,10 +28,8 @@ test.describe("lotes", () => {
     await page.getByRole("link", { name: /L-2026-001/ }).first().click();
 
     const etiqueta = page.getByRole("link", { name: /Etiqueta|Imprimir/i }).first();
-    if (await etiqueta.count()) {
-      await etiqueta.click();
-      await expect(page.locator("body")).toContainText("L-2026-001");
-    }
+    await etiqueta.click();
+    await expect(page.locator("body")).toContainText("L-2026-001");
   });
 
   test("un lote que no existe no rompe la pantalla", async ({ page }) => {
@@ -43,10 +41,8 @@ test.describe("lotes", () => {
   test("el botón de nuevo lote abre el formulario", async ({ page }) => {
     await page.goto("/stock");
     const nuevo = page.getByRole("button", { name: /Nuevo lote/i }).first();
-    if (await nuevo.count()) {
-      await nuevo.click();
-      await expect(page.getByRole("dialog")).toBeVisible();
-      await expect(page.getByRole("dialog")).toContainText(/Variedad|Plantas|Origen/i);
-    }
+    await nuevo.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByRole("dialog")).toContainText(/Variedad|Plantas|Origen/i);
   });
 });

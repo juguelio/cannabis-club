@@ -97,7 +97,7 @@ export const POST = route(async (req) => {
     legajoDelDocumento: duplicado?.legajo ?? null,
     legajoReclamado: padron?.legajo ?? null,
   });
-  if (duplicado && !esSuPropioLegajo) throw conflict("DOCUMENTO_YA_REGISTRADO", "Ese documento ya tiene legajo en el club.");
+  if (duplicado && !esSuPropioLegajo) throw conflict("DOCUMENTO_YA_REGISTRADO", "Ese documento ya tiene legajo en el club.", { campo: "docNumber" });
 
   // El payload se tipa contra el modelo: una clave que `AccessRequest` no tiene no compila y no
   // llega a producción como 500 «Error interno» (pasó con `postalCode`, que vive en la verificación).

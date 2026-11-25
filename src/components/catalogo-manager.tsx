@@ -1,5 +1,9 @@
 "use client";
 
+import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+
+import { ApiError } from "@/lib/client";
+
 import { useCallback, useEffect, useState } from "react";
 import { Leaf, Plus, Trash2, Upload } from "lucide-react";
 import { Chip, Panel } from "@/components/ui";
@@ -93,7 +97,7 @@ export function CatalogoManager() {
     }
   }
 
-  async function crear(e: React.FormEvent) {
+  async function crear(e: React.FormEvent, reportFields: ReportFields) {
     e.preventDefault();
     setError(null);
     setAviso(null);
@@ -110,12 +114,12 @@ export function CatalogoManager() {
         }),
       });
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.message ?? "No pudimos crear la variedad.");
+      if (!r.ok) throw new ApiError(data.error, data.message ?? "No pudimos crear la variedad.", r.status, data.details);
       setNueva({ name: "", genetics: "", thcPct: "", cbdPct: "" });
       setAviso("Variedad creada. Ahora subile la foto.");
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No pudimos crear la variedad.");
+      if (!reportFields(err)) setError(err instanceof Error ? err.message : "No pudimos crear la variedad.");
     } finally {
       setCreando(false);
     }
@@ -204,23 +208,23 @@ export function CatalogoManager() {
       </Panel>
 
       <Panel title="Agregar variedad" subtitle="Nombre y, si los sabés, genética y porcentajes. La foto se sube después.">
-        <form className="stack" onSubmit={crear}>
+        <ValidatedForm className="stack" onSubmit={crear}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
             <label className="label">
               Nombre
-              <input className="input" required minLength={2} value={nueva.name} onChange={(e) => setNueva({ ...nueva, name: e.target.value })} placeholder="Lemon Haze" />
+              <Input className="input" required minLength={2} name="name" value={nueva.name} onChange={(e) => setNueva({ ...nueva, name: e.target.value })} placeholder="Lemon Haze" />
             </label>
             <label className="label">
               Genética
-              <input className="input" value={nueva.genetics} onChange={(e) => setNueva({ ...nueva, genetics: e.target.value })} placeholder="Sativa" />
+              <Input className="input" name="genetics" value={nueva.genetics} onChange={(e) => setNueva({ ...nueva, genetics: e.target.value })} placeholder="Sativa" />
             </label>
             <label className="label">
               THC %
-              <input className="input" type="number" min={0} max={100} step="0.1" value={nueva.thcPct} onChange={(e) => setNueva({ ...nueva, thcPct: e.target.value })} />
+              <Input className="input" type="number" min={0} max={100} step="0.1" name="thcPct" value={nueva.thcPct} onChange={(e) => setNueva({ ...nueva, thcPct: e.target.value })} />
             </label>
             <label className="label">
               CBD %
-              <input className="input" type="number" min={0} max={100} step="0.1" value={nueva.cbdPct} onChange={(e) => setNueva({ ...nueva, cbdPct: e.target.value })} />
+              <Input className="input" type="number" min={0} max={100} step="0.1" name="cbdPct" value={nueva.cbdPct} onChange={(e) => setNueva({ ...nueva, cbdPct: e.target.value })} />
             </label>
           </div>
           <div>
@@ -229,7 +233,7 @@ export function CatalogoManager() {
               {creando ? "Creando…" : "Crear variedad"}
             </button>
           </div>
-        </form>
+        </ValidatedForm>
       </Panel>
     </div>
   );

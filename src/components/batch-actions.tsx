@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+import { api, errMsg } from "@/lib/client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -9,33 +11,31 @@ export function BatchActions({ id, stage }: { id: string; stage: string }) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  async function move(next: string) {
+  async function move(next: string, reportFields: ReportFields) {
     if (next === "CUARENTENA" && !reason.trim()) {
-      setError("Escribí el motivo de la cuarentena: después se audita.");
+      setError(null);
+      reportFields([{ campo: "reason", mensaje: "Escribí el motivo para dejar el lote en cuarentena." }]);
       return;
     }
     if (next === "DESTRUIDO" && !window.confirm("Marcar el lote como destruido. Esta acción queda auditada. ¿Seguir?")) return;
     setBusy(true); setError(null);
     try {
-      const res = await fetch(`/api/batches/${id}/stage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage: next, reason: reason.trim() || undefined }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "No se pudo cambiar la etapa");
+      await api(`/api/batches/${id}/stage`, { body: { stage: next, reason: reason.trim() || undefined } });
       setReason("");
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      if (!reportFields(err)) setError(errMsg(err));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <input
+    <ValidatedForm className="flex flex-col gap-2" onSubmit={(event, report) => {
+      const button = (event.nativeEvent as SubmitEvent).submitter;
+      if (button instanceof HTMLButtonElement) return move(button.value, report);
+    }}>
+      <Input name="reason" aria-label="Motivo del cambio de etapa"
         className="input"
         placeholder="Motivo (obligatorio para cuarentena)"
         value={reason}
@@ -43,21 +43,21 @@ export function BatchActions({ id, stage }: { id: string; stage: string }) {
       />
       <div className="flex flex-wrap gap-1.5">
         {stage !== "CUARENTENA" ? (
-          <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => move("CUARENTENA")}>
+          <button className="btn btn-secondary btn-sm" disabled={busy} type="submit" value="CUARENTENA">
             Poner en cuarentena
           </button>
         ) : (
-          <button className="btn btn-sm" disabled={busy} onClick={() => move("DISPONIBLE")}>
+          <button className="btn btn-sm" disabled={busy} type="submit" value="DISPONIBLE">
             Liberar lote
           </button>
         )}
         {stage !== "DESTRUIDO" ? (
-          <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => move("DESTRUIDO")}>
+          <button className="btn btn-secondary btn-sm" disabled={busy} type="submit" value="DESTRUIDO">
             Marcar destruido
           </button>
         ) : null}
       </div>
-      {error ? <div className="alert alert-danger">{error}</div> : null}
-    </div>
+      {error ? <div className="alert alert-danger" role="alert">{error}</div> : null}
+    </ValidatedForm>
   );
 }
