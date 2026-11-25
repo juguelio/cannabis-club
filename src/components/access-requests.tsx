@@ -3,6 +3,7 @@
 import { ValidatedForm, Textarea } from "./validated-form";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Chip, Empty, Panel } from "@/components/ui";
 import { Inbox } from "lucide-react";
@@ -52,6 +53,7 @@ export function AccessRequests() {
   const [abierta, setAbierta] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
   const [ocupada, setOcupada] = useState<string | null>(null);
+  const [legajoAprobado, setLegajoAprobado] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
@@ -71,6 +73,7 @@ export function AccessRequests() {
     setOcupada(id);
     setError(null);
     setAviso(null);
+    setLegajoAprobado(null);
     try {
       const r = await fetch(`/api/solicitudes/${id}/${accion}`, {
         method: "POST",
@@ -80,6 +83,7 @@ export function AccessRequests() {
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.message ?? "No pudimos completar la acción.");
       setAviso(accion === "aprobar" ? data.mensaje ?? "Legajo creado." : "Solicitud rechazada. La persona puede corregir y volver a presentarla.");
+      if (accion === "aprobar") setLegajoAprobado(data.socio?.id ?? null);
       setAbierta(null);
       setMotivo("");
       await cargar();
@@ -100,7 +104,7 @@ export function AccessRequests() {
       subtitle="Personas que entraron con Google y subieron su documentación. Aprobar crea el legajo."
     >
       {error && <p className="note note-danger">{error}</p>}
-      {aviso && <p className="note">{aviso}</p>}
+      {aviso && <p className="note">{aviso} {legajoAprobado && <Link href={`/socios/${legajoAprobado}`}>Abrir legajo</Link>}</p>}
       {solicitudes === null ? (
         <p className="muted">Cargando…</p>
       ) : pendientes.length === 0 ? (

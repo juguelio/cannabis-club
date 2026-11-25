@@ -104,7 +104,7 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
             </label>
             <label className="check" style={{ gridColumn: "1 / -1" }}>
               <Input type="checkbox" name="requiereLiberacion" defaultChecked={initial.requiereLiberacion} />
-              <span>Exigir liberación firmada del lote<span className="hint">Nada sale de un lote sin que alguien de calidad firme que está apto, y no puede firmarlo quien registró la cosecha.</span></span>
+              <span>Exigir liberación firmada del lote<span className="hint">El dispensario exige que el lote esté firmado antes de entregarlo. Administración puede firmar los lotes que carga.</span></span>
             </label>
           </div>
         </section>

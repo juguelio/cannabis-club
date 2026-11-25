@@ -16,7 +16,7 @@ const ITEMS: { key: keyof Check; label: string }[] = [
 ];
 
 /** Liberación con firma de calidad: habilita las entregas del lote (REA 5.1 + 5.3). */
-export function ReleaseForm({ id, code }: { id: string; code: string }) {
+export function ReleaseForm({ id, code, isAdmin }: { id: string; code: string; isAdmin: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -39,7 +39,7 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
     try {
       await api(`/api/batches/${id}/release`, {
         body: {
-          checklist: check,
+          checklist: isAdmin && !Object.values(check).some(Boolean) ? undefined : check,
           thcPct: num(thc),
           cbdPct: num(cbd),
           labName: labName.trim() || undefined,
@@ -64,7 +64,7 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
     return (
       <div>
         <p style={{ margin: "0 0 10px" }} className="cell-meta">
-          Sin liberación firmada, el dispensario rechaza cualquier entrega de este lote.
+          {isAdmin ? "Podés firmar el lote que cargaste. Los controles y los datos de laboratorio son opcionales." : "Revisá los controles del lote antes de firmar."}
         </p>
         <button className="btn" onClick={() => setOpen(true)}>Liberar lote</button>
       </div>
@@ -78,7 +78,7 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
           <label key={item.key} className="check">
             <Input
               type="checkbox"
-              required name={`checklist.${item.key}`} checked={check[item.key]}
+              required={!isAdmin} name={`checklist.${item.key}`} checked={check[item.key]}
               onChange={(e) => setCheck((c) => ({ ...c, [item.key]: e.target.checked }))}
             />
             <span>{item.label}</span>
@@ -94,10 +94,10 @@ export function ReleaseForm({ id, code }: { id: string; code: string }) {
         <div><label className="label" htmlFor="r-sample">Muestra retenida (g)</label><Input id="r-sample" className="input tnum" inputMode="decimal" name="sampleRetainedG" value={sampleG} onChange={(e) => setSampleG(e.target.value)} /></div>
         <div><label className="label" htmlFor="r-until">Guardar hasta</label><Input id="r-until" type="date" className="input" name="sampleUntil" value={sampleUntil} onChange={(e) => setSampleUntil(e.target.value)} /></div>
       </div>
-      <label className="check">
+      {!isAdmin && <label className="check">
         <Input type="checkbox" name="noAnalysisAcknowledged" checked={noAnalysis} onChange={(e) => setNoAnalysis(e.target.checked)} />
         <span>Liberar sin análisis<span className="hint">La ficha del lote va a decir &quot;pendiente de análisis&quot;. No se inventa ningún valor.</span></span>
-      </label>
+      </label>}
       {error ? <div className="note note-warn" role="alert">{error}</div> : null}
       <div className="flex gap-2">
         <button className="btn" disabled={busy}>{busy ? "Firmando…" : "Firmar liberación"}</button>

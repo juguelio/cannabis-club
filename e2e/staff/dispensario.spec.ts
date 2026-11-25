@@ -43,7 +43,7 @@ test.describe("dispensario", () => {
     }
   });
 
-  test("la entrega exige liberación y luego descuenta el peso del lote", async ({ page, browser }) => {
+  test("el administrador libera su propio ingreso y entrega con la misma cuenta", async ({ page }) => {
     // Camila no tiene pedidos del portal abiertos: el mostrador abre la balanza, no una reserva.
     await elegirSocioEnMostrador(page, "Aguirre", 12);
 
@@ -61,25 +61,17 @@ test.describe("dispensario", () => {
     await expect(confirmar).toBeEnabled();
     await confirmar.click();
     await expect(page.getByText(/todavía no está liberado/)).toBeVisible();
-    const operador = await browser.newContext({ storageState: "e2e/.state/operador.json" });
-    try {
-      const ficha = await operador.newPage();
-      const id = antes.batches.find((b: { code: string }) => b.code === "L-2026-001").id;
-      await ficha.goto(`/stock/${id}`);
-      await ficha.getByRole("button", { name: "Liberar lote", exact: true }).click();
-      const firmar = ficha.getByRole("button", { name: "Firmar liberación" });
-      await firmar.click();
-      const form = ficha.locator("form").filter({ has: firmar });
-      await expect(form.locator('[aria-invalid="true"]')).toHaveCount(4);
-      for (const check of await form.getByRole("checkbox").all()) await check.check();
-      const [firma] = await Promise.all([
-        ficha.waitForResponse(r => r.url().endsWith("/release") && r.request().method() === "POST"),
-        firmar.click(),
-      ]);
-      expect(firma.status(), await firma.text()).toBe(200);
-    } finally {
-      await operador.close();
-    }
+    // El ingreso histórico de este lote pertenece al administrador en el seed.
+    const ficha = await page.context().newPage();
+    const id = antes.batches.find((b: { code: string }) => b.code === "L-2026-001").id;
+    await ficha.goto(`/stock/${id}`);
+    await ficha.getByRole("button", { name: "Liberar lote", exact: true }).click();
+    const [firma] = await Promise.all([
+      ficha.waitForResponse(r => r.url().endsWith("/release") && r.request().method() === "POST"),
+      ficha.getByRole("button", { name: "Firmar liberación" }).click(),
+    ]);
+    expect(firma.status(), await firma.text()).toBe(200);
+    await ficha.close();
     const [respuesta] = await Promise.all([
       page.waitForResponse(r => r.url().endsWith("/api/dispensations") && r.request().method() === "POST"),
       confirmar.click(),

@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { SignJWT } from "jose";
-import { BASE_URL, E2E_DATABASE_URL } from "../env";
+import { BASE_URL, CRED, E2E_DATABASE_URL } from "../env";
 import { expect, test } from "../fixtures";
 import { PNG_1X1 } from "../helpers";
 
@@ -136,4 +136,30 @@ test("alta pública: corrige varios datos, presenta la solicitud y reemplaza un 
   await expect(page.getByLabel("Reemplazar DNI (frente)", { exact: true })).toBeAttached();
   await page.reload();
   await expect(page.getByLabel("Reemplazar DNI (frente)", { exact: true })).toBeAttached();
+
+  for (const tipo of ["DNI_DORSO", "REPROCANN"]) {
+    const subida = await page.request.post(`/api/solicitud/documentos?tipo=${tipo}`, {
+      headers: { "content-type": "image/png" }, data: PNG_1X1,
+    });
+    expect(subida.ok()).toBeTruthy();
+  }
+  const { solicitud } = await (await page.request.get("/api/solicitud")).json();
+  const admin = await browser.newContext({ baseURL: BASE_URL });
+  try {
+    const { email, password } = CRED.admin;
+    expect((await admin.request.post("/api/auth/login", { data: { email, password } })).ok()).toBeTruthy();
+    const aprobacion = await admin.request.post(`/api/solicitudes/${solicitud.id}/aprobar`, { data: {} });
+    expect(aprobacion.ok(), await aprobacion.text()).toBeTruthy();
+    const { socio } = await aprobacion.json();
+    const ficha = await admin.newPage();
+    await ficha.goto(`/socios/${socio.id}`);
+    await expect(ficha.getByRole("heading", { name: /Solicitud de alta · aprobada/ })).toBeVisible();
+    for (const name of ["DNI (frente)", "DNI (dorso)", "Credencial REPROCANN"]) {
+      const href = await ficha.getByRole("link", { name, exact: true }).getAttribute("href");
+      expect(href).toContain(`/api/solicitudes/${solicitud.id}/documentos/`);
+      expect(await (await admin.request.get(href!)).body()).toEqual(PNG_1X1);
+    }
+  } finally {
+    await admin.close();
+  }
 });

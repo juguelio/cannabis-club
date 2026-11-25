@@ -12,7 +12,7 @@ import { cache } from "react";
 import { prisma } from "./db";
 import { audit } from "./audit";
 import { docHash, docLast4 } from "./privacy";
-import { encryptDoc, encryptText, sha256, DOC_TIPO_LABEL, type DocTipo } from "./docs-crypto";
+import { encryptDoc, encryptText, sha256 } from "./docs-crypto";
 import { badRequest, conflict, notFound } from "./errors";
 import { getClub } from "./club";
 import { limitsFromClub } from "./club";
@@ -331,57 +331,6 @@ export async function rechazarVerificacion(input: { id: string; actorId: string;
   });
 
   return { legajo: rev.member.legajo };
-}
-
-export type DocumentoDeLegajo = {
-  id: string;
-  tipo: string;
-  etiqueta: string;
-  size: number;
-  uploadedAt: Date;
-  origen: "Alta en el portal" | "Validación del legajo";
-  href: string;
-};
-
-/**
- * Los archivos que subió el socio, en un solo lugar. Los del alta quedan en el expediente de la
- * solicitud aprobada; los de la re-validación, en la última presentación del legajo. Sin esto sólo
- * se veían en el momento de aprobar y el club no los encontraba después en la ficha.
- * Devuelve metadatos: abrir cada archivo pasa por la ruta que descifra y deja asiento de auditoría.
- */
-export async function documentosDelLegajo(memberId: string): Promise<DocumentoDeLegajo[]> {
-  const [alta, validacion] = await Promise.all([
-    prisma.accessRequest.findUnique({
-      where: { memberId },
-      select: { id: true, documents: { select: DOCS_SELECT, orderBy: { uploadedAt: "asc" } } },
-    }),
-    prisma.memberVerification.findFirst({
-      where: { memberId },
-      orderBy: { submittedAt: "desc" },
-      select: { id: true, documents: { select: DOCS_SELECT, orderBy: { uploadedAt: "asc" } } },
-    }),
-  ]);
-
-  const listar = (
-    origen: DocumentoDeLegajo["origen"],
-    expedienteId: string,
-    base: string,
-    docs: { id: string; tipo: string; size: number; uploadedAt: Date }[],
-  ): DocumentoDeLegajo[] =>
-    docs.map((d) => ({
-      id: d.id,
-      tipo: d.tipo,
-      etiqueta: DOC_TIPO_LABEL[d.tipo as DocTipo] ?? d.tipo,
-      size: d.size,
-      uploadedAt: d.uploadedAt,
-      origen,
-      href: `${base}/${expedienteId}/documentos/${d.id}`,
-    }));
-
-  return [
-    ...(alta ? listar("Alta en el portal", alta.id, "/api/solicitudes", alta.documents) : []),
-    ...(validacion ? listar("Validación del legajo", validacion.id, "/api/verificaciones", validacion.documents) : []),
-  ];
 }
 
 export { DOCS_OBLIGATORIOS };

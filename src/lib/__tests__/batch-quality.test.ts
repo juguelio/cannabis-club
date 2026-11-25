@@ -7,6 +7,7 @@ const base = {
   stage: "CURADO",
   dryWeightG: 340,
   actorId: "user-calidad",
+  isAdmin: false,
   harvestActorId: "user-cosecha",
   checklist: ok,
   hasAnalysis: true,
@@ -17,10 +18,17 @@ describe("liberación del lote", () => {
     expect(canRelease(base)).toEqual({ ok: true });
   });
 
-  it("no firma el mismo que registró la cosecha", () => {
+  it("un operador necesita una firma independiente", () => {
     const r = canRelease({ ...base, actorId: "user-cosecha" });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe("SECOND_SIGNATURE");
+  });
+
+  it("el administrador puede liberar su propio ingreso sin controles ni análisis cargados", () => {
+    const propio = { ...base, actorId: base.harvestActorId, isAdmin: true, checklist: {}, hasAnalysis: false };
+    expect(canRelease(propio)).toEqual({ ok: true });
+    expect(canRelease({ ...propio, stage: "RETIRADO" }).ok).toBe(false);
+    expect(canRelease({ ...propio, dryWeightG: 0 }).ok).toBe(false);
   });
 
   it("no libera sin peso seco: no hay stock que liberar", () => {

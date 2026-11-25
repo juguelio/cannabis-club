@@ -11,9 +11,9 @@ import { memberUsage } from "@/lib/dispensary";
 import { Avatar, Chip, Empty, Meter, Note, Panel } from "@/components/ui";
 import { VoidButton } from "@/components/forms";
 import { MemberEditor, MemberStatusActions, PortalAccess } from "@/components/member-editor";
+import { DocumentacionSocio, HistorialSocio } from "@/components/member-record";
 import { AccountPanel } from "@/components/account-panel";
 import { memberAccount } from "@/lib/account";
-import { documentosDelLegajo, type DocumentoDeLegajo } from "@/lib/verificacion";
 import {
   age, AUDIT_ACTION, CONSUMPTION, daysToExpiry, FIELD_LABEL, fmtDate, fmtGrams, fmtWhen, MEMBER_STATUS, plural, reprocannIssue, SIGNATURE,
 } from "@/lib/labels";
@@ -22,16 +22,16 @@ export const metadata = { title: "Legajo" };
 
 const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
-export default async function SocioDetalle({ params }: { params: Promise<{ id: string }> }) {
+export default async function SocioDetalle({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ historial?: string; pagina?: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const { id } = await params;
+  const [{ id }, consulta] = await Promise.all([params, searchParams]);
   const [member, club] = await Promise.all([
     prisma.member.findUnique({
       where: { id },
       include: {
         user: { select: { email: true, active: true, lastLoginAt: true } },
-        dispensations: { orderBy: { occurredAt: "desc" }, take: 30, include: { batch: { include: { strain: true } }, operator: { select: { name: true } } } },
+        dispensations: { orderBy: { occurredAt: "desc" }, take: 30, include: { batch: { select: { code: true, strain: { select: { name: true } } } }, operator: { select: { name: true } } } },
         pickups: { where: { status: { in: ["SOLICITADA", "CONFIRMADA"] } }, include: { appointment: { select: { scheduledAt: true } } } },
       },
     }),
@@ -39,13 +39,11 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
   ]);
   if (!member) notFound();
 
-  const [usage, activity, account, consents, documentos] = await Promise.all([
+  const [usage, activity, account, consents] = await Promise.all([
     memberUsage(prisma, member.id, club.timezone),
     prisma.auditLog.findMany({ where: { entity: "Member", entityId: member.id }, orderBy: { createdAt: "desc" }, take: 12, include: { actor: { select: { name: true } } } }),
     memberAccount(member.id, 12),
     memberConsents(member.id),
-    // Los archivos son de administración: el mostrador entrega con el padrón, no abre el legajo.
-    session.role === "ADMIN" ? documentosDelLegajo(member.id) : Promise.resolve([] as DocumentoDeLegajo[]),
   ]);
   const limits = limitsFromClub(club);
   const years = member.birthDate ? age(member.birthDate) : null;
@@ -70,7 +68,7 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
             <div className="profile-meta">
               <span>Legajo {member.legajo}</span>
               <span>{maskDoc(member.docLast4)}</span>
-              <span>{years} años</span>
+              {years !== null && <span>{years} años</span>}
               <span>{CONSUMPTION[member.consumptionType]}</span>
             </div>
             <div className="profile-chips">
@@ -109,6 +107,10 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
         ) : null}
       </div>
 
+      {session.role === "ADMIN" && <div className="grid-2" style={{ marginBottom: 16 }}>
+        <DocumentacionSocio memberId={id} />
+        <HistorialSocio memberId={id} vista={consulta.historial} pagina={consulta.pagina} />
+      </div>}
       <div className="grid-2">
         <div className="stack">
           {/* El mostrador entrega con el tope y el padrón; la cuenta corriente es de administración. */}
@@ -216,44 +218,14 @@ export default async function SocioDetalle({ params }: { params: Promise<{ id: s
               <dl className="dl">
                 <dt>Teléfono</dt><dd>{member.phone ? <a href={`tel:${member.phone.replace(/\s/g, "")}`}>{member.phone}</a> : "—"}</dd>
                 <dt>Email</dt><dd>{member.email ?? "—"}</dd>
-                <dt>Domicilio</dt><dd>{member.address ?? "—"}</dd>
+                <dt>Domicilio</dt><dd>{[member.address, member.locality, member.province, member.postalCode].filter(Boolean).join(", ") || "—"}</dd>
+                <dt>Verificación</dt><dd>{member.verificationStatus.toLowerCase().replaceAll("_", " ")}{member.verificationAt && ` · ${fmtDate(member.verificationAt)}`}</dd>
                 <dt>Nacimiento</dt><dd>{fmtDate(member.birthDate)}</dd>
                 <dt>Documento</dt><dd>{maskDoc(member.docLast4)}{member.docVerifiedAt ? ` · verificado el ${fmtDate(member.docVerifiedAt)}` : ""}</dd>
               </dl>
               {member.notes ? <p className="muted" style={{ margin: "14px 0 0", fontSize: 14, whiteSpace: "pre-line" }}>{member.notes}</p> : null}
             </div>
           </Panel>
-
-          {session.role === "ADMIN" ? (
-            <Panel
-              title="Documentación del legajo"
-              subtitle="Los archivos que subió el socio: el DNI y la credencial del REPROCANN, cifrados en el servidor. Cada apertura queda registrada en la auditoría."
-            >
-              <div className="panel-body">
-                {documentos.length === 0 ? (
-                  <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-                    Sin archivos cargados. Aparecen acá cuando el socio presenta su DNI y su REPROCANN desde el portal.
-                  </p>
-                ) : (
-                  <ul className="rows">
-                    {documentos.map((d) => (
-                      <li key={d.id}>
-                        <div className="grow">
-                          <div style={{ fontWeight: 550 }}>{d.etiqueta}</div>
-                          <div className="cell-meta">
-                            {d.origen} · {fmtDate(d.uploadedAt)} · {Math.max(1, Math.round(d.size / 1024))} KB
-                          </div>
-                        </div>
-                        <a className="btn btn-quiet btn-sm" href={d.href} target="_blank" rel="noreferrer">
-                          Ver
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </Panel>
-          ) : null}
 
           <Panel title="Consentimientos" subtitle="Por finalidad: el socio puede autorizar sus datos y negar la imagen. Revocar deja la fecha, no borra el registro.">
             <div className="panel-body">
