@@ -41,6 +41,9 @@ export function PadronImport() {
         <label className="btn btn-quiet" style={{ alignSelf: "flex-start" }}>
           <FileUp aria-hidden />{fileName || "Elegir archivo CSV"}
           <input
+            aria-invalid={error || data?.issues.length ? true : undefined}
+            aria-describedby={error ? "csv-error" : data?.issues.length ? "csv-filas" : undefined}
+            disabled={busy}
             type="file"
             accept=".csv,text/csv"
             className="sr-only"
@@ -56,7 +59,7 @@ export function PadronImport() {
           />
         </label>
         {busy && !data ? <p className="muted" style={{ margin: 0 }}>Leyendo la planilla…</p> : null}
-        {error ? <div className="note note-danger">{error}</div> : null}
+        {error ? <div className="note note-danger" id="csv-error" role="alert">{error}</div> : null}
         {data ? (
           <>
             <div className="flex flex-wrap gap-2">
@@ -65,7 +68,7 @@ export function PadronImport() {
               {data.issues.length ? <span className="chip chip-danger">{data.issues.length} problemas</span> : null}
             </div>
             {data.issues.length ? (
-              <div className="note note-warn">
+              <div className="note note-warn" id="csv-filas" role="alert">
                 <div>
                   <b>Estas filas no se importan hasta corregirlas en la planilla:</b>
                   <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>

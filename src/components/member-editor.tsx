@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, Select, Textarea } from "./validated-form";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, KeyRound, Pencil, UserCheck, UserMinus, UserX } from "lucide-react";
@@ -36,8 +38,8 @@ export function MemberEditor({ id, initial, isAdmin }: { id: string; initial: De
     <>
       <button className="btn btn-quiet" onClick={() => { setError(null); setOpen(true); }}><Pencil aria-hidden />Editar legajo</button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Editar legajo" labelledBy="edit-title" className="dlg-wide">
-        <form
-          onSubmit={async (e) => {
+        <ValidatedForm
+          onSubmit={async (e, reportFields) => {
             e.preventDefault();
             const f = new FormData(e.currentTarget);
             const payload: Record<string, unknown> = {};
@@ -62,7 +64,7 @@ export function MemberEditor({ id, initial, isAdmin }: { id: string; initial: De
               setOpen(false);
               router.refresh();
             } catch (err) {
-              setError(errMsg(err));
+              if (!reportFields(err)) setError(errMsg(err));
             } finally {
               setBusy(false);
             }
@@ -71,45 +73,45 @@ export function MemberEditor({ id, initial, isAdmin }: { id: string; initial: De
           <fieldset disabled={busy} className="dlg-body stack" style={{ gap: 18 }}>
             {isAdmin ? (
               <div className="field-row">
-                <div><label className="label" htmlFor="e-last">Apellido</label><input className="input" id="e-last" name="lastName" defaultValue={initial.lastName} /></div>
-                <div><label className="label" htmlFor="e-first">Nombre</label><input className="input" id="e-first" name="firstName" defaultValue={initial.firstName} /></div>
-                <div><label className="label" htmlFor="e-birth">Nacimiento</label><input className="input" id="e-birth" type="date" name="birthDate" defaultValue={initial.birthDate} /></div>
+                <div><label className="label" htmlFor="e-last">Apellido</label><Input className="input" id="e-last" name="lastName" defaultValue={initial.lastName} /></div>
+                <div><label className="label" htmlFor="e-first">Nombre</label><Input className="input" id="e-first" name="firstName" defaultValue={initial.firstName} /></div>
+                <div><label className="label" htmlFor="e-birth">Nacimiento</label><Input className="input" id="e-birth" type="date" name="birthDate" defaultValue={initial.birthDate} /></div>
               </div>
             ) : null}
             <div className="field-row">
-              <div><label className="label" htmlFor="e-phone">Teléfono</label><input className="input" id="e-phone" name="phone" type="tel" defaultValue={initial.phone} /></div>
-              <div><label className="label" htmlFor="e-email">Email</label><input className="input" id="e-email" name="email" type="email" defaultValue={initial.email} /></div>
-              <div style={{ gridColumn: "1 / -1" }}><label className="label" htmlFor="e-addr">Domicilio</label><input className="input" id="e-addr" name="address" defaultValue={initial.address} /></div>
+              <div><label className="label" htmlFor="e-phone">Teléfono</label><Input className="input" id="e-phone" name="phone" type="tel" defaultValue={initial.phone} /></div>
+              <div><label className="label" htmlFor="e-email">Email</label><Input className="input" id="e-email" name="email" type="email" defaultValue={initial.email} /></div>
+              <div style={{ gridColumn: "1 / -1" }}><label className="label" htmlFor="e-addr">Domicilio</label><Input className="input" id="e-addr" name="address" defaultValue={initial.address} /></div>
             </div>
             <div className="field-row">
-              <div><label className="label" htmlFor="e-rnum">N° REPROCANN</label><input className="input" id="e-rnum" name="reprocannNumber" defaultValue={initial.reprocannNumber} /></div>
+              <div><label className="label" htmlFor="e-rnum">N° REPROCANN</label><Input className="input" id="e-rnum" name="reprocannNumber" defaultValue={initial.reprocannNumber} /></div>
               <div>
                 <label className="label" htmlFor="e-rst">Estado REPROCANN</label>
-                <select className="select" id="e-rst" name="reprocannStatus" defaultValue={initial.reprocannStatus}>
+                <Select className="select" id="e-rst" name="reprocannStatus" defaultValue={initial.reprocannStatus}>
                   {Object.entries(REPROCANN_STATUS).map(([v, s]) => <option key={v} value={v}>{s.label.replace("REPROCANN ", "")}</option>)}
-                </select>
+                </Select>
               </div>
-              <div><label className="label" htmlFor="e-rexp">Vence</label><input className="input" id="e-rexp" type="date" name="reprocannExpiresAt" defaultValue={initial.reprocannExpiresAt} /></div>
+              <div><label className="label" htmlFor="e-rexp">Vence</label><Input className="input" id="e-rexp" type="date" name="reprocannExpiresAt" defaultValue={initial.reprocannExpiresAt} /></div>
             </div>
             <div className="field-row">
               <div>
                 <label className="label" htmlFor="e-cons">Tipo de consumo</label>
-                <select className="select" id="e-cons" name="consumptionType" defaultValue={initial.consumptionType}>
+                <Select className="select" id="e-cons" name="consumptionType" defaultValue={initial.consumptionType}>
                   <option value="TERAPEUTICO">Terapéutico</option>
                   <option value="LUDICO">Lúdico</option>
-                </select>
+                </Select>
               </div>
-              <div><label className="label" htmlFor="e-fc">Previsión mensual (g)</label><input className="input tnum" id="e-fc" name="monthlyForecastG" inputMode="decimal" defaultValue={initial.monthlyForecastG} /></div>
-              <div><label className="label" htmlFor="e-consent">Consentimiento firmado el</label><input className="input" id="e-consent" type="date" name="consentSignedAt" defaultValue={initial.consentSignedAt} /></div>
+              <div><label className="label" htmlFor="e-fc">Previsión mensual (g)</label><Input className="input tnum" id="e-fc" name="monthlyForecastG" inputMode="decimal" defaultValue={initial.monthlyForecastG} /></div>
+              <div><label className="label" htmlFor="e-consent">Consentimiento firmado el</label><Input className="input" id="e-consent" type="date" name="consentSignedAt" defaultValue={initial.consentSignedAt} /></div>
             </div>
-            <div><label className="label" htmlFor="e-notes">Notas internas</label><textarea className="textarea" id="e-notes" name="notes" defaultValue={initial.notes} /></div>
+            <div><label className="label" htmlFor="e-notes">Notas internas</label><Textarea className="textarea" id="e-notes" name="notes" defaultValue={initial.notes} /></div>
             {error ? <div className="note note-danger" role="alert">{error}</div> : null}
           </fieldset>
           <div className="dlg-foot">
             <button type="button" className="btn btn-quiet" onClick={() => setOpen(false)}>Cancelar</button>
             <button className="btn" disabled={busy}>{busy ? "Guardando…" : "Guardar cambios"}</button>
           </div>
-        </form>
+        </ValidatedForm>
       </Dialog>
     </>
   );

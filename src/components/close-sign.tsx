@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ValidatedForm, Input, type ReportFields } from "./validated-form";
 import { api, errMsg } from "@/lib/client";
 import { useToast } from "@/components/toast";
 
@@ -13,7 +14,7 @@ export function CloseSign({ period }: { period: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function sign() {
+  async function sign(_: React.FormEvent, reportFields: ReportFields) {
     if (!window.confirm(`Firmar el cierre de ${period}. Los totales quedan congelados: corregirlos después requiere un cierre nuevo. ¿Seguir?`)) return;
     setBusy(true);
     setError(null);
@@ -22,22 +23,22 @@ export function CloseSign({ period }: { period: string }) {
       toast({ tone: "ok", title: "Cierre firmado", text: `Huella ${res.close.hash.slice(0, 12)}… guardada con el período.` });
       router.refresh();
     } catch (err) {
-      setError(errMsg(err));
+      if (!reportFields(err)) setError(errMsg(err));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="stack" style={{ gap: 10 }}>
+    <ValidatedForm className="stack" style={{ gap: 10 }} onSubmit={sign}>
       <div>
         <label className="label" htmlFor="close-note">Nota del cierre (opcional)</label>
-        <input id="close-note" className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej.: mes con recall del lote L-2026-002" />
+        <Input name="note" id="close-note" className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej.: mes con recall del lote L-2026-002" />
       </div>
       {error ? <div className="note note-warn" role="alert">{error}</div> : null}
       <div>
-        <button className="btn" onClick={sign} disabled={busy}>{busy ? "Firmando…" : `Firmar cierre de ${period}`}</button>
+        <button className="btn" type="submit" disabled={busy}>{busy ? "Firmando…" : `Firmar cierre de ${period}`}</button>
       </div>
-    </div>
+    </ValidatedForm>
   );
 }

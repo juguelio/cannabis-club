@@ -50,3 +50,9 @@ next-env.d.ts
 # pipeline de videos (frames, audio, renders)
 .videos-work/
 scripts/videos/node_modules/
+
+# E2E (Playwright)
+e2e/.state/
+e2e/.reporte/
+e2e/.resultados/
+test-results/

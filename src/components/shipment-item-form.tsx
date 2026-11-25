@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, Select, type ReportFields } from "./validated-form";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, errMsg } from "@/lib/client";
@@ -27,7 +29,7 @@ export function ShipmentItemForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent, reportFields: ReportFields) {
     event.preventDefault();
     setBusy(true);
     setError(null);
@@ -40,34 +42,34 @@ export function ShipmentItemForm({
       setMemberId("");
       router.refresh();
     } catch (err) {
-      setError(errMsg(err));
+      if (!reportFields(err)) setError(errMsg(err));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form className="stack" style={{ gap: 10 }} onSubmit={submit}>
+    <ValidatedForm className="stack" style={{ gap: 10 }} onSubmit={submit}>
       <MemberPicker members={members} value={memberId} onChange={setMemberId} />
       <div className="grid-2">
         <div>
           <label className="label" htmlFor="si-batch">Lote</label>
-          <select className="input" id="si-batch" value={batchId} onChange={(e) => setBatchId(e.target.value)} required>
+          <Select className="input" id="si-batch" name="batchId" value={batchId} onChange={(e) => setBatchId(e.target.value)} required>
             <option value="">Elegir lote…</option>
             {batches.map((b) => (
               <option key={b.id} value={b.id}>{b.code} · {b.strain} · {b.available} g</option>
             ))}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="label" htmlFor="si-grams">Gramos</label>
-          <input className="input" id="si-grams" inputMode="decimal" value={grams} onChange={(e) => setGrams(e.target.value)} required />
+          <Input className="input" id="si-grams" inputMode="decimal" name="grams" value={grams} onChange={(e) => setGrams(e.target.value)} required />
         </div>
       </div>
       {error ? <div className="note note-warn" role="alert">{error}</div> : null}
       <div>
         <button className="btn" type="submit" disabled={busy || !memberId || !batchId || !grams}>{busy ? "Agregando…" : "Agregar al traslado"}</button>
       </div>
-    </form>
+    </ValidatedForm>
   );
 }

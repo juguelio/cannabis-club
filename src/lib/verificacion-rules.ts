@@ -18,7 +18,7 @@ export type ProblemaCodigo =
   | "PROVINCIA_FALTANTE"
   | "CP_INVALIDO";
 
-export type Problema = { codigo: ProblemaCodigo; mensaje: string };
+export type Problema = { campo: string; codigo: ProblemaCodigo; mensaje: string };
 
 export type DeclaracionOk = { dni: string; nacimiento: Date; vence: Date };
 
@@ -60,42 +60,42 @@ export function validarDeclaracion(input: {
 }): { ok: true; datos: DeclaracionOk } | { ok: false; problema: Problema } {
   const dni = normalizarDni(input.dni);
   if (!dni)
-    return { ok: false, problema: { codigo: "DNI_INVALIDO", mensaje: "El DNI tiene que tener 7 u 8 números." } };
+    return { ok: false, problema: { campo: "dni", codigo: "DNI_INVALIDO", mensaje: "El DNI tiene que tener 7 u 8 números." } };
 
   if (!esFecha(input.nacimiento ?? ""))
-    return { ok: false, problema: { codigo: "NACIMIENTO_INVALIDO", mensaje: "Falta la fecha de nacimiento." } };
+    return { ok: false, problema: { campo: "nacimiento", codigo: "NACIMIENTO_INVALIDO", mensaje: "Falta la fecha de nacimiento." } };
   const nacimiento = soloFechaUtc(input.nacimiento);
   if (Number.isNaN(nacimiento.getTime()))
-    return { ok: false, problema: { codigo: "NACIMIENTO_INVALIDO", mensaje: "La fecha de nacimiento no es válida." } };
+    return { ok: false, problema: { campo: "nacimiento", codigo: "NACIMIENTO_INVALIDO", mensaje: "La fecha de nacimiento no es válida." } };
 
   const hoy = input.hoy ?? new Date();
   if (nacimiento.getTime() > hoy.getTime())
-    return { ok: false, problema: { codigo: "NACIMIENTO_INVALIDO", mensaje: "La fecha de nacimiento no puede ser futura." } };
+    return { ok: false, problema: { campo: "nacimiento", codigo: "NACIMIENTO_INVALIDO", mensaje: "La fecha de nacimiento no puede ser futura." } };
 
   const edadMinima = input.edadMinima ?? 18;
   if (edadEn(nacimiento, hoy) < edadMinima)
     return {
       ok: false,
-      problema: { codigo: "MENOR_DE_EDAD", mensaje: `El club asocia desde los ${edadMinima} años.` },
+      problema: { campo: "nacimiento", codigo: "MENOR_DE_EDAD", mensaje: `El club asocia desde los ${edadMinima} años.` },
     };
 
   const reprocann = (input.reprocann ?? "").trim();
   if (reprocann.length < 4)
     return {
       ok: false,
-      problema: { codigo: "REPROCANN_INVALIDO", mensaje: "Falta el número de REPROCANN (está en la credencial)." },
+      problema: { campo: "reprocann", codigo: "REPROCANN_INVALIDO", mensaje: "Falta el número de REPROCANN (está en la credencial)." },
     };
 
   if (!esFecha(input.vence ?? ""))
-    return { ok: false, problema: { codigo: "REPROCANN_INVALIDO", mensaje: "Falta la fecha de vencimiento del REPROCANN." } };
+    return { ok: false, problema: { campo: "vence", codigo: "REPROCANN_INVALIDO", mensaje: "Falta la fecha de vencimiento del REPROCANN." } };
   const vence = soloFechaUtc(input.vence);
   if (Number.isNaN(vence.getTime()))
-    return { ok: false, problema: { codigo: "REPROCANN_INVALIDO", mensaje: "La fecha de vencimiento no es válida." } };
+    return { ok: false, problema: { campo: "vence", codigo: "REPROCANN_INVALIDO", mensaje: "La fecha de vencimiento no es válida." } };
   if (vence.getTime() < soloFechaUtc(hoy.toISOString().slice(0, 10)).getTime())
     return {
       ok: false,
       problema: {
-        codigo: "REPROCANN_VENCIDO",
+        campo: "vence", codigo: "REPROCANN_VENCIDO",
         mensaje: "Ese REPROCANN ya está vencido: subí la credencial del trámite renovado.",
       },
     };
@@ -202,16 +202,16 @@ export function validarDomicilio(d: Partial<DomicilioDeclarado>): { ok: true; da
   if (direccion.length < 5 || !/\d/.test(direccion))
     return {
       ok: false,
-      problema: { codigo: "DOMICILIO_FALTANTE", mensaje: "Para enviarte necesitamos la calle y el número." },
+      problema: { campo: "direccion", codigo: "DOMICILIO_FALTANTE", mensaje: "Para enviarte necesitamos la calle y el número." },
     };
   if (localidad.length < 2)
-    return { ok: false, problema: { codigo: "LOCALIDAD_FALTANTE", mensaje: "Falta la localidad del domicilio." } };
+    return { ok: false, problema: { campo: "localidad", codigo: "LOCALIDAD_FALTANTE", mensaje: "Falta la localidad del domicilio." } };
   if (provincia.length < 3)
-    return { ok: false, problema: { codigo: "PROVINCIA_FALTANTE", mensaje: "Falta la provincia del domicilio." } };
+    return { ok: false, problema: { campo: "provincia", codigo: "PROVINCIA_FALTANTE", mensaje: "Falta la provincia del domicilio." } };
   if (!cp)
     return {
       ok: false,
-      problema: { codigo: "CP_INVALIDO", mensaje: "El código postal tiene que tener 4 números (ej. 8370 o C1428)." },
+      problema: { campo: "codigoPostal", codigo: "CP_INVALIDO", mensaje: "El código postal tiene que tener 4 números (ej. 8370 o C1428)." },
     };
 
   return { ok: true, datos: { entrega, address: direccion, locality: localidad, province: provincia, postalCode: cp } };

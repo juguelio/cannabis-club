@@ -1,4 +1,6 @@
 "use client";
+
+import { ValidatedForm, Input } from "./validated-form";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { clubSettings, type ClubSettings } from "@/lib/club-settings";
@@ -35,9 +37,9 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
   ] as const;
 
   return (
-    <form
+    <ValidatedForm
       className="stack"
-      onSubmit={async (e) => {
+      onSubmit={async (e, reportFields) => {
         e.preventDefault();
         if (busy) return;
         const form = new FormData(e.currentTarget);
@@ -49,14 +51,14 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
         values.requiereLiberacion = form.get("requiereLiberacion") === "on";
         const parsed = clubSettings.safeParse(values);
         setError(null);
-        if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
+        if (!parsed.success) { reportFields(parsed.error.issues); return; }
         setBusy(true);
         try {
           await api("/api/club", { method: "PATCH", body: parsed.data });
           toast({ tone: "ok", title: "Configuración guardada", text: "Rige para las próximas entregas; las anteriores conservan sus reglas." });
           router.refresh();
         } catch (err) {
-          setError(errMsg(err));
+          if (!reportFields(err)) setError(errMsg(err));
         } finally {
           setBusy(false);
         }
@@ -69,7 +71,7 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
             {identity.map(([key, label, hint]) => (
               <div key={key}>
                 <label className="label" htmlFor={`c-${key}`}>{label}</label>
-                <input className="input" id={`c-${key}`} name={key} defaultValue={initial[key] ?? ""} required={key === "nombre"} maxLength={key === "cuit" ? 20 : 120} />
+                <Input className="input" id={`c-${key}`} name={key} defaultValue={initial[key] ?? ""} required={key === "nombre"} maxLength={key === "cuit" ? 20 : 120} />
                 {hint ? <span className="hint">{hint}</span> : null}
               </div>
             ))}
@@ -81,7 +83,7 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
             {money.map(([key, label]) => (
               <div key={key}>
                 <label className="label" htmlFor={`c-${key}`}>{label}</label>
-                <input className="input tnum" id={`c-${key}`} name={key} inputMode="decimal" defaultValue={initial[key] ?? ""} placeholder="0" />
+                <Input className="input tnum" id={`c-${key}`} name={key} inputMode="decimal" defaultValue={initial[key] ?? ""} placeholder="0" />
                 {key === "aportePorGramo" ? <span className="hint">Sin valor: la entrega no genera cargo.</span> : null}
               </div>
             ))}
@@ -93,16 +95,16 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
             {limits.map(([key, label]) => (
               <div key={key}>
                 <label className="label" htmlFor={`c-${key}`}>{label}</label>
-                <input className="input tnum" id={`c-${key}`} name={key} inputMode="decimal" defaultValue={initial[key] ?? ""} required={key !== "thcMaxMenor"} />
+                <Input className="input tnum" id={`c-${key}`} name={key} inputMode="decimal" defaultValue={initial[key] ?? ""} required={key !== "thcMaxMenor"} />
                 {key === "thcMaxMenor" ? <span className="hint">Vacío: sin tope de THC adicional.</span> : null}
               </div>
             ))}
             <label className="check" style={{ gridColumn: "1 / -1" }}>
-              <input type="checkbox" name="requiereReprocann" defaultChecked={initial.requiereReprocann} />
+              <Input type="checkbox" name="requiereReprocann" defaultChecked={initial.requiereReprocann} />
               <span>Exigir REPROCANN vigente para entregar<span className="hint">Si lo desactivás, el dispensario entrega aunque el REPROCANN esté vencido. No recomendado.</span></span>
             </label>
             <label className="check" style={{ gridColumn: "1 / -1" }}>
-              <input type="checkbox" name="requiereLiberacion" defaultChecked={initial.requiereLiberacion} />
+              <Input type="checkbox" name="requiereLiberacion" defaultChecked={initial.requiereLiberacion} />
               <span>Exigir liberación firmada del lote<span className="hint">Nada sale de un lote sin que alguien de calidad firme que está apto, y no puede firmarlo quien registró la cosecha.</span></span>
             </label>
           </div>
@@ -113,6 +115,6 @@ export function ClubSettingsForm({ initial }: { initial: ClubSettings }) {
         <button className="btn btn-lg" disabled={busy}>{busy ? "Guardando…" : "Guardar configuración"}</button>
         <span className="hint" style={{ margin: 0 }}>Cada cambio queda en la actividad del club.</span>
       </div>
-    </form>
+    </ValidatedForm>
   );
 }

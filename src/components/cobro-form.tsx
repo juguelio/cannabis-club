@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ValidatedForm, Input, type ReportFields } from "./validated-form";
 import { Panel } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { api } from "@/lib/client";
@@ -27,7 +28,7 @@ export function CobroForm({ initial }: { initial: CobroInicial }) {
 
   const set = (k: keyof CobroInicial, v: string) => setC((prev) => ({ ...prev, [k]: v }));
 
-  async function guardar() {
+  async function guardar(_: React.FormEvent, reportFields: ReportFields) {
     setBusy(true);
     setError(null);
     try {
@@ -46,13 +47,14 @@ export function CobroForm({ initial }: { initial: CobroInicial }) {
       toast({ tone: "ok", title: "Datos de cobro guardados", text: "El portal ya los muestra en cada pedido." });
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No pudimos guardar los datos de cobro.");
+      if (!reportFields(err)) setError(err instanceof Error ? err.message : "No pudimos guardar los datos de cobro.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
+    <ValidatedForm onSubmit={guardar}>
     <Panel
       title="Datos de cobro"
       subtitle="A dónde transfiere el socio el aporte. Se muestra en el portal junto al monto y el socio sube el comprobante."
@@ -60,26 +62,26 @@ export function CobroForm({ initial }: { initial: CobroInicial }) {
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
         <label className="field">
           <span>Alias</span>
-          <input className="input" value={c.alias} onChange={(e) => set("alias", e.target.value)} placeholder="republica.ong" />
+          <Input className="input" name="cobro.alias" value={c.alias} onChange={(e) => set("alias", e.target.value)} placeholder="republica.ong" />
         </label>
         <label className="field">
           <span>CBU (22 dígitos)</span>
-          <input className="input tnum" value={c.cbu} onChange={(e) => set("cbu", e.target.value)} placeholder="0000000000000000000000" />
+          <Input className="input tnum" name="cobro.cbu" value={c.cbu} onChange={(e) => set("cbu", e.target.value)} placeholder="0000000000000000000000" />
         </label>
         <label className="field">
           <span>Titular de la cuenta</span>
-          <input className="input" value={c.titular} onChange={(e) => set("titular", e.target.value)} placeholder="Asociación Civil…" />
+          <Input className="input" name="cobro.titular" value={c.titular} onChange={(e) => set("titular", e.target.value)} placeholder="Asociación Civil…" />
         </label>
         <label className="field">
           <span>Banco</span>
-          <input className="input" value={c.banco} onChange={(e) => set("banco", e.target.value)} placeholder="Banco…" />
+          <Input className="input" name="cobro.banco" value={c.banco} onChange={(e) => set("banco", e.target.value)} placeholder="Banco…" />
         </label>
       </div>
       <label className="field" style={{ marginTop: 12 }}>
         <span>Nota para el socio (opcional)</span>
-        <input
+        <Input
           className="input"
-          value={c.nota}
+          name="cobro.nota" value={c.nota}
           onChange={(e) => set("nota", e.target.value)}
           placeholder="Ej. transferí antes del mediodía y subí el comprobante el mismo día"
         />
@@ -87,10 +89,11 @@ export function CobroForm({ initial }: { initial: CobroInicial }) {
       {error ? <p className="form-error">{error}</p> : null}
       <div className="panel-foot">
         <span className="cell-meta">El socio nunca ve los datos de otros: sólo el alias y el CBU del club.</span>
-        <button className="btn" type="button" disabled={busy} onClick={guardar}>
+        <button className="btn" type="submit" disabled={busy}>
           {busy ? "Guardando…" : "Guardar datos de cobro"}
         </button>
       </div>
     </Panel>
+    </ValidatedForm>
   );
 }

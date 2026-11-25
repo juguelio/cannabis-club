@@ -51,27 +51,27 @@ const fecha = (v: string | Date | null | undefined) => {
 /** Devuelve la lista de problemas; vacía significa que se puede presentar. */
 export function validarSolicitud(input: SolicitudInput, hoy = new Date()): ErrorCampo[] {
   const errores: ErrorCampo[] = [];
-  if (texto(input.firstName).length < 2) errores.push({ campo: "firstName", mensaje: "Poné tu nombre." });
-  if (texto(input.lastName).length < 2) errores.push({ campo: "lastName", mensaje: "Poné tu apellido." });
+  if (texto(input.firstName).length < 2) errores.push({ campo: "firstName", mensaje: "Escribí tu nombre con al menos dos caracteres." });
+  if (texto(input.lastName).length < 2) errores.push({ campo: "lastName", mensaje: "Escribí tu apellido con al menos dos caracteres." });
 
   const nacimiento = fecha(input.birthDate);
   if (!nacimiento) errores.push({ campo: "birthDate", mensaje: "Falta la fecha de nacimiento." });
   else {
     if (nacimiento > hoy) errores.push({ campo: "birthDate", mensaje: "La fecha de nacimiento no puede ser futura." });
-    else if (edadEn(nacimiento, hoy) < MIN_EDAD) errores.push({ campo: "birthDate", mensaje: `Tenés que ser mayor de ${MIN_EDAD} años.` });
+    else if (edadEn(nacimiento, hoy) < MIN_EDAD) errores.push({ campo: "birthDate", mensaje: `Con la fecha ingresada todavía no cumpliste ${MIN_EDAD} años, la edad mínima para asociarte. Si el año está mal escrito, corregilo.` });
   }
 
   const tel = soloDigitos(input.phone);
-  if (tel.length < 8) errores.push({ campo: "phone", mensaje: "Poné un teléfono con código de área." });
+  if (tel.length < 8) errores.push({ campo: "phone", mensaje: "Ingresá el teléfono con código de área y al menos 8 números en total." });
 
-  if (texto(input.address).length < 5) errores.push({ campo: "address", mensaje: "Falta el domicilio." });
+  if (texto(input.address).length < 5) errores.push({ campo: "address", mensaje: "Ingresá tu domicilio con al menos cinco caracteres." });
 
   const dni = soloDigitos(input.docNumber);
   if (dni.length < DNI_MIN_DIGITOS || dni.length > DNI_MAX_DIGITOS)
     errores.push({ campo: "docNumber", mensaje: "El DNI tiene 7 u 8 dígitos." });
 
   if (soloDigitos(input.reprocannNumber).length < 4)
-    errores.push({ campo: "reprocannNumber", mensaje: "Falta el número de REPROCANN." });
+    errores.push({ campo: "reprocannNumber", mensaje: "El número de REPROCANN debe incluir al menos cuatro dígitos. Revisalo en tu credencial." });
 
   const vence = fecha(input.reprocannExpiresAt);
   if (!vence) errores.push({ campo: "reprocannExpiresAt", mensaje: "Falta el vencimiento del REPROCANN." });

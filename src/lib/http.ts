@@ -50,7 +50,7 @@ export function fail(error: unknown) {
     if (known) return json({ error: error.code, message: known[1] }, known[0]);
   }
   console.error("[api] error no controlado", error);
-  return NextResponse.json({ error: "INTERNAL", message: "Error interno" }, { status: 500 });
+  return NextResponse.json({ error: "INTERNAL", message: "El servidor no pudo completar la operación. Actualizá la página para comprobar el estado y volvé a intentar." }, { status: 500 });
 }
 
 export const clientIp = (req: Request) =>

@@ -64,6 +64,7 @@ export function ComprobantePago({
   const [archivo, setArchivo] = useState<ArchivoElegido | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [campoError, setCampoError] = useState<"archivo" | "monto" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState(false);
   const camara = useRef<HTMLInputElement>(null);
@@ -84,6 +85,7 @@ export function ComprobantePago({
   async function elegir(file: File | null | undefined) {
     if (!file) return;
     setError(null);
+    setCampoError("archivo");
     const r = await validarComprobante(file);
     if (!r.ok) {
       setArchivo(null);
@@ -98,6 +100,13 @@ export function ComprobantePago({
       setError("Primero subí el comprobante.");
       return;
     }
+    const importe = Number(monto.replace(",", "."));
+    if (monto.trim() && (!Number.isFinite(importe) || importe <= 0)) {
+      setCampoError("monto");
+      setError("Ingresá el importe transferido como un número mayor que cero.");
+      return;
+    }
+    setCampoError(null);
     setBusy(true);
     setError(null);
     try {
@@ -160,6 +169,8 @@ export function ComprobantePago({
       <input
         ref={camara}
         type="file"
+        aria-invalid={campoError === "archivo" && error ? true : undefined}
+        aria-describedby={campoError === "archivo" && error ? `archivo-error-${pickupId}` : undefined}
         accept="image/*"
         capture="environment"
         onChange={(ev) => void elegir(ev.target.files?.[0])}
@@ -169,6 +180,8 @@ export function ComprobantePago({
       <input
         ref={galeria}
         type="file"
+        aria-invalid={campoError === "archivo" && error ? true : undefined}
+        aria-describedby={campoError === "archivo" && error ? `archivo-error-${pickupId}` : undefined}
         accept="image/jpeg,image/png,image/webp,application/pdf"
         onChange={(ev) => void elegir(ev.target.files?.[0])}
         className="sr-only"
@@ -235,6 +248,7 @@ export function ComprobantePago({
         </div>
       )}
 
+      {campoError === "archivo" && error && <small className="field-error" id={`archivo-error-${pickupId}`}>{error}</small>}
       <div className="flex items-center gap-2 flex-wrap">
         <label className="field" style={{ margin: 0 }}>
           <span>N° de operación (opcional)</span>
@@ -252,11 +266,14 @@ export function ComprobantePago({
             <input
               className="input tnum"
               inputMode="decimal"
+              aria-invalid={campoError === "monto" && error ? true : undefined}
+              aria-describedby={campoError === "monto" && error ? `monto-error-${pickupId}` : undefined}
               value={monto}
-              onChange={(ev) => setMonto(ev.target.value)}
+              onChange={(ev) => { setMonto(ev.target.value); if (campoError === "monto") setError(null); }}
               placeholder={aporteEstimado != null ? String(Math.round(total ?? aporteEstimado)) : "0"}
               style={{ maxWidth: 140 }}
             />
+            {campoError === "monto" && error && <small className="field-error" id={`monto-error-${pickupId}`}>{error}</small>}
           </label>
         ) : (
           <button type="button" className="cobro-copiar" style={{ alignSelf: "end" }} onClick={() => setOtroMonto(true)}>
@@ -265,7 +282,7 @@ export function ComprobantePago({
         )}
       </div>
 
-      {error ? <p className="form-error" style={{ margin: 0 }} role="alert">{error}</p> : null}
+      {error ? <p className="form-error" style={{ margin: 0 }} role="alert">{campoError ? "No se pudo presentar el comprobante. Revisá el dato señalado." : error}</p> : null}
 
       <button type="button" className="btn btn-lg btn-block" disabled={busy || !archivo} onClick={subir}>
         {busy ? "Subiendo…" : archivo ? "Subir comprobante" : "Primero subí el comprobante"}

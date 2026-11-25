@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, errMsg } from "@/lib/client";
@@ -48,11 +50,12 @@ export function AccountPanel({
   const debe = balance > 0.009;
   const aFavor = balance < -0.009;
 
-  async function pay(event: React.FormEvent) {
+  async function pay(event: React.FormEvent, reportFields: ReportFields) {
     event.preventDefault();
     const value = Number(amount.replace(",", "."));
     if (!Number.isFinite(value) || value <= 0) {
-      setError("Escribí el importe que pagó el socio.");
+      setError(null);
+      reportFields([{ campo: "amountArs", mensaje: "Ingresá el importe pagado como un número mayor que cero." }]);
       return;
     }
     setBusy(true);
@@ -64,7 +67,7 @@ export function AccountPanel({
       toast({ tone: "ok", title: "Pago registrado", text: `${MONEY.format(value)} acreditados al socio.` });
       router.refresh();
     } catch (err) {
-      setError(errMsg(err));
+      if (!reportFields(err)) setError(errMsg(err));
     } finally {
       setBusy(false);
     }
@@ -96,29 +99,29 @@ export function AccountPanel({
           </div>
           <div className="cell-meta">{debe ? "Adeuda" : aFavor ? "Saldo a favor" : "Al día"}</div>
         </div>
-        <form onSubmit={pay} className="flex flex-wrap items-end gap-2">
+        <ValidatedForm onSubmit={pay} className="flex flex-wrap items-end gap-2">
           <div>
             <label className="label" htmlFor="acc-amount">Registrar pago</label>
-            <input
+            <Input
               id="acc-amount"
               className="input tnum"
               inputMode="decimal"
               placeholder="$ 0"
-              value={amount}
+              name="amountArs" value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ""))}
               style={{ width: 120 }}
             />
           </div>
-          <input
+          <Input
             className="input"
             placeholder="Detalle (opcional)"
-            value={note}
+            name="note" value={note}
             onChange={(e) => setNote(e.target.value)}
             style={{ width: 180 }}
             aria-label="Detalle del pago"
           />
           <button className="btn btn-sm" disabled={busy}>{busy ? "Guardando…" : "Acreditar"}</button>
-        </form>
+        </ValidatedForm>
       </div>
 
       {error ? <div className="note note-bad" style={{ marginBottom: 12 }}>{error}</div> : null}

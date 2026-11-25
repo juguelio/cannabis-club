@@ -1,5 +1,9 @@
 "use client";
 
+import { ValidatedForm, Input, type ReportFields } from "./validated-form";
+
+import { ApiError } from "@/lib/client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -55,7 +59,7 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
     }
   }
 
-  async function addClosedDay(e: React.FormEvent) {
+  async function addClosedDay(e: React.FormEvent, reportFields: ReportFields) {
     e.preventDefault();
     if (!nuevoDia) return;
     setBusy(true); setError(null);
@@ -66,11 +70,11 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
         body: JSON.stringify({ date: nuevoDia, reason: motivo.trim() || undefined }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "No se pudo cerrar el día");
+      if (!res.ok) throw new ApiError(data.error, data.message ?? "No se pudo cerrar el día", res.status, data.details);
       setNuevoDia(""); setMotivo("");
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      if (!reportFields(err)) setError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -161,17 +165,17 @@ export function ScheduleEditor({ rules, closed }: { rules: Rule[]; closed: Close
       <div className="card card-pad" style={{ minWidth: 0 }}>
         <div className="section-title mb-2">Días cerrados</div>
         <p className="cell-meta mb-3">Un día cerrado no acepta turnos ni reservas, aunque tenga franjas.</p>
-        <form className="flex flex-wrap items-end gap-2 mb-3" onSubmit={addClosedDay}>
+        <ValidatedForm className="flex flex-wrap items-end gap-2 mb-3" onSubmit={addClosedDay}>
           <div>
             <label className="label" htmlFor="closed-date">Fecha</label>
-            <input id="closed-date" className="input" type="date" value={nuevoDia} onChange={(e) => setNuevoDia(e.target.value)} />
+            <Input id="closed-date" required className="input" type="date" name="date" value={nuevoDia} onChange={(e) => setNuevoDia(e.target.value)} />
           </div>
           <div style={{ flex: 1, minWidth: 160 }}>
             <label className="label" htmlFor="closed-reason">Motivo</label>
-            <input id="closed-reason" className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Feriado, mantenimiento…" />
+            <Input id="closed-reason" className="input" name="reason" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Feriado, mantenimiento…" />
           </div>
-          <button className="btn btn-sm" disabled={busy || !nuevoDia}>Cerrar día</button>
-        </form>
+          <button className="btn btn-sm" disabled={busy}>Cerrar día</button>
+        </ValidatedForm>
         {closed.length === 0 ? (
           <p className="cell-meta">No hay días cerrados.</p>
         ) : (

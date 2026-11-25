@@ -112,6 +112,9 @@ export function CheckoutEntrega({
 
   const zonaElegida = data.envios.find((z) => z.zona === zona);
   const direccion = componerDireccion(calle, localidad, provincia, cp);
+  const [revisados, setRevisados] = useState({ cp: false, calle: false });
+  const errorCp = revisados.cp && cp.length !== 4;
+  const errorCalle = revisados.calle && calle.trim().length < 4;
   const entregaLista =
     modo === "RETIRO" ? slot != null : Boolean(zonaElegida) && calle.trim().length >= 4 && cp.trim().length === 4;
 
@@ -347,6 +350,8 @@ export function CheckoutEntrega({
                   <label className="label" htmlFor="c-cp">Código postal</label>
                   <input
                     id="c-cp"
+                    onBlur={() => setRevisados(r => ({ ...r, cp: true }))}
+                    aria-invalid={errorCp || undefined} aria-describedby={errorCp ? "error-cp" : undefined}
                     className="input tnum"
                     inputMode="numeric"
                     maxLength={4}
@@ -361,6 +366,7 @@ export function CheckoutEntrega({
                       }
                     }}
                   />
+                  {errorCp && <small className="field-error" id="error-cp">Ingresá los cuatro números del código postal.</small>}
                 </div>
                 <div>
                   <label className="label" htmlFor="c-loc">Localidad</label>
@@ -383,7 +389,8 @@ export function CheckoutEntrega({
 
               <div>
                 <label className="label" htmlFor="c-dir">Calle y número</label>
-                <input id="c-dir" className="input" value={calle} onChange={(e) => setCalle(e.target.value)} placeholder="Los Notros 195, piso 2 depto B" />
+                <input id="c-dir" onBlur={() => setRevisados(r => ({ ...r, calle: true }))} aria-invalid={errorCalle || undefined} aria-describedby={errorCalle ? "error-calle" : undefined} className="input" value={calle} onChange={(e) => setCalle(e.target.value)} placeholder="Los Notros 195, piso 2 depto B" />
+                {errorCalle && <small className="field-error" id="error-calle">Ingresá calle y número, con al menos cuatro caracteres.</small>}
               </div>
             </>
           )}
@@ -439,7 +446,7 @@ export function CheckoutEntrega({
             ? `El comprobante se sube en el paso siguiente.`
             : modo === "RETIRO"
               ? "Elegí un horario para continuar."
-              : "Completá el código postal y la calle."}
+              : !zonaElegida ? "Elegí una zona de envío para continuar." : "Completá el código postal y la calle."}
         </span>
       </div>
     </div>

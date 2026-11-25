@@ -36,7 +36,10 @@ export const clubSettingsFields = z.object({
   cobro: z
     .object({
       alias: z.string().trim().max(60).optional(),
-      cbu: z.string().trim().max(30).optional(),
+      cbu: z.string().trim().max(30).refine(
+        valor => !valor || /^\d{22}$/.test(valor.replace(/[\s.-]/g, "")),
+        "El CBU debe tener 22 números. Podés separarlos con espacios o guiones.",
+      ).optional(),
       titular: z.string().trim().max(80).optional(),
       banco: z.string().trim().max(60).optional(),
       nota: z.string().trim().max(200).optional(),

@@ -25,7 +25,7 @@ const Create = z.object({
 export const POST = route(async (req) => {
   const actor = await requireUser(["ADMIN"]);
   const input = await body(req, Create);
-  if (await prisma.user.findUnique({ where: { email: input.email } })) throw conflict("EMAIL_TAKEN", "Ya existe una cuenta con ese email.");
+  if (await prisma.user.findUnique({ where: { email: input.email } })) throw conflict("EMAIL_TAKEN", "Ya existe una cuenta con ese email.", { campo: "email" });
   const user = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: { name: input.name, email: input.email, role: input.role, passwordHash: await hashPassword(input.password), mustChangePassword: true, passwordChangedAt: new Date() },

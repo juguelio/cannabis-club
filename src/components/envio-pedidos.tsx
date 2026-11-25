@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Select } from "./validated-form";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, errMsg } from "@/lib/client";
@@ -74,10 +76,10 @@ export function EnvioPedidos({ pedidos, traslados, lotes }: { pedidos: Pedido[];
           <div className="cell-meta" style={{ marginTop: 4 }}>
             {p.direccion ?? "sin dirección"}
           </div>
-          <div className="flex items-end gap-2 flex-wrap" style={{ marginTop: 10 }}>
+          <ValidatedForm onSubmit={() => cargar(p)} className="flex items-end gap-2 flex-wrap" style={{ marginTop: 10 }}>
             <label className="stack" style={{ gap: 4 }}>
               <span className="cell-meta">Traslado</span>
-              <select
+              <Select required
                 className="input"
                 value={shipmentId[p.id] ?? traslados[0]?.id ?? ""}
                 onChange={(e) => setShipmentId((s) => ({ ...s, [p.id]: e.target.value }))}
@@ -85,23 +87,23 @@ export function EnvioPedidos({ pedidos, traslados, lotes }: { pedidos: Pedido[];
                 {traslados.map((t) => (
                   <option key={t.id} value={t.id}>{t.code}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="stack" style={{ gap: 4 }}>
               <span className="cell-meta">Lote</span>
-              <select className="input" value={batchId[p.id] ?? ""} onChange={(e) => setBatchId((s) => ({ ...s, [p.id]: e.target.value }))}>
+              <Select required className="input" value={batchId[p.id] ?? ""} onChange={(e) => setBatchId((s) => ({ ...s, [p.id]: e.target.value }))}>
                 <option value="">Elegir lote…</option>
                 {lotes.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.code} · {l.strain} · {g(l.available)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
-            <button type="button" className="btn btn-sm" disabled={busy === p.id} onClick={() => cargar(p)}>
+            <button type="submit" className="btn btn-sm" disabled={busy === p.id}>
               {busy === p.id ? "Cargando…" : "Cargar en el traslado"}
             </button>
-          </div>
+          </ValidatedForm>
           {error[p.id] ? <div className="note note-danger" role="alert" style={{ marginTop: 8 }}>{error[p.id]}</div> : null}
         </li>
       ))}

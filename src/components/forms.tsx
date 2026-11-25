@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, Select, Textarea } from "./validated-form";
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff, LogIn } from "lucide-react";
@@ -36,10 +38,10 @@ export function LoginForm({ google = false }: { google?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
   return (
-    <form
+    <ValidatedForm method="post"
       className="stack"
       style={{ gap: 14 }}
-      onSubmit={async (e) => {
+      onSubmit={async (e, reportFields) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         setBusy(true);
@@ -49,7 +51,7 @@ export function LoginForm({ google = false }: { google?: boolean }) {
           router.push(data.user?.role === "SOCIO" ? "/portal" : "/");
           router.refresh();
         } catch (err) {
-          setError(errMsg(err));
+          if (!reportFields(err)) setError(errMsg(err));
           setBusy(false);
         }
       }}
@@ -69,12 +71,12 @@ export function LoginForm({ google = false }: { google?: boolean }) {
       ) : null}
       <div>
         <label className="label" htmlFor="email">Email</label>
-        <input className="input" id="email" name="email" type="email" autoComplete="username" required autoFocus />
+        <Input className="input" id="email" name="email" type="email" autoComplete="username" required autoFocus />
       </div>
       <div>
         <label className="label" htmlFor="password">Contraseña</label>
         <div style={{ position: "relative" }}>
-          <input className="input" id="password" name="password" autoComplete="current-password" type={show ? "text" : "password"} required style={{ paddingRight: 44 }} />
+          <Input className="input" id="password" name="password" autoComplete="current-password" type={show ? "text" : "password"} required style={{ paddingRight: 44 }} />
           <button type="button" className="icon-btn" onClick={() => setShow((s) => !s)} aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"} style={{ position: "absolute", right: 3, top: 3 }}>
             {show ? <EyeOff /> : <Eye />}
           </button>
@@ -83,7 +85,7 @@ export function LoginForm({ google = false }: { google?: boolean }) {
       {error ? <div className="note note-danger" role="alert">{error}</div> : null}
       <button className="btn btn-lg btn-block" disabled={busy}><LogIn aria-hidden />{busy ? "Ingresando…" : "Ingresar"}</button>
       <p className="hint" style={{ margin: 0 }}>¿Sos socio y no tenés acceso? Pedilo en la secretaría del club.</p>
-    </form>
+    </ValidatedForm>
   );
 }
 
@@ -95,9 +97,9 @@ export function MemberForm() {
   const [busy, setBusy] = useState(false);
   const [consent, setConsent] = useState("");
   return (
-    <form
+    <ValidatedForm method="post"
       className="stack"
-      onSubmit={async (e) => {
+      onSubmit={async (e, reportFields) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         setError(null);
@@ -126,7 +128,7 @@ export function MemberForm() {
           router.push(`/socios/${res.member.id}`);
           router.refresh();
         } catch (err) {
-          setError(errMsg(err));
+          if (!reportFields(err)) setError(errMsg(err));
           setBusy(false);
         }
       }}
@@ -134,27 +136,27 @@ export function MemberForm() {
       <fieldset className="panel" disabled={busy}>
         <div className="panel-head"><div><h2 className="panel-title">Identidad</h2><p className="panel-sub">Como figura en el DNI. El legajo se asigna solo.</p></div></div>
         <div className="panel-body field-row">
-          <div><label className="label" htmlFor="lastName">Apellido</label><input className="input" id="lastName" name="lastName" required autoComplete="off" /></div>
-          <div><label className="label" htmlFor="firstName">Nombre</label><input className="input" id="firstName" name="firstName" required autoComplete="off" /></div>
-          <div><label className="label" htmlFor="docNumber">DNI</label><input className="input tnum" id="docNumber" name="docNumber" inputMode="numeric" required placeholder="30111222" /></div>
-          <div><label className="label" htmlFor="birthDate">Nacimiento</label><input className="input" id="birthDate" name="birthDate" type="date" max={today()} required /></div>
-          <div><label className="label" htmlFor="phone">Teléfono</label><input className="input" id="phone" name="phone" type="tel" autoComplete="off" /></div>
-          <div><label className="label" htmlFor="email">Email</label><input className="input" id="email" name="email" type="email" autoComplete="off" /><span className="hint">Lo necesita para entrar al portal.</span></div>
-          <div style={{ gridColumn: "1 / -1" }}><label className="label" htmlFor="address">Domicilio</label><input className="input" id="address" name="address" autoComplete="off" /></div>
+          <div><label className="label" htmlFor="lastName">Apellido</label><Input className="input" id="lastName" name="lastName" required autoComplete="off" /></div>
+          <div><label className="label" htmlFor="firstName">Nombre</label><Input className="input" id="firstName" name="firstName" required autoComplete="off" /></div>
+          <div><label className="label" htmlFor="docNumber">DNI</label><Input className="input tnum" id="docNumber" name="docNumber" inputMode="numeric" required placeholder="30111222" /></div>
+          <div><label className="label" htmlFor="birthDate">Nacimiento</label><Input className="input" id="birthDate" name="birthDate" type="date" max={today()} required /></div>
+          <div><label className="label" htmlFor="phone">Teléfono</label><Input className="input" id="phone" name="phone" type="tel" autoComplete="off" /></div>
+          <div><label className="label" htmlFor="email">Email</label><Input className="input" id="email" name="email" type="email" autoComplete="off" /><span className="hint">Lo necesita para entrar al portal.</span></div>
+          <div style={{ gridColumn: "1 / -1" }}><label className="label" htmlFor="address">Domicilio</label><Input className="input" id="address" name="address" autoComplete="off" /></div>
         </div>
       </fieldset>
 
       <fieldset className="panel" disabled={busy}>
         <div className="panel-head"><div><h2 className="panel-title">REPROCANN</h2><p className="panel-sub">Sin REPROCANN vigente el dispensario no entrega, aunque el socio esté activo.</p></div></div>
         <div className="panel-body field-row">
-          <div><label className="label" htmlFor="reprocannNumber">Número</label><input className="input" id="reprocannNumber" name="reprocannNumber" autoComplete="off" /></div>
+          <div><label className="label" htmlFor="reprocannNumber">Número</label><Input className="input" id="reprocannNumber" name="reprocannNumber" autoComplete="off" /></div>
           <div>
             <label className="label" htmlFor="reprocannStatus">Estado</label>
-            <select className="select" id="reprocannStatus" name="reprocannStatus" defaultValue="EN_TRAMITE">
+            <Select className="select" id="reprocannStatus" name="reprocannStatus" defaultValue="EN_TRAMITE">
               {Object.entries(REPROCANN_STATUS).map(([v, s]) => <option key={v} value={v}>{s.label.replace("REPROCANN ", "")}</option>)}
-            </select>
+            </Select>
           </div>
-          <div><label className="label" htmlFor="reprocannExpiresAt">Vence</label><input className="input" id="reprocannExpiresAt" name="reprocannExpiresAt" type="date" /></div>
+          <div><label className="label" htmlFor="reprocannExpiresAt">Vence</label><Input className="input" id="reprocannExpiresAt" name="reprocannExpiresAt" type="date" /></div>
         </div>
       </fieldset>
 
@@ -163,19 +165,19 @@ export function MemberForm() {
         <div className="panel-body field-row">
           <div>
             <label className="label" htmlFor="consumptionType">Tipo de consumo</label>
-            <select className="select" id="consumptionType" name="consumptionType" defaultValue="TERAPEUTICO">
+            <Select className="select" id="consumptionType" name="consumptionType" defaultValue="TERAPEUTICO">
               <option value="TERAPEUTICO">Terapéutico</option>
               <option value="LUDICO">Lúdico</option>
-            </select>
+            </Select>
           </div>
-          <div><label className="label" htmlFor="monthlyForecastG">Previsión mensual (g)</label><input className="input tnum" id="monthlyForecastG" name="monthlyForecastG" inputMode="decimal" /></div>
+          <div><label className="label" htmlFor="monthlyForecastG">Previsión mensual (g)</label><Input className="input tnum" id="monthlyForecastG" name="monthlyForecastG" inputMode="decimal" /></div>
           <div>
             <label className="label" htmlFor="consentSignedAt">Consentimiento firmado el</label>
-            <input className="input" id="consentSignedAt" name="consentSignedAt" type="date" max={today()} value={consent} onChange={(e) => setConsent(e.target.value)} />
+            <Input className="input" id="consentSignedAt" name="consentSignedAt" type="date" max={today()} value={consent} onChange={(e) => setConsent(e.target.value)} />
           </div>
-          <div style={{ gridColumn: "1 / -1" }}><label className="label" htmlFor="notes">Notas internas</label><textarea className="textarea" id="notes" name="notes" /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label className="label" htmlFor="notes">Notas internas</label><Textarea className="textarea" id="notes" name="notes" /></div>
           <label className="check" style={{ gridColumn: "1 / -1" }}>
-            <input type="checkbox" name="activate" disabled={!consent} />
+            <Input type="checkbox" name="activate" disabled={!consent} />
             <span>
               Dar de alta como activo ahora
               <span className="hint">{consent ? "Si no lo marcás, queda pendiente de alta." : "Necesita la fecha del consentimiento firmado."}</span>
@@ -189,7 +191,7 @@ export function MemberForm() {
         <button className="btn btn-lg" disabled={busy}>{busy ? "Guardando…" : "Crear legajo"}</button>
         <span className="hint" style={{ margin: 0 }}>El alta queda en la auditoría con tu nombre.</span>
       </div>
-    </form>
+    </ValidatedForm>
   );
 }
 
@@ -202,10 +204,10 @@ export function BatchForm({ strains, onDone }: { strains: { id: string; name: st
   const [stage, setStage] = useState("PROPAGACION");
   const [busy, setBusy] = useState(false);
   return (
-    <form
+    <ValidatedForm method="post"
       className="stack"
       style={{ gap: 14 }}
-      onSubmit={async (e) => {
+      onSubmit={async (e, reportFields) => {
         e.preventDefault();
         const form = e.currentTarget;
         const f = new FormData(form);
@@ -233,45 +235,45 @@ export function BatchForm({ strains, onDone }: { strains: { id: string; name: st
           onDone?.();
           router.refresh();
         } catch (err) {
-          setError(errMsg(err));
+          if (!reportFields(err)) setError(errMsg(err));
         } finally {
           setBusy(false);
         }
       }}
     >
       <fieldset disabled={busy} className="field-row">
-        <div><label className="label" htmlFor="b-code">Código</label><input className="input" id="b-code" name="code" placeholder="L-2026-004" required /></div>
+        <div><label className="label" htmlFor="b-code">Código</label><Input className="input" id="b-code" name="code" placeholder="L-2026-004" required /></div>
         <div>
           <label className="label" htmlFor="b-strain">Cepa</label>
-          <select className="select" id="b-strain" name="strainId" required>
+          <Select className="select" id="b-strain" name="strainId" required>
             {strains.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="label" htmlFor="b-origin">Origen del material</label>
-          <select className="select" id="b-origin" name="originType" defaultValue="ESQUEJE">
+          <Select className="select" id="b-origin" name="originType" defaultValue="ESQUEJE">
             {Object.entries(ORIGIN).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
         </div>
-        <div><label className="label" htmlFor="b-prov">Proveedor u origen</label><input className="input" id="b-prov" name="originProviderName" /></div>
-        <div><label className="label" htmlFor="b-plants">Plantas</label><input className="input tnum" id="b-plants" name="plantsCount" inputMode="numeric" /></div>
-        <div><label className="label" htmlFor="b-room">Sala</label><input className="input" id="b-room" name="room" /></div>
-        <div><label className="label" htmlFor="b-planted">Siembra</label><input className="input" id="b-planted" name="plantedAt" type="date" /></div>
-        <div><label className="label" htmlFor="b-thc">THC %</label><input className="input tnum" id="b-thc" name="thcPct" inputMode="decimal" /></div>
-        <div><label className="label" htmlFor="b-cbd">CBD %</label><input className="input tnum" id="b-cbd" name="cbdPct" inputMode="decimal" /></div>
+        <div><label className="label" htmlFor="b-prov">Proveedor u origen</label><Input className="input" id="b-prov" name="originProviderName" /></div>
+        <div><label className="label" htmlFor="b-plants">Plantas</label><Input className="input tnum" id="b-plants" name="plantsCount" inputMode="numeric" /></div>
+        <div><label className="label" htmlFor="b-room">Sala</label><Input className="input" id="b-room" name="room" /></div>
+        <div><label className="label" htmlFor="b-planted">Siembra</label><Input className="input" id="b-planted" name="plantedAt" type="date" /></div>
+        <div><label className="label" htmlFor="b-thc">THC %</label><Input className="input tnum" id="b-thc" name="thcPct" inputMode="decimal" /></div>
+        <div><label className="label" htmlFor="b-cbd">CBD %</label><Input className="input tnum" id="b-cbd" name="cbdPct" inputMode="decimal" /></div>
         <div>
           <label className="label" htmlFor="b-stage">Etapa actual</label>
-          <select className="select" id="b-stage" value={stage} onChange={(e) => setStage(e.target.value)}>
+          <Select className="select" id="b-stage" name="stage" value={stage} onChange={(e) => setStage(e.target.value)}>
             {NEW_STAGES.map((s) => <option key={s} value={s}>{STAGE[s]?.label ?? s}</option>)}
-          </select>
+          </Select>
         </div>
         {stage === "DISPONIBLE" ? (
-          <div><label className="label" htmlFor="b-dry">Peso seco (g)</label><input className="input tnum" id="b-dry" name="dryWeightG" inputMode="decimal" required /><span className="hint">Acredita stock al crear el lote.</span></div>
+          <div><label className="label" htmlFor="b-dry">Peso seco (g)</label><Input className="input tnum" id="b-dry" name="dryWeightG" inputMode="decimal" required /><span className="hint">Acredita stock al crear el lote.</span></div>
         ) : null}
       </fieldset>
       {error ? <div className="note note-danger" role="alert">{error}</div> : null}
       <div><button className="btn" disabled={busy}>{busy ? "Creando…" : "Crear lote"}</button></div>
-    </form>
+    </ValidatedForm>
   );
 }
 
@@ -282,10 +284,10 @@ export function HarvestForm({ batch, onDone }: { batch: { id: string; code: stri
   const [busy, setBusy] = useState(false);
   const dryStep = batch.wetWeightG != null;
   return (
-    <form
+    <ValidatedForm method="post"
       className="stack"
       style={{ gap: 12 }}
-      onSubmit={async (e) => {
+      onSubmit={async (e, reportFields) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         setError(null);
@@ -293,14 +295,14 @@ export function HarvestForm({ batch, onDone }: { batch: { id: string; code: stri
         try {
           await api(`/api/batches/${batch.id}/harvest`, {
             body: dryStep
-              ? { dryWeightG: num(f.get("grams")), thcPct: num(f.get("thcPct")), cbdPct: num(f.get("cbdPct")) }
-              : { wetWeightG: num(f.get("grams")), harvestedAt: str(f.get("harvestedAt")) },
+              ? { dryWeightG: num(f.get("dryWeightG")), thcPct: num(f.get("thcPct")), cbdPct: num(f.get("cbdPct")) }
+              : { wetWeightG: num(f.get("wetWeightG")), harvestedAt: str(f.get("harvestedAt")) },
           });
           toast({ tone: "ok", title: dryStep ? `Peso seco registrado: ${batch.code} disponible` : `Cosecha de ${batch.code} registrada` });
           onDone?.();
           router.refresh();
         } catch (err) {
-          setError(errMsg(err));
+          if (!reportFields(err)) setError(errMsg(err));
         } finally {
           setBusy(false);
         }
@@ -314,20 +316,20 @@ export function HarvestForm({ batch, onDone }: { batch: { id: string; code: stri
       <fieldset disabled={busy} className="field-row">
         <div>
           <label className="label" htmlFor="h-g">{dryStep ? "Peso seco (g)" : "Peso húmedo (g)"}</label>
-          <input className="input tnum" id="h-g" name="grams" inputMode="decimal" required autoFocus />
+          <Input className="input tnum" id="h-g" name={dryStep ? "dryWeightG" : "wetWeightG"} inputMode="decimal" required autoFocus />
         </div>
         {dryStep ? (
           <>
-            <div><label className="label" htmlFor="h-thc">THC % medido</label><input className="input tnum" id="h-thc" name="thcPct" inputMode="decimal" /></div>
-            <div><label className="label" htmlFor="h-cbd">CBD % medido</label><input className="input tnum" id="h-cbd" name="cbdPct" inputMode="decimal" /></div>
+            <div><label className="label" htmlFor="h-thc">THC % medido</label><Input className="input tnum" id="h-thc" name="thcPct" inputMode="decimal" /></div>
+            <div><label className="label" htmlFor="h-cbd">CBD % medido</label><Input className="input tnum" id="h-cbd" name="cbdPct" inputMode="decimal" /></div>
           </>
         ) : (
-          <div><label className="label" htmlFor="h-date">Fecha de corte</label><input className="input" id="h-date" name="harvestedAt" type="date" defaultValue={today()} /></div>
+          <div><label className="label" htmlFor="h-date">Fecha de corte</label><Input className="input" id="h-date" name="harvestedAt" type="date" defaultValue={today()} /></div>
         )}
       </fieldset>
       {error ? <div className="note note-danger" role="alert">{error}</div> : null}
       <div><button className="btn" disabled={busy}>{busy ? "Registrando…" : dryStep ? "Registrar peso seco" : "Registrar cosecha"}</button></div>
-    </form>
+    </ValidatedForm>
   );
 }
 
@@ -337,10 +339,10 @@ export function MovementForm({ batches, batchId, onDone }: { batches?: { id: str
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <form
+    <ValidatedForm method="post"
       className="stack"
       style={{ gap: 12 }}
-      onSubmit={async (e) => {
+      onSubmit={async (e, reportFields) => {
         e.preventDefault();
         const form = e.currentTarget;
         const f = new FormData(form);
@@ -353,7 +355,7 @@ export function MovementForm({ batches, batchId, onDone }: { batches?: { id: str
           onDone?.();
           router.refresh();
         } catch (err) {
-          setError(errMsg(err));
+          if (!reportFields(err)) setError(errMsg(err));
         } finally {
           setBusy(false);
         }
@@ -363,27 +365,27 @@ export function MovementForm({ batches, batchId, onDone }: { batches?: { id: str
         {!batchId && batches ? (
           <div>
             <label className="label" htmlFor="mv-batch">Lote</label>
-            <select className="select" id="mv-batch" name="batchId" required>{batches.map((b) => <option key={b.id} value={b.id}>{b.code}</option>)}</select>
+            <Select className="select" id="mv-batch" name="batchId" required>{batches.map((b) => <option key={b.id} value={b.id}>{b.code}</option>)}</Select>
           </div>
         ) : null}
         <div>
           <label className="label" htmlFor="mv-type">Tipo</label>
-          <select className="select" id="mv-type" name="type">
+          <Select className="select" id="mv-type" name="type">
             <option value="AJUSTE_NEGATIVO">Ajuste negativo: faltante</option>
             <option value="AJUSTE_POSITIVO">Ajuste positivo: sobrante</option>
             <option value="DESTRUCCION">Destrucción documentada</option>
             <option value="TRANSFERENCIA">Transferencia fuera del club</option>
-          </select>
+          </Select>
         </div>
-        <div><label className="label" htmlFor="mv-g">Gramos</label><input className="input tnum" id="mv-g" name="grams" inputMode="decimal" required /></div>
+        <div><label className="label" htmlFor="mv-g">Gramos</label><Input className="input tnum" id="mv-g" name="grams" inputMode="decimal" required /></div>
         <div style={{ gridColumn: "1 / -1" }}>
           <label className="label" htmlFor="mv-reason">Motivo</label>
-          <input className="input" id="mv-reason" name="reason" required minLength={3} placeholder="Ej.: pesaje de control semanal" />
+          <Input className="input" id="mv-reason" name="reason" required minLength={3} placeholder="Ej.: pesaje de control semanal" />
         </div>
       </fieldset>
       {error ? <div className="note note-danger" role="alert">{error}</div> : null}
       <div><button className="btn" disabled={busy}>{busy ? "Registrando…" : "Registrar movimiento"}</button></div>
-    </form>
+    </ValidatedForm>
   );
 }
 

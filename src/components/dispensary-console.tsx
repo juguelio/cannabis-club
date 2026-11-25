@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input } from "./validated-form";
+
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -296,6 +298,8 @@ export function DispensaryConsole({
                           <input
                             className="readout-value"
                             inputMode="decimal"
+                            aria-invalid={issues.length > 0 || undefined}
+                            aria-describedby={issues.length ? `problema-${l.pickupItemId}` : undefined}
                             value={l.grams}
                             style={{ width: `${Math.max(1, l.grams.length) * 0.58 + 0.1}em` }}
                             onChange={(e) => { setLine(l.pickupItemId, { grams: e.target.value.replace(/[^\d.,]/g, "") }); setFailure(null); }}
@@ -308,6 +312,7 @@ export function DispensaryConsole({
                       <select
                         className="select"
                         aria-label={`Lote de ${l.strainName}`}
+                        aria-describedby={issues.length ? `problema-${l.pickupItemId}` : undefined}
                         value={l.batchId}
                         onChange={(e) => { setLine(l.pickupItemId, { batchId: e.target.value }); setFailure(null); }}
                       >
@@ -319,9 +324,9 @@ export function DispensaryConsole({
                     ) : (
                       <p className="cell-meta" style={{ margin: 0 }}>No hay lote de {l.strainName} con saldo: esta variedad no se puede entregar hoy.</p>
                     )}
-                    {issues.map((p) => (
+                    <div id={`problema-${l.pickupItemId}`}>{issues.map((p) => (
                       <div key={p.text} className="verdict" data-tone="bad"><CircleAlert aria-hidden /><span>{p.text}</span></div>
-                    ))}
+                    ))}</div>
                   </div>
                 );
               })}
@@ -394,7 +399,7 @@ export function DispensaryConsole({
             </div>
           </div>
         ) : (
-          <form onSubmit={(e) => { e.preventDefault(); void (byVariety ? submitVariety() : submit()); }}>
+          <ValidatedForm onSubmit={(e) => { e.preventDefault(); void (byVariety ? submitVariety() : submit()); }}>
             <div className="scale-member">
               <span className="avatar" aria-hidden>{status ? status.member.name.split(", ").reverse().map((p) => p[0]).join("") : "··"}</span>
               <div style={{ minWidth: 0 }}>
@@ -416,12 +421,13 @@ export function DispensaryConsole({
                 <div className="readout">
                   <label className="readout-field">
                     <span className="sr-only">Gramos a entregar</span>
-                    <input
+                    <Input
                       ref={readout}
                       className="readout-value"
                       inputMode="decimal"
                       placeholder="0"
-                      value={grams}
+                      aria-invalid={grams.length > 0 && (!Number.isFinite(amount) || amount <= 0 || amount > maxAllowed) || undefined}
+                      name="grams" value={grams}
                       style={{ width: `${Math.max(1, grams.length) * 0.58 + 0.1}em` }}
                       onChange={(e) => { setGrams(e.target.value.replace(/[^\d.,]/g, "")); setFailure(null); }}
                       aria-describedby="scale-verdict"
@@ -525,7 +531,7 @@ export function DispensaryConsole({
                     ? `Confirmar entrega de ${g(amount)}`
                     : "Confirmar entrega"}
             </button>
-          </form>
+          </ValidatedForm>
         )}
       </section>
     </div>

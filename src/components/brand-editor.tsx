@@ -1,4 +1,6 @@
 "use client";
+
+import { ValidatedForm, Input, Select, Textarea, type ReportFields } from "./validated-form";
 /* eslint-disable @next/next/no-img-element -- vista previa de imágenes locales (data URL) */
 
 import { useMemo, useRef, useState } from "react";
@@ -102,12 +104,11 @@ export function BrandEditor({
     setDirty(true);
   }
 
-  async function save() {
+  async function save(_: React.FormEvent, reportFields: ReportFields) {
     const parsed = brandSchema.safeParse(brand);
     setError(null);
     if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      setError(`${issue.path.join(" › ")}: ${issue.message}`);
+      reportFields(parsed.error.issues);
       return;
     }
     const body: Record<string, unknown> = { marca: parsed.data };
@@ -129,7 +130,7 @@ export function BrandEditor({
       toast({ tone: "ok", title: "Marca guardada", text: "La app, el portal, el ingreso y el sitio ya la usan." });
       router.refresh();
     } catch (err) {
-      setError(errMsg(err));
+      if (!reportFields(err)) setError(errMsg(err));
     } finally {
       setBusy(false);
     }
@@ -137,7 +138,7 @@ export function BrandEditor({
 
   return (
     <div className="brand-editor">
-      <div className="stack" style={{ minWidth: 0 }}>
+      <ValidatedForm className="stack" style={{ minWidth: 0 }} onSubmit={save}>
         <section className="panel">
           <div className="panel-head">
             <div>
@@ -152,12 +153,12 @@ export function BrandEditor({
           </div>
           <div className="panel-body field-row" style={{ paddingTop: 0 }}>
             <label className="check">
-              <input type="checkbox" checked={brand.logoPlaca} onChange={(e) => set("logoPlaca", e.target.checked)} />
+              <Input type="checkbox" checked={brand.logoPlaca} onChange={(e) => set("logoPlaca", e.target.checked)} />
               <span>Logo sobre placa clara<span className="hint">Para logos con contorno oscuro que se pierden sobre la barra lateral.</span></span>
             </label>
             <div>
               <label className="label" htmlFor="b-sigla">Sigla (sin logo)</label>
-              <input className="input" id="b-sigla" value={brand.sigla} maxLength={3} placeholder={siglaOf({ ...brand, sigla: "" }, nombre)} onChange={(e) => set("sigla", e.target.value)} />
+              <Input className="input" id="b-sigla" name="sigla" value={brand.sigla} maxLength={3} placeholder={siglaOf({ ...brand, sigla: "" }, nombre)} onChange={(e) => set("sigla", e.target.value)} />
               <span className="hint">Hasta 3 letras para el monograma.</span>
             </div>
           </div>
@@ -187,13 +188,13 @@ export function BrandEditor({
                 <div key={f.key}>
                   <label className="label" htmlFor={`b-c-${f.key}`}>{f.label}</label>
                   <div className="color-field">
-                    <input
+                    <Input
                       type="color"
                       aria-label={`${f.label}: selector`}
                       value={/^#[0-9a-f]{6}$/i.test(brand.colores[f.key]) ? brand.colores[f.key] : "#000000"}
                       onChange={(e) => setColor(f.key, e.target.value)}
                     />
-                    <input className="input tnum" id={`b-c-${f.key}`} value={brand.colores[f.key]} maxLength={7} spellCheck={false} onChange={(e) => setColor(f.key, e.target.value)} />
+                    <Input className="input tnum" id={`b-c-${f.key}`} name={`colores.${f.key}`} value={brand.colores[f.key]} maxLength={7} spellCheck={false} onChange={(e) => setColor(f.key, e.target.value)} />
                   </div>
                   <span className="hint">{f.hint}</span>
                 </div>
@@ -211,23 +212,23 @@ export function BrandEditor({
           <div className="panel-body field-row">
             <div>
               <label className="label" htmlFor="b-ft">Títulos</label>
-              <select className="select" id="b-ft" value={brand.fuenteTitulos} onChange={(e) => set("fuenteTitulos", e.target.value as Brand["fuenteTitulos"])}>
+              <Select className="select" id="b-ft" name="fuenteTitulos" value={brand.fuenteTitulos} onChange={(e) => set("fuenteTitulos", e.target.value as Brand["fuenteTitulos"])}>
                 {Object.entries(FUENTES_TITULO).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="label" htmlFor="b-fx">Texto</label>
-              <select className="select" id="b-fx" value={brand.fuenteTexto} onChange={(e) => set("fuenteTexto", e.target.value as Brand["fuenteTexto"])}>
+              <Select className="select" id="b-fx" name="fuenteTexto" value={brand.fuenteTexto} onChange={(e) => set("fuenteTexto", e.target.value as Brand["fuenteTexto"])}>
                 {Object.entries(FUENTES_TEXTO).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
-              </select>
+              </Select>
             </div>
             <fieldset className="brand-radio" style={{ gridColumn: "1 / -1" }}>
               <legend className="label">Estilo</legend>
-              <label className="check"><input type="radio" name="estilo" checked={brand.estilo === "sobrio"} onChange={() => set("estilo", "sobrio")} /><span>Sobrio<span className="hint">La app tal cual: silenciosa, para el mostrador.</span></span></label>
-              <label className="check"><input type="radio" name="estilo" checked={brand.estilo === "afiche"} onChange={() => set("estilo", "afiche")} /><span>Afiche<span className="hint">Títulos en mayúscula y botones con trazo, como un cartel impreso.</span></span></label>
+              <label className="check"><Input type="radio" name="estilo" checked={brand.estilo === "sobrio"} onChange={() => set("estilo", "sobrio")} /><span>Sobrio<span className="hint">La app tal cual: silenciosa, para el mostrador.</span></span></label>
+              <label className="check"><Input type="radio" name="estilo" checked={brand.estilo === "afiche"} onChange={() => set("estilo", "afiche")} /><span>Afiche<span className="hint">Títulos en mayúscula y botones con trazo, como un cartel impreso.</span></span></label>
             </fieldset>
             <label className="check" style={{ gridColumn: "1 / -1" }}>
-              <input type="checkbox" checked={brand.nombreGotico} onChange={(e) => set("nombreGotico", e.target.checked)} />
+              <Input type="checkbox" checked={brand.nombreGotico} onChange={(e) => set("nombreGotico", e.target.checked)} />
               <span>Nombre del club en letra gótica<span className="hint">Solo el nombre y la sigla; el resto sigue en la letra elegida.</span></span>
             </label>
           </div>
@@ -243,16 +244,16 @@ export function BrandEditor({
           </div>
           <div className="panel-body stack" style={{ gap: 14 }}>
             <label className="check">
-              <input type="checkbox" checked={brand.sitio.publico} onChange={(e) => setSitio("publico", e.target.checked)} />
+              <Input type="checkbox" checked={brand.sitio.publico} onChange={(e) => setSitio("publico", e.target.checked)} />
               <span>Publicar el sitio<span className="hint">Apagado, la dirección del club lleva directo al ingreso.</span></span>
             </label>
             <div>
               <label className="label" htmlFor="b-lema">Lema</label>
-              <input className="input" id="b-lema" value={brand.lema} maxLength={90} placeholder="Un club de la salud" onChange={(e) => set("lema", e.target.value)} />
+              <Input className="input" id="b-lema" name="lema" value={brand.lema} maxLength={90} placeholder="Un club de la salud" onChange={(e) => set("lema", e.target.value)} />
             </div>
             <div>
               <label className="label" htmlFor="b-pres">Presentación</label>
-              <textarea className="textarea" id="b-pres" rows={4} maxLength={700} value={brand.presentacion} placeholder="Quiénes somos, desde cuándo, qué nos mueve." onChange={(e) => set("presentacion", e.target.value)} />
+              <Textarea className="textarea" id="b-pres" rows={4} maxLength={700} name="presentacion" value={brand.presentacion} placeholder="Quiénes somos, desde cuándo, qué nos mueve." onChange={(e) => set("presentacion", e.target.value)} />
               <span className="hint">{brand.presentacion.length}/700</span>
             </div>
             <div>
@@ -261,7 +262,7 @@ export function BrandEditor({
                 {brand.sitio.pasos.map((p, i) => (
                   <li key={i}>
                     <span className="tnum">{i + 1}</span>
-                    <input className="input" aria-label={`Paso ${i + 1}`} value={p} maxLength={200} onChange={(e) => setSitio("pasos", brand.sitio.pasos.map((x, j) => (j === i ? e.target.value : x)))} />
+                    <Input className="input" aria-label={`Paso ${i + 1}`} name={`sitio.pasos.${i}`} value={p} maxLength={200} onChange={(e) => setSitio("pasos", brand.sitio.pasos.map((x, j) => (j === i ? e.target.value : x)))} />
                     <button type="button" className="icon-btn" aria-label={`Quitar paso ${i + 1}`} onClick={() => setSitio("pasos", brand.sitio.pasos.filter((_, j) => j !== i))}><X /></button>
                   </li>
                 ))}
@@ -272,36 +273,36 @@ export function BrandEditor({
               </div>
             </div>
             <label className="check">
-              <input type="checkbox" checked={brand.sitio.envios} onChange={(e) => setSitio("envios", e.target.checked)} />
+              <Input type="checkbox" checked={brand.sitio.envios} onChange={(e) => setSitio("envios", e.target.checked)} />
               <span>Mostrar la sección de envíos<span className="hint">Para clubes que hacen traslados a socios con DDJJ.</span></span>
             </label>
             {brand.sitio.envios ? (
               <div>
                 <label className="label" htmlFor="b-env">Cómo funcionan los envíos</label>
-                <textarea className="textarea" id="b-env" rows={3} maxLength={500} value={brand.sitio.enviosTexto} placeholder="Zonas, días y requisitos." onChange={(e) => setSitio("enviosTexto", e.target.value)} />
+                <Textarea className="textarea" id="b-env" rows={3} maxLength={500} name="sitio.enviosTexto" value={brand.sitio.enviosTexto} placeholder="Zonas, días y requisitos." onChange={(e) => setSitio("enviosTexto", e.target.value)} />
               </div>
             ) : null}
             <div className="field-row">
               <div>
                 <label className="label" htmlFor="b-wa">WhatsApp</label>
-                <input className="input tnum" id="b-wa" inputMode="numeric" value={brand.contacto.whatsapp} placeholder="5491100000000" onChange={(e) => setContacto("whatsapp", e.target.value.replace(/[^\d]/g, ""))} />
+                <Input className="input tnum" id="b-wa" inputMode="numeric" name="contacto.whatsapp" value={brand.contacto.whatsapp} placeholder="5491100000000" onChange={(e) => setContacto("whatsapp", e.target.value.replace(/[^\d]/g, ""))} />
                 <span className="hint">Con código de país, sin + ni espacios.</span>
               </div>
               <div>
                 <label className="label" htmlFor="b-ig">Instagram</label>
-                <input className="input" id="b-ig" value={brand.contacto.instagram} placeholder="usuario" onChange={(e) => setContacto("instagram", e.target.value.replace(/^@/, ""))} />
+                <Input className="input" id="b-ig" name="contacto.instagram" value={brand.contacto.instagram} placeholder="usuario" onChange={(e) => setContacto("instagram", e.target.value.replace(/^@/, ""))} />
               </div>
               <div>
                 <label className="label" htmlFor="b-mail">Email</label>
-                <input className="input" id="b-mail" type="email" value={brand.contacto.email} onChange={(e) => setContacto("email", e.target.value)} />
+                <Input className="input" id="b-mail" type="email" name="contacto.email" value={brand.contacto.email} onChange={(e) => setContacto("email", e.target.value)} />
               </div>
               <div>
                 <label className="label" htmlFor="b-zona">Zona</label>
-                <input className="input" id="b-zona" value={brand.contacto.zona} placeholder="Barrio o localidad (sin dirección exacta)" onChange={(e) => setContacto("zona", e.target.value)} />
+                <Input className="input" id="b-zona" name="contacto.zona" value={brand.contacto.zona} placeholder="Barrio o localidad (sin dirección exacta)" onChange={(e) => setContacto("zona", e.target.value)} />
               </div>
               <div>
                 <label className="label" htmlFor="b-hor">Horario de atención</label>
-                <input className="input" id="b-hor" value={brand.contacto.horario} placeholder="Lun a sáb, 10 a 19" onChange={(e) => setContacto("horario", e.target.value)} />
+                <Input className="input" id="b-hor" name="contacto.horario" value={brand.contacto.horario} placeholder="Lun a sáb, 10 a 19" onChange={(e) => setContacto("horario", e.target.value)} />
               </div>
             </div>
           </div>
@@ -309,10 +310,10 @@ export function BrandEditor({
 
         {error ? <div className="note note-danger" role="alert">{error}</div> : null}
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn btn-lg" disabled={busy || !dirty} onClick={save}>{busy ? "Guardando…" : dirty ? "Guardar marca" : "Marca guardada"}</button>
+          <button type="submit" className="btn btn-lg" disabled={busy || !dirty}>{busy ? "Guardando…" : dirty ? "Guardar marca" : "Marca guardada"}</button>
           <span className="hint" style={{ margin: 0 }}>Queda registrado en la actividad del club.</span>
         </div>
-      </div>
+      </ValidatedForm>
 
       <aside className="brand-preview-col" aria-label="Vista previa">
         <div className="bp" style={vars as React.CSSProperties} data-estilo={brand.estilo} data-gotico={brand.nombreGotico ? "" : undefined}>

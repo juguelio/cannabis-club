@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ValidatedForm, Input } from "./validated-form";
 import { api, errMsg } from "@/lib/client";
 import { useToast } from "@/components/toast";
 
@@ -47,8 +48,8 @@ export function ValidacionAcciones({ id, faltantesTexto }: { id: string; faltant
       </div>
 
       {corrigiendo ? (
-        <div className="stack" style={{ gap: 6 }}>
-          <input
+        <ValidatedForm className="stack" style={{ gap: 6 }} onSubmit={() => decidir("RECHAZAR")}>
+          <Input required minLength={10} name="motivo"
             className="input"
             placeholder="Qué tiene que corregir (mínimo 10 caracteres)"
             value={motivo}
@@ -58,12 +59,11 @@ export function ValidacionAcciones({ id, faltantesTexto }: { id: string; faltant
           <button
             className="btn btn-quiet btn-sm"
             style={{ alignSelf: "flex-start" }}
-            disabled={busy !== null || motivo.trim().length < 10}
-            onClick={() => void decidir("RECHAZAR")}
+            disabled={busy !== null} type="submit"
           >
             {busy === "rechazar" ? "Enviando…" : "Enviar corrección"}
           </button>
-        </div>
+        </ValidatedForm>
       ) : null}
 
       {error ? <span className="cell-meta" style={{ color: "var(--danger)" }}>{error}</span> : null}

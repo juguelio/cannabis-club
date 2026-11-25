@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Input, Select, type ReportFields } from "./validated-form";
+
 import { useState } from "react";
 import Link from "next/link";
 import { CalendarX2, ChevronLeft, ChevronRight } from "lucide-react";
@@ -49,7 +51,7 @@ export function AppointmentsBoard({ initial, today, members }: { initial: DayBoa
     }
   }
 
-  async function reserve(event: React.FormEvent<HTMLFormElement>) {
+  async function reserve(event: React.FormEvent<HTMLFormElement>, reportFields: ReportFields) {
     event.preventDefault();
     if (slot == null || !memberId) return;
     setBusy(true);
@@ -64,7 +66,7 @@ export function AppointmentsBoard({ initial, today, members }: { initial: DayBoa
       setSlot(null);
       setMemberId("");
     } catch (error) {
-      toast({ tone: "bad", title: "No se pudo agendar", text: errMsg(error) });
+      if (!reportFields(error)) toast({ tone: "bad", title: "No se pudo agendar", text: errMsg(error) });
     } finally {
       setBusy(false);
     }
@@ -143,24 +145,24 @@ export function AppointmentsBoard({ initial, today, members }: { initial: DayBoa
         </Panel>
 
         <Panel title="Agendar turno" subtitle={chosen ? `${day.long} a las ${chosen.label}.` : "Primero elegí un horario."}>
-          <form className="panel-body stack" style={{ gap: 12 }} onSubmit={reserve}>
+          <ValidatedForm className="panel-body stack" style={{ gap: 12 }} onSubmit={reserve}>
             <MemberPicker members={members} value={memberId} onChange={setMemberId} />
             <div className="field-row">
               <div>
                 <label className="label" htmlFor="ap-ch">Pedido por</label>
-                <select className="select" id="ap-ch" value={channel} onChange={(e) => setChannel(e.target.value)}>
+                <Select className="select" id="ap-ch" name="channel" value={channel} onChange={(e) => setChannel(e.target.value)}>
                   {Object.entries(APPOINTMENT_CHANNEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="label" htmlFor="ap-n">Nota</label>
-                <input className="input" id="ap-n" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opcional" />
+                <Input className="input" id="ap-n" name="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opcional" />
               </div>
             </div>
             <button className="btn" disabled={busy || !memberId || slot == null}>
               {busy ? "Guardando…" : chosen ? `Agendar a las ${chosen.label}` : "Agendar turno"}
             </button>
-          </form>
+          </ValidatedForm>
         </Panel>
       </div>
 

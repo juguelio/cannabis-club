@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { ValidatedForm } from "@/components/validated-form";
+import { ReportDates } from "@/components/report-dates";
 import { Download } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -43,12 +45,9 @@ export default async function ReportesPage() {
             <div className="panel-head"><div><h2 className="panel-title">{r.title}</h2><p className="panel-sub">{r.purpose}</p></div></div>
             <div className="panel-body" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
               <p className="cell-meta" style={{ margin: 0 }}>Columnas: {r.columns}</p>
-              <form action={`/api/reports/${r.slug}`} method="get" className="stack" style={{ gap: 10, marginTop: "auto" }}>
+              <ValidatedForm action={`/api/reports/${r.slug}`} method="get" className="stack" style={{ gap: 10, marginTop: "auto" }}>
                 {r.filter === "range" ? (
-                  <div className="field-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
-                    <div><label className="label" htmlFor={`${r.slug}-d`}>Desde</label><input className="input" id={`${r.slug}-d`} type="date" name="desde" defaultValue={monthStart} /></div>
-                    <div><label className="label" htmlFor={`${r.slug}-h`}>Hasta</label><input className="input" id={`${r.slug}-h`} type="date" name="hasta" /></div>
-                  </div>
+                  <ReportDates slug={r.slug} monthStart={monthStart} />
                 ) : null}
                 {r.filter === "year" ? (
                   <div><label className="label" htmlFor={`${r.slug}-y`}>Año</label>
@@ -57,7 +56,7 @@ export default async function ReportesPage() {
                 ) : null}
                 <div><button className="btn btn-quiet"><Download aria-hidden />Descargar CSV</button></div>
                 {r.filter === "range" ? <span className="hint" style={{ marginTop: -4 }}>Dejá las fechas vacías para el libro completo.</span> : null}
-              </form>
+              </ValidatedForm>
             </div>
           </section>
         ))}

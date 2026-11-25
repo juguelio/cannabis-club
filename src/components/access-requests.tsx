@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, Textarea } from "./validated-form";
+
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Chip, Empty, Panel } from "@/components/ui";
@@ -217,10 +219,10 @@ export function AccessRequests() {
                 </table>
 
                 {abierta === s.id ? (
-                  <div className="stack">
+                  <ValidatedForm className="stack" onSubmit={() => actuar(s.id, "rechazar")}>
                     <label className="label">
                       Motivo del rechazo (lo va a leer la persona)
-                      <textarea
+                      <Textarea name="motivo" required minLength={10} maxLength={500}
                         className="textarea"
                         rows={3}
                         value={motivo}
@@ -229,14 +231,14 @@ export function AccessRequests() {
                       />
                     </label>
                     <div className="flex flex-wrap items-center gap-3">
-                      <button className="btn" type="button" disabled={ocupada === s.id} onClick={() => actuar(s.id, "rechazar")}>
+                      <button className="btn" type="submit" disabled={ocupada === s.id}>
                         Confirmar rechazo
                       </button>
                       <button className="btn btn-sm btn-ghost" type="button" onClick={() => setAbierta(null)}>
                         Cancelar
                       </button>
                     </div>
-                  </div>
+                  </ValidatedForm>
                 ) : (
                   <div className="flex flex-wrap items-center gap-3">
                     <button
