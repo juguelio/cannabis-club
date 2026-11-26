@@ -2,8 +2,9 @@
 
 ## Estado del dominio (verificado 25-nov-2026)
 
-- **Los dos dominios ya están delegados** a `ns1.vercel-dns.com` / `ns2.vercel-dns.com` y sirven la app: `/api/health`
-  responde 200 con `entorno=production` y huella `f04e602c11be` en `.com.ar` y en `.org.ar`.
+- **Los dos dominios ya están delegados** a `ns1.vercel-dns.com` / `ns2.vercel-dns.com`. `/api/health` responde 200 con
+  `entorno=production` y huella `f04e602c11be` en `.com.ar`; desde el 26-nov `.org.ar` redirige al `.com.ar` (301), así
+  que ahí la respuesta es la redirección, no el JSON.
 - `canonical` y `og:url` de `/sitio` apuntan a `https://republicacannabis.com.ar/sitio` en los dos dominios.
 - **`APP_BASE_URL` quedó vieja**: hasta el 25-nov seguía siendo `https://cannabis-club-mauve.vercel.app`, así que los
   links absolutos que arma la app (mails de aprobación/rechazo, aviso de vencimiento, cartas, etiqueta con QR) nombran
@@ -55,8 +56,12 @@ dominios duplica el SEO y las estadísticas; con una redirección se conserva la
 Lo de `cannabis-club-mauve.vercel.app` cambió de criterio: **no se redirige**, sirve de respaldo si el dominio falla.
 Lo que se corrige es `APP_BASE_URL` (arriba), porque mientras apunte al alias, cada link que manda la app lo nombra.
 
-Estado al 25-nov: `.org.ar` todavía **sirve** el sitio (200, con `canonical` al `.com.ar`) en vez de redirigir 301; no
-rompe nada, pero quedan dos URLs vivas hasta que se agregue la redirección.
+Estado al 26-nov: **la redirección está hecha** (`src/lib/dominio-canonico.ts`, aplicada en `src/proxy.ts`): `.org.ar`
+y `www.org.ar` responden 301 al mismo camino en el `.com.ar` (308 en los métodos que no son GET/HEAD, para no
+convertir un envío en un GET sin cuerpo). Motivo concreto: Google no tiene autorizadas las URIs de `.org.ar`, así que
+entrar por ahí y tocar «Continuar con Google» terminaba en «Error 400: redirect_uri_mismatch» (reproducido con
+navegador real el 26-nov: `.com.ar` y `www.com.ar` aceptan, `.org.ar` y `www.org.ar` rechazan). Con la redirección el
+flujo de Google arranca siempre en el host autorizado y la cookie de `state` queda donde la vuelta la busca.
 
 El correo institucional (`admin@`, `hola@`) se crea en el `.com.ar`; el `.org.ar` sólo redirige el sitio.
 
