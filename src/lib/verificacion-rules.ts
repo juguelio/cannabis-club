@@ -148,6 +148,24 @@ export function estadoVerificacion(estado: string) {
 export const puedeOperar = (estado: string) => estado === "VERIFICADO";
 
 /**
+ * Qué expediente puede tocar el club: sólo el último, y sólo mientras el socio no haya presentado otro.
+ *
+ * Presentar de nuevo no reescribe la presentación anterior (su rechazo conserva motivo, `reviewedAt` y quién
+ * lo firmó): la marca `supersededAt`. Esa marca es lo único que la saca de la cola, así que la regla vive acá
+ * y no repetida en cada ruta — un expediente supersedido no se aprueba, no se rechaza y no recibe archivos.
+ */
+export type Expediente = { status: EstadoVerificacion; supersededAt: Date | null };
+
+/** `SUPERSEDIDA` gana sobre `RESUELTA`: primero se dice que la reemplazaron, no que ya se revisó. */
+export type Impedimento = "SUPERSEDIDA" | "RESUELTA" | null;
+
+export function impedimentoParaRevisar(exp: Expediente): Impedimento {
+  if (exp.supersededAt) return "SUPERSEDIDA";
+  if (exp.status !== "EN_REVISION") return "RESUELTA";
+  return null;
+}
+
+/**
  * El domicilio se declara en la validación, no después.
  *
  * El JEV sobre el padrón importado marcó 8 de 22 legajos con domicilio insuficiente para despachar (sin localidad, sin

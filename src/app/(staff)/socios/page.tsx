@@ -33,7 +33,7 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
   const altas = session.role === "ADMIN" ? await prisma.accessRequest.count({ where: { status: "PENDIENTE" } }) : 0;
   // La re-validación de los legajos que ya existen se revisa al lado del padrón, no en Configuración.
   const porValidar =
-    session.role === "ADMIN" ? await prisma.memberVerification.count({ where: { status: "EN_REVISION" } }) : 0;
+    session.role === "ADMIN" ? await prisma.memberVerification.count({ where: { status: "EN_REVISION", supersededAt: null } }) : 0;
   const tabAltas = (
     <Link href="/socios?ver=altas" aria-current={ver === "altas" ? "true" : undefined}>
       Altas <span className="count">{altas}</span>

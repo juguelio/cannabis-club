@@ -3,6 +3,7 @@ import {
   DOCS_OBLIGATORIOS,
   estadoVerificacion,
   faltanDocumentos,
+  impedimentoParaRevisar,
   normalizarDni,
   puedeOperar,
   textoFaltantes,
@@ -107,5 +108,27 @@ describe("estado de la validación", () => {
     expect(estadoVerificacion("VERIFICADO").tone).toBe("ok");
     // un estado que la base devuelva de más no habilita nada
     expect(puedeOperar(estadoVerificacion("LO_QUE_SEA").label)).toBe(false);
+  });
+});
+
+describe("expediente que el club puede tocar", () => {
+  const enRevision = { status: "EN_REVISION" as const, supersededAt: null };
+
+  it("la última presentación en revisión se aprueba o se rechaza", () => {
+    expect(impedimentoParaRevisar(enRevision)).toBe(null);
+  });
+
+  it("una presentación supersedida no se toca aunque siga en revisión", () => {
+    // Es el caso del reenvío: el socio presentó de nuevo y la anterior quedó atrás sin que nadie la decidiera.
+    expect(impedimentoParaRevisar({ ...enRevision, supersededAt: new Date("2026-11-25T20:43:00Z") })).toBe("SUPERSEDIDA");
+    // Y gana sobre «ya revisada»: lo primero que hay que decir es que la reemplazaron.
+    expect(
+      impedimentoParaRevisar({ status: "RECHAZADO", supersededAt: new Date("2026-11-25T20:43:00Z") }),
+    ).toBe("SUPERSEDIDA");
+  });
+
+  it("un rechazo del club ya decidido no se revisa dos veces", () => {
+    expect(impedimentoParaRevisar({ status: "RECHAZADO", supersededAt: null })).toBe("RESUELTA");
+    expect(impedimentoParaRevisar({ status: "VERIFICADO", supersededAt: null })).toBe("RESUELTA");
   });
 });
