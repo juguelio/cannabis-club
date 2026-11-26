@@ -914,6 +914,9 @@ model MemberVerification {
   rejectionReason    String?
   supersedesId       String?                @unique
   supersedes         MemberVerification?    @relation("VerificationSupersede", fields: [supersedesId], references: [id])
+  /// Cuándo una presentación posterior dejó a ésta fuera de juego. No reescribe la decisión: un rechazo del
+  /// club sigue teniendo su motivo, su `reviewedAt` y su `reviewedById` aunque el socio vuelva a presentarse.
+  supersededAt       DateTime?
   replaces           MemberVerification?    @relation("VerificationSupersede")
   documents          VerificationDocument[]
 

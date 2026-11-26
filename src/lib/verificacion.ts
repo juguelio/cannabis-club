@@ -21,6 +21,7 @@ import {
   textoFaltantes,
   validarDeclaracion,
   validarDomicilio,
+  impedimentoParaRevisar,
   DOCS_OBLIGATORIOS,
 } from "./verificacion-rules";
 
@@ -113,16 +114,15 @@ export async function presentarVerificacion(input: Presentacion & { memberId: st
   const anterior = await prisma.memberVerification.findFirst({
     where: { memberId: member.id },
     orderBy: { submittedAt: "desc" },
-    select: { id: true, status: true },
+    select: { id: true, status: true, reviewedAt: true, reviewedById: true, supersededAt: true },
   });
 
   const creada = await prisma.$transaction(async (tx) => {
-    // Una presentación nueva reemplaza la anterior: el expediente viejo no se edita, se supersede.
-    if (anterior)
-      await tx.memberVerification.update({
-        where: { id: anterior.id },
-        data: { status: "RECHAZADO", reviewedAt: new Date(), rejectionReason: "Reemplazada por una presentación nueva del socio." },
-      });
+    // Una presentación nueva saca de juego a la anterior sin reescribirla: se conservan `status`,
+    // `reviewedAt`, `reviewedById` y `rejectionReason` — el rechazo del club es un asiento suyo, con su
+    // motivo y su hora, y el reenvío del socio no puede atribuirle un texto que no eligió.
+    if (anterior && !anterior.supersededAt)
+      await tx.memberVerification.update({ where: { id: anterior.id }, data: { supersededAt: new Date() } });
     const nueva = await tx.memberVerification.create({
       data: {
         memberId: member.id,
@@ -152,7 +152,15 @@ export async function presentarVerificacion(input: Presentacion & { memberId: st
     entity: "MemberVerification",
     entityId: creada.id,
     ip: input.ip ?? null,
-    payload: { legajo: member.legajo, vence: input.vence, supersede: anterior?.id ?? null },
+    payload: {
+      legajo: member.legajo,
+      vence: input.vence,
+      supersede: anterior?.id ?? null,
+      // Lo que tenía el expediente reemplazado: sirve para leer después que su decisión no se tocó.
+      anteriorStatus: anterior?.status ?? null,
+      anteriorRevisadaPor: anterior?.reviewedById ?? null,
+      anteriorRevisadaEl: anterior?.reviewedAt?.toISOString() ?? null,
+    },
   });
 
   return { id: creada.id };
@@ -170,10 +178,16 @@ export async function subirDocumentoVerificacion(input: {
   const verificacion = await prisma.memberVerification.findFirst({
     where: { memberId: input.memberId },
     orderBy: { submittedAt: "desc" },
-    select: { id: true, status: true },
+    select: { id: true, status: true, supersededAt: true },
   });
   if (!verificacion) throw badRequest("SIN_PRESENTACION", "Primero completá tus datos y después subí los archivos.");
-  if (verificacion.status !== "EN_REVISION")
+  const impedimento = impedimentoParaRevisar(verificacion);
+  if (impedimento === "SUPERSEDIDA")
+    throw conflict(
+      "PRESENTACION_SUPERSEDIDA",
+      "Presentaste una versión nueva de este trámite: los archivos se suben en la última.",
+    );
+  if (impedimento === "RESUELTA")
     throw conflict("PRESENTACION_CERRADA", "Esta presentación ya está resuelta: no se pueden cambiar los archivos.");
 
   const { data, iv, tag } = encryptDoc(input.bytes);
@@ -203,7 +217,7 @@ export async function subirDocumentoVerificacion(input: {
 export async function colaVerificaciones() {
   const [revision, sinPresentar] = await Promise.all([
     prisma.memberVerification.findMany({
-      where: { status: "EN_REVISION" },
+      where: { status: "EN_REVISION", supersededAt: null },
       orderBy: { submittedAt: "asc" },
       include: {
         member: { select: { id: true, legajo: true, firstName: true, lastName: true, email: true, phone: true } },
@@ -254,6 +268,11 @@ export async function abrirDocumentoVerificacion(input: { verificationId: string
 /** Aprobar aplica el documento a la ficha: es el único lugar donde el legajo cambia de datos. */
 export async function aprobarVerificacion(input: { id: string; actorId: string; ip?: string | null }) {
   const { rev, faltan, faltantesTexto } = await revisionDe(input.id);
+  if (rev.supersededAt)
+    throw conflict(
+      "PRESENTACION_SUPERSEDIDA",
+      "El socio presentó una versión nueva de este trámite: revisá la última, no esta.",
+    );
   if (rev.status !== "EN_REVISION") throw conflict("YA_REVISADA", "Esta presentación ya fue revisada.");
   if (faltan.length > 0) throw badRequest("DOCS_FALTANTES", faltantesTexto);
 
@@ -311,6 +330,11 @@ export async function rechazarVerificacion(input: { id: string; actorId: string;
   if (motivo.length < 10)
     throw badRequest("MOTIVO_CORTO", "Escribí el motivo (al menos 10 caracteres): el socio lo va a leer.");
   const { rev } = await revisionDe(input.id);
+  if (rev.supersededAt)
+    throw conflict(
+      "PRESENTACION_SUPERSEDIDA",
+      "El socio presentó una versión nueva de este trámite: revisá la última, no esta.",
+    );
   if (rev.status !== "EN_REVISION") throw conflict("YA_REVISADA", "Esta presentación ya fue revisada.");
 
   await prisma.$transaction(async (tx) => {
