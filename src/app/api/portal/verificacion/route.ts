@@ -35,6 +35,13 @@ export const GET = route(async () => {
           enviada: data.ultima.submittedAt.toISOString(),
           motivoRechazo: data.ultima.rejectionReason,
           entrega: data.ultima.deliveryMode,
+          // Lo ya declarado vuelve al formulario: corregir un dato no debería obligar a reescribir todo.
+          // El DNI queda afuera a propósito: no se guarda en claro, sólo su huella y los últimos cuatro.
+          declarado: {
+            reprocann: data.ultima.reprocannNumber,
+            nacimiento: data.ultima.birthDate.toISOString().slice(0, 10),
+            vence: data.ultima.reprocannExpiresAt.toISOString().slice(0, 10),
+          },
           domicilio: {
             direccion: data.ultima.address,
             localidad: data.ultima.locality,

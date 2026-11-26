@@ -142,6 +142,21 @@ export async function presentarVerificacion(input: Presentacion & { memberId: st
       },
       select: { id: true },
     });
+
+    // Corregir un dato no es volver a subir los papeles: la presentación nueva hereda los archivos de la
+    // anterior. Sin esto el expediente quedaba EN_REVISION y vacío —el club no tenía qué revisar— y el
+    // socio veía «se borró todo» y los volvía a subir. Se copian, no se mueven: el expediente anterior
+    // sigue siendo un asiento del club con sus propios documentos.
+    if (anterior) {
+      const heredados = await tx.verificationDocument.findMany({
+        where: { verificationId: anterior.id },
+        select: { tipo: true, mime: true, size: true, sha256: true, iv: true, tag: true, data: true, uploadedAt: true },
+      });
+      if (heredados.length)
+        await tx.verificationDocument.createMany({
+          data: heredados.map((d) => ({ ...d, verificationId: nueva.id })),
+        });
+    }
     await tx.member.update({ where: { id: member.id }, data: { verificationStatus: "EN_REVISION" } });
     return nueva;
   });

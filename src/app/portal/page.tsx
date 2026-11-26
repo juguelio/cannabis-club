@@ -96,6 +96,18 @@ export default async function PortalPage() {
                     size: d.size,
                     subido: d.uploadedAt.toISOString(),
                   })),
+                  entrega: verificacion.ultima.deliveryMode,
+                  declarado: {
+                    reprocann: verificacion.ultima.reprocannNumber,
+                    nacimiento: verificacion.ultima.birthDate.toISOString().slice(0, 10),
+                    vence: verificacion.ultima.reprocannExpiresAt.toISOString().slice(0, 10),
+                  },
+                  domicilio: {
+                    direccion: verificacion.ultima.address,
+                    localidad: verificacion.ultima.locality,
+                    provincia: verificacion.ultima.province,
+                    codigoPostal: verificacion.ultima.postalCode,
+                  },
                 }
               : null,
             faltan: verificacion.faltan,

@@ -18,7 +18,9 @@ export type VerificacionEstado = {
     id: string;
     enviada: string;
     documentos: DocMeta[];
-    entrega?: "RETIRO" | "ENVIO";
+    entrega?: "RETIRO" | "ENVIO" | "SUCURSAL";
+    /** Lo ya declarado, para no obligar a reescribirlo al corregir. El DNI no viaja: no se guarda en claro. */
+    declarado?: { reprocann: string; nacimiento: string; vence: string };
     domicilio?: {
       direccion: string | null;
       localidad: string | null;
@@ -47,12 +49,14 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
   const router = useRouter();
   const toast = useToast();
   const [form, setForm] = useState({
+    // El DNI no se guarda en claro, así que al corregir hay que reescribirlo: es la confirmación de que
+    // el documento sigue en mano. Lo demás vuelve prellenado.
     dni: "",
-    nacimiento: "",
-    reprocann: "",
-    vence: "",
+    nacimiento: inicial.presentacion?.declarado?.nacimiento ?? "",
+    reprocann: inicial.presentacion?.declarado?.reprocann ?? "",
+    vence: inicial.presentacion?.declarado?.vence ?? "",
     // Cómo recibe: se pregunta acá porque es cuando ya está escribiendo, y sin localidad y CP no hay envío.
-    entrega: (inicial.presentacion?.entrega ?? "RETIRO") as "RETIRO" | "ENVIO",
+    entrega: (inicial.presentacion?.entrega ?? "RETIRO") as "RETIRO" | "ENVIO" | "SUCURSAL",
     direccion: inicial.presentacion?.domicilio?.direccion ?? "",
     localidad: inicial.presentacion?.domicilio?.localidad ?? "",
     provincia: inicial.presentacion?.domicilio?.provincia ?? "",
@@ -77,9 +81,20 @@ export function VerificacionPanel({ inicial }: { inicial: VerificacionEstado }) 
     setError(null);
     try {
       await api("/api/portal/verificacion", { body: form });
-      toast({ tone: "ok", title: "Datos guardados", text: "Ahora subí las tres fotos." });
       const r = await fetch("/api/portal/verificacion").then((res) => res.json());
       setEstado((prev) => ({ ...prev, ...r, presentacion: r.presentacion ?? prev.presentacion }));
+      // La presentación nueva hereda los archivos de la anterior: se releen del servidor para que la
+      // pantalla diga lo mismo que el expediente y no dependa de lo que este navegador recordaba.
+      const docs = (r.presentacion?.documentos ?? []) as DocMeta[];
+      setSubidos(Object.fromEntries(docs.map((d) => [d.tipo, d.subido])));
+      const faltanAhora = DOCS.filter((d) => !docs.some((x) => x.tipo === d.tipo));
+      toast({
+        tone: "ok",
+        title: tienePresentacion ? "Datos corregidos" : "Datos guardados",
+        text: faltanAhora.length
+          ? "Ahora subí las tres fotos."
+          : "Tus archivos siguen cargados: reemplazalos sólo si cambiaron.",
+      });
       startTransition(() => router.refresh());
     } catch (err) {
       if (!reportFields(err)) setError(errMsg(err));
