@@ -10,8 +10,20 @@
  * (o en desarrollo). Regla pura para poder probarla: la usan `/api/auth/google` y el callback por igual.
  */
 
-/** Dominio propio del club. Sin `www` y con `www` son dos hosts distintos para una cookie. */
-export const HOSTS_PROPIOS = ["republicacannabis.com.ar", "www.republicacannabis.com.ar"];
+/**
+ * Dominio propio del club. Sin `www` y con `www` son dos hosts distintos para una cookie.
+ *
+ * `.org.ar` va incluido: los dos dominios están delegados a Vercel y sirven la app, así que alguien
+ * puede empezar el alta ahí. Si el host no figura, la base del flujo cae en `APP_BASE_URL` y la
+ * vuelta de Google aterriza en **otro** dominio: la cookie de `state` quedó en `.org.ar` y el
+ * ingreso termina en «el intento venció» (comprobado en producción el 25/11).
+ */
+export const HOSTS_PROPIOS = [
+  "republicacannabis.com.ar",
+  "www.republicacannabis.com.ar",
+  "republicacannabis.org.ar",
+  "www.republicacannabis.org.ar",
+];
 
 /** Deploy de Vercel del proyecto: producción (`cannabis-club-mauve`) y vistas previas con hash. */
 const VERCEL_DEL_PROYECTO = /^cannabis-club(-[a-z0-9]+)?(-patagonia-sounds)?\.vercel\.app$/i;
