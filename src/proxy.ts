@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 import { apuntaAProduccion } from "@/lib/db-fingerprint";
 import { permite, seccionDeRuta } from "@/lib/roles";
+import { codigoDeRedireccion, destinoCanonico } from "@/lib/dominio-canonico";
 
 /**
  * Corta el paso antes de renderizar: un socio no debe ni entrar a la consola del club
@@ -53,6 +54,14 @@ function pass(req: NextRequest) {
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // `.org.ar` sirve el mismo sitio, pero Google no tiene autorizado su `redirect_uri`: entrar ahí y
+  // tocar «Continuar con Google» daba «Error 400: redirect_uri_mismatch». El pedido se manda al
+  // canónico antes de atenderlo, así el flujo arranca en el host autorizado.
+  const hostDelPedido = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host).split(",")[0].trim();
+  const destino = destinoCanonico(hostDelPedido, pathname, req.nextUrl.search);
+  if (destino) return NextResponse.redirect(destino, codigoDeRedireccion(req.method));
+
   // GET no implica sólo lectura: OAuth crea cuentas y algunas lecturas registran auditoría.
   // Health queda disponible para diagnosticar el aislamiento sin exponer datos personales.
   const entornoDePrueba = process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "development";
