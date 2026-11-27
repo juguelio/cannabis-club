@@ -72,3 +72,28 @@ describe("codigoDeRedireccion", () => {
     expect(codigoDeRedireccion("")).toBe(301);
   });
 });
+
+/**
+ * Los hosts de Vercel son el caso más grave: cambian en cada deploy, así que su `redirect_uri` no puede
+ * estar autorizado en Google Cloud. Medido el 27/11 con click real: el deploy nuevo responde «Access
+ * blocked: This app's request is invalid» y el dominio del club entra sin problema.
+ */
+describe("hosts de deploy de Vercel", () => {
+  it("manda al canónico el deploy con hash y el alias del proyecto", () => {
+    for (const host of [
+      "cannabis-club-2dajjvwbv-patagonia-sounds.vercel.app",
+      "cannabis-club-git-staging-patagonia-sounds.vercel.app",
+      "CANNABIS-CLUB-2DAJJVWBV-PATAGONIA-SOUNDS.VERCEL.APP",
+    ]) {
+      expect(destinoCanonico(host, "/login", "?alta=1")).toBe(
+        `https://${DOMINIO_CANONICO}/login?alta=1`,
+      );
+    }
+  });
+
+  it("no toca otros .vercel.app ajenos ni el dominio propio", () => {
+    expect(destinoCanonico("otra-app.vercel.app", "/login", "")).toBeNull();
+    expect(destinoCanonico("cannabis-club-template.vercel.app", "/login", "")).toBeNull();
+    expect(destinoCanonico("republicacannabis.com.ar", "/login", "")).toBeNull();
+  });
+});

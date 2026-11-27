@@ -55,12 +55,17 @@ function pass(req: NextRequest) {
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // `.org.ar` sirve el mismo sitio, pero Google no tiene autorizado su `redirect_uri`: entrar ahí y
-  // tocar «Continuar con Google» daba «Error 400: redirect_uri_mismatch». El pedido se manda al
-  // canónico antes de atenderlo, así el flujo arranca en el host autorizado.
+  // `.org.ar` y los hosts de Vercel sirven el mismo sitio, pero Google no tiene autorizados sus
+  // `redirect_uri` (en los deploys el host cambia en cada build, así que no se puede autorizar nunca):
+  // entrar ahí y tocar «Continuar con Google» da «Acceso bloqueado». El pedido se manda al canónico
+  // antes de atenderlo, así el flujo arranca en el host autorizado y la cookie de `state` queda donde
+  // la vuelta la va a buscar.
+  // `/api/health` queda exento: es cómo se verifica un deploy desde su propio host.
   const hostDelPedido = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host).split(",")[0].trim();
-  const destino = destinoCanonico(hostDelPedido, pathname, req.nextUrl.search);
-  if (destino) return NextResponse.redirect(destino, codigoDeRedireccion(req.method));
+  if (pathname !== "/api/health") {
+    const destino = destinoCanonico(hostDelPedido, pathname, req.nextUrl.search);
+    if (destino) return NextResponse.redirect(destino, codigoDeRedireccion(req.method));
+  }
 
   // GET no implica sólo lectura: OAuth crea cuentas y algunas lecturas registran auditoría.
   // Health queda disponible para diagnosticar el aislamiento sin exponer datos personales.
