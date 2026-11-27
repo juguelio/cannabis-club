@@ -16,9 +16,19 @@ export default async function SolicitudPage() {
   const userId = await leerSesionSolicitud();
   if (!userId) redirect("/login");
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, active: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, active: true, createdAt: true } });
   if (!user) redirect("/login");
   if (user.active) redirect("/portal");
+
+  // Cuándo entró por primera vez: sirve para decirle «ya habías empezado» a quien volvió días después.
+  // Se formatea acá (servidor) y no en el cliente, para no depender de la zona horaria del teléfono.
+  const hoy = new Date();
+  const altaEsHoy = user.createdAt.toDateString() === hoy.toDateString();
+  const altaFecha = user.createdAt.toLocaleDateString("es-AR", {
+    day: "numeric",
+    month: "long",
+    timeZone: "America/Argentina/Buenos_Aires",
+  });
 
   // Si el email de la cuenta ya está en el padrón (los socios que vinieron de la planilla) no se crea
   // otro legajo: se reclama el que existe. El club sigue decidiendo; esto sólo evita el duplicado.
@@ -66,7 +76,13 @@ export default async function SolicitudPage() {
         </p>
       </header>
 
-      <SolicitudForm email={user.email} solicitud={estado} club={club.nombre} padron={padron} />
+      <SolicitudForm
+        email={user.email}
+        solicitud={estado}
+        club={club.nombre}
+        padron={padron}
+        alta={estado ? null : { esHoy: altaEsHoy, fecha: altaFecha }}
+      />
 
       <p className="muted" style={{ marginTop: 28, fontSize: 13 }}>
         ¿No sos vos? <Link href="/login">Entrá con otra cuenta</Link>. Tus datos se tratan según la{" "}
