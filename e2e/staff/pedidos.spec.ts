@@ -15,6 +15,17 @@ test.describe("tablero de pedidos", () => {
     await expect(page.locator("body")).toContainText(/sin comprobante/i);
   });
 
+  test("en celular se abre un pedido desde el listado sin desplazamiento horizontal", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/pedidos");
+    const grupo = page.getByRole("region", { name: /Falta pago/ });
+    const fila = grupo.getByRole("listitem").getByRole("button", { name: /Pérez, Julián/ }).first();
+    await expect(fila).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await fila.click();
+    await expect(page.getByRole("complementary", { name: /Pedido de Pérez, Julián/ })).toBeVisible();
+  });
+
   test("los filtros separan retiros de envíos", async ({ page }) => {
     await page.goto("/pedidos");
     const todos = page.getByRole("button", { name: /^Todos/ });

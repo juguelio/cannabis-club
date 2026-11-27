@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CircleAlert, FileText, X } from "lucide-react";
+import { Check, ChevronRight, CircleAlert, FileText, X } from "lucide-react";
 import { api, errMsg } from "@/lib/client";
 import { useToast } from "@/components/toast";
 import { ReasonDialog } from "@/components/dialog";
@@ -16,7 +16,7 @@ const hora = (iso: string) =>
   new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
 
 /**
- * Tablero de pedidos: cinco columnas y un panel.
+ * Listado de pedidos por estado con un panel de detalle.
  *
  * Reemplaza el recorrido por `/aportes`, `/dispensario` y `/traslados` para seguir un pedido. La
  * decisión del comprobante es la misma de siempre —los mismos endpoints, las mismas reglas—; lo que
@@ -104,44 +104,41 @@ export function TableroPedidos({
         ) : null}
       </div>
 
-      <div className="tablero-columnas">
+      <div className="pedidos-listado">
+        {visibles.length === 0 && <p className="pedidos-vacio">No hay pedidos para esta selección.</p>}
         {COLUMNAS.map((c) => {
           const lista = porColumna(c.key);
+          if (!lista.length) return null;
           return (
-            <section key={c.key} className="tablero-col" aria-labelledby={`col-${c.key}`}>
-              <header>
-                <h2 id={`col-${c.key}`}>
-                  {c.titulo} <span className="tnum">{lista.length}</span>
-                </h2>
+            <section key={c.key} aria-labelledby={`col-${c.key}`}>
+              <header className="pedidos-grupo">
+                <h2 id={`col-${c.key}`}>{c.titulo} <span className="tnum">{lista.length}</span></h2>
                 <small>{c.ayuda}</small>
               </header>
               <ul>
-                {lista.length === 0 ? <li className="tablero-vacio">Nada acá.</li> : null}
                 {lista.map((p) => (
                   <li key={p.id}>
-                    <button type="button" className="tablero-card" onClick={() => setAbierto(p.id)}>
-                      <span className="tablero-card-top">
+                    <button type="button" className="pedidos-fila" onClick={() => { setError(null); setAbierto(p.id); }}>
+                      <span className="pedidos-socio">
                         <b>{p.member.nombre}</b>
-                        <span className="cell-meta tnum">Legajo {p.member.legajo}</span>
+                        <small>Legajo {p.member.legajo}</small>
                       </span>
-                      <span className="tablero-card-datos">
-                        <span className="tnum">{g(p.grams)}</span>
-                        <span>
-                          {esDespacho(p.mode)
-                            ? `${esSucursal(p.mode) ? "Sucursal" : "Envío"} · ${p.zona ?? "zona"}`
-                            : "Retiro en el club"}
-                        </span>
+                      <strong className="pedidos-gramos tnum">{g(p.grams)}</strong>
+                      <span className="pedidos-entrega">
+                        {esDespacho(p.mode)
+                          ? [esSucursal(p.mode) ? "Sucursal" : "Envío", p.zona].filter(Boolean).join(" · ")
+                          : "Retiro en el club"}
+                        <small>{p.cuando ?? "Sin horario"}</small>
                       </span>
-                      <span className="tablero-card-pie">
-                        <small>{p.cuando ?? "sin horario"}</small>
+                      <span className="pedidos-pago tnum">
                         {p.comprobante ? (
-                          <small className="tnum">
-                            {p.comprobante.monto != null ? MONEY.format(p.comprobante.monto) : "sin monto"} · {hora(p.comprobante.createdAt)}
-                          </small>
-                        ) : (
-                          <small>sin comprobante</small>
-                        )}
+                          <>
+                            {p.comprobante.monto != null ? MONEY.format(p.comprobante.monto) : "Sin monto"}
+                            <small>Comprobante · {hora(p.comprobante.createdAt)}</small>
+                          </>
+                        ) : <small>Sin comprobante</small>}
                       </span>
+                      <ChevronRight size={16} aria-hidden className="pedidos-abrir" />
                     </button>
                   </li>
                 ))}
