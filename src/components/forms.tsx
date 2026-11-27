@@ -32,11 +32,14 @@ function GoogleMark() {
   );
 }
 
-export function LoginForm({ google = false }: { google?: boolean }) {
+export type WebViewDetectado = { app: string; texto: string; intent: string | null; url: string };
+
+export function LoginForm({ google = false, webview = null }: { google?: boolean; webview?: WebViewDetectado | null }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
+  const [copiado, setCopiado] = useState(false);
   return (
     <ValidatedForm method="post"
       className="stack"
@@ -56,17 +59,47 @@ export function LoginForm({ google = false }: { google?: boolean }) {
       }}
     >
       {google ? (
-        <>
-          <a className="btn btn-lg btn-block" href="/api/auth/google" style={{ gap: 10 }}>
-            <GoogleMark />
-            Continuar con Google
-          </a>
-          <div className="muted" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, margin: "2px 0" }} aria-hidden>
-            <span style={{ flex: 1, height: 1, background: "var(--line, currentColor)", opacity: 0.28 }} />
-            o con tu clave
-            <span style={{ flex: 1, height: 1, background: "var(--line, currentColor)", opacity: 0.28 }} />
+        webview ? (
+          // Google no permite OAuth desde WebViews (`disallowed_useragent`): mandarlo al botón es mandarlo a
+          // «Acceso bloqueado». Se le explica cómo salir en vez de dejarlo adivinando.
+          <div className="note note-warn" role="alert">
+            <div>
+              <b>Estás en {webview.app}.</b> Google no permite entrar con Google desde el navegador de otras
+              apps. {webview.texto}
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                {webview.intent ? (
+                  <a className="btn btn-sm" href={webview.intent}>
+                    Abrir en Chrome
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-sm btn-quiet"
+                  onClick={() => {
+                    void navigator.clipboard
+                      ?.writeText(webview.url)
+                      .then(() => setCopiado(true))
+                      .catch(() => setCopiado(false));
+                  }}
+                >
+                  {copiado ? "Enlace copiado" : "Copiar el enlace"}
+                </button>
+              </div>
+            </div>
           </div>
-        </>
+        ) : (
+          <>
+            <a className="btn btn-lg btn-block" href="/api/auth/google" style={{ gap: 10 }}>
+              <GoogleMark />
+              Continuar con Google
+            </a>
+            <div className="muted" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, margin: "2px 0" }} aria-hidden>
+              <span style={{ flex: 1, height: 1, background: "var(--line, currentColor)", opacity: 0.28 }} />
+              o con tu clave
+              <span style={{ flex: 1, height: 1, background: "var(--line, currentColor)", opacity: 0.28 }} />
+            </div>
+          </>
+        )
       ) : null}
       <div>
         <label className="label" htmlFor="email">Email</label>
