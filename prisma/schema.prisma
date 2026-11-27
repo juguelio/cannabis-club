@@ -594,12 +594,24 @@ model Batch {
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
+  photos        BatchPhoto[]
   movements     StockMovement[]
   dispensations Dispensation[]
   shipmentItems ShipmentItem[]
 
   @@index([stage])
   @@index([strainId])
+}
+
+model BatchPhoto {
+  id        String   @id @default(cuid())
+  batchId   String
+  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  data      Bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([batchId, createdAt])
 }
 
 /// Libro de movimientos: append-only. Corregir = contra-asiento (reversalOfId), nunca UPDATE.

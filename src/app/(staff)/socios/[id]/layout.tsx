@@ -8,7 +8,7 @@ import { age, CONSUMPTION, MEMBER_STATUS, reprocannIssue } from "@/lib/labels";
 import { getClub, limitsFromClub } from "@/lib/club";
 import { estadoVerificacion } from "@/lib/verificacion-rules";
 import { contextoLegajo } from "./contexto";
-import "./legajo.css";
+import "@/components/ficha-nav.css";
 
 export default async function Layout({ params, children }: { params: Promise<{ id: string }>; children: React.ReactNode }) {
   const { id } = await params;

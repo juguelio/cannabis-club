@@ -64,7 +64,7 @@ test.describe("dispensario", () => {
     // El ingreso histórico de este lote pertenece al administrador en el seed.
     const ficha = await page.context().newPage();
     const id = antes.batches.find((b: { code: string }) => b.code === "L-2026-001").id;
-    await ficha.goto(`/stock/${id}`);
+    await ficha.goto(`/stock/${id}/calidad`);
     await ficha.getByRole("button", { name: "Liberar lote", exact: true }).click();
     const [firma] = await Promise.all([
       ficha.waitForResponse(r => r.url().endsWith("/release") && r.request().method() === "POST"),
