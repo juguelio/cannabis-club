@@ -1,3 +1,5 @@
+import { PrismaClient } from "@prisma/client";
+import { E2E_DATABASE_URL } from "../env";
 import { PNG_1X1 } from "../helpers";
 import { expect, test } from "../fixtures";
 
@@ -53,6 +55,7 @@ test.describe("padrón", () => {
     await page.goto("/socios");
     await page.getByRole("link", { name: /Gómez, María/ }).first().click();
 
+    await page.getByRole("link", { name: "Datos del socio", exact: true }).click();
     const editar = page.getByRole("button", { name: /Editar legajo/i });
     await expect(editar).toBeVisible();
     await editar.click();
@@ -88,6 +91,7 @@ test("el administrador consulta los archivos ya verificados y el historial desde
   await page.getByRole("link", { name: /Gómez, María/ }).first().click();
   await expect(page).toHaveURL(/\/socios\/[^/?]+$/);
   const perfil = page.url();
+  await page.getByRole("link", { name: "Documentación", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Documentación del socio" })).toBeVisible();
   const archivo = page.getByRole("link", { name: "DNI (frente)", exact: true });
   const url = await archivo.getAttribute("href");
@@ -103,12 +107,12 @@ test("el administrador consulta los archivos ya verificados y el historial desde
   const memberId = new URL(perfil).pathname.split("/").pop();
   const item = await page.request.post(`/api/shipments/${shipment.id}/items`, { data: { memberId, batchId: batches[0].id, grams: 3 } });
   expect(item.status(), await item.text()).toBe(201);
-  const nav = page.getByRole("navigation", { name: "Historial del socio" });
-  for (const label of ["Envíos", "Turnos", "Entregas", "Avisos", "Pedidos"]) {
+  const nav = page.getByRole("navigation", { name: "Secciones del legajo" });
+  for (const label of ["Envíos", "Turnos", "Entregas", "Avisos", "Pedidos", "Cuenta corriente", "Cambios del legajo", "Consentimientos"]) {
     await nav.getByRole("link", { name: label, exact: true }).click();
-    await expect(page.locator("#historial-socio h3")).toHaveText(label);
+    await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
     if (label === "Envíos") {
-      const historial = page.locator("#historial-socio");
+      const historial = page.locator(".legajo-contenido");
       await expect(historial.getByRole("link", { name: shipment.code })).toHaveAttribute("href", `/traslados/${shipment.id}`);
       await expect(historial).toContainText("Destino del legajo");
     }
@@ -117,9 +121,61 @@ test("el administrador consulta los archivos ya verificados y el historial desde
   try {
     const vista = await operador.newPage();
     await vista.goto(perfil);
+    await expect(vista.getByRole("link", { name: "Documentación", exact: true })).toHaveCount(0);
+    await vista.goto(perfil + "/documentacion");
     await expect(vista.getByRole("heading", { name: "Documentación del socio" })).toHaveCount(0);
     expect((await vista.request.get(new URL(url!, perfil).href)).status()).toBe(403);
   } finally {
     await operador.close();
+  }
+});
+
+test("resumen, revisión, archivos y avisos paginados por socio desde el celular", async ({ page }) => {
+  const db = new PrismaClient({ datasourceUrl: E2E_DATABASE_URL });
+  const base = { firstName: "Prueba", lastName: "Legajo", status: "ACTIVO" as const };
+  const socio = await db.member.create({ data: { ...base, legajo: 98001 } });
+  const otro = await db.member.create({ data: { ...base, legajo: 98002, verificationStatus: "VERIFICADO" } });
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const ruta = `/socios/${socio.id}`;
+    const selector = page.getByRole("combobox", { name: "Sección del legajo" });
+    await page.goto(ruta);
+    await page.getByRole("link", { name: /Esperando documentación del socio/ }).click();
+    await expect(page).toHaveURL(/\/documentacion$/);
+    await expect(page.getByText("Este legajo todavía no tiene expedientes digitales.")).toBeVisible();
+    await page.goBack();
+    await expect(selector).toHaveValue("resumen");
+
+    await db.memberVerification.create({ data: {
+      memberId: socio.id, docNumberCipher: PNG_1X1, docHash: "test-resumen", docLast4: "0001",
+      birthDate: new Date("1990-01-01"), reprocannNumber: "test", reprocannExpiresAt: new Date("2030-01-01"),
+      documents: { create: ["DNI_FRENTE", "DNI_DORSO", "REPROCANN"].map(tipo => ({
+        tipo, mime: "image/png", size: 1, sha256: "test", iv: PNG_1X1, tag: PNG_1X1, data: PNG_1X1,
+      })) },
+    } });
+    await db.member.update({ where: { id: socio.id }, data: { verificationStatus: "EN_REVISION" } });
+    await page.reload();
+    await page.getByRole("link", { name: /Documentación lista para revisar/ }).click();
+    await expect(page.getByRole("button", { name: "Aprobar legajo" })).toBeEnabled();
+    await selector.selectOption("avisos");
+    await expect(page.getByText("Sin registros en esta página.")).toBeVisible();
+    await db.noticeLog.createMany({ data: Array.from({ length: 21 }, (_, i) => ({
+      memberId: socio.id, kind: "CARTA_CLUB", channel: "EMAIL", note: `Aviso de prueba ${i}`,
+      sentAt: new Date(Date.UTC(2026, 0, i + 1)),
+    })) });
+    await page.goto(ruta + "?historial=avisos&pagina=2#historial-socio");
+    await expect(page).toHaveURL(/\/avisos\?pagina=2/);
+    await expect(page.getByText(/Aviso de prueba 0$/)).toBeVisible();
+    await page.getByRole("link", { name: "Anterior" }).click();
+    await expect(page.getByRole("link", { name: "Siguiente" })).toBeVisible();
+    await page.goto(`/socios/${otro.id}`);
+    await expect(page.getByText("Sin pendientes", { exact: true })).toBeVisible();
+    await selector.selectOption("avisos");
+    await expect(page.getByText("Sin registros en esta página.")).toBeVisible();
+    await selector.selectOption("documentacion");
+    await expect(page.getByText("Este legajo todavía no tiene expedientes digitales.")).toBeVisible();
+  } finally {
+    await db.member.deleteMany({ where: { id: { in: [socio.id, otro.id] } } });
+    await db.$disconnect();
   }
 });

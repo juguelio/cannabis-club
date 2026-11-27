@@ -2,6 +2,11 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { DOC_TIPO_LABEL, type DocTipo } from "@/lib/docs-crypto";
 import { APPOINTMENT_STATUS, auditAction, fmtDate, fmtDateTime, fmtGrams } from "@/lib/labels";
+import { VoidButton } from "./forms";
+import { ValidacionAcciones } from "./validacion-acciones";
+import { faltanDocumentos, textoFaltantes } from "@/lib/verificacion-rules";
+import { FIELD_LABEL, MEMBER_STATUS, SIGNATURE } from "@/lib/labels";
+import { rutaLegajo, secciones, type Seccion } from "@/lib/legajo-secciones";
 import { Panel } from "./ui";
 
 const texto = (value: string) => value.replaceAll("_", " ").toLocaleLowerCase("es-AR");
@@ -16,11 +21,11 @@ const expediente = {
 export async function DocumentacionSocio({ memberId }: { memberId: string }) {
   const [alta, revisiones] = await Promise.all([
     prisma.accessRequest.findUnique({ where: { memberId }, select: expediente }),
-    prisma.memberVerification.findMany({ where: { memberId }, orderBy: { submittedAt: "desc" }, select: expediente }),
+    prisma.memberVerification.findMany({ where: { memberId }, orderBy: { submittedAt: "desc" }, select: { ...expediente, supersededAt: true } }),
   ]);
   const tramites = [
-    ...(alta ? [{ ...alta, titulo: "Solicitud de alta", ruta: "solicitudes" }] : []),
-    ...revisiones.map(r => ({ ...r, titulo: "Verificación", ruta: "verificaciones" })),
+    ...(alta ? [{ ...alta, revisable: false, titulo: "Solicitud de alta", ruta: "solicitudes" }] : []),
+    ...revisiones.map(r => ({ ...r, revisable: r.status === "EN_REVISION" && !r.supersededAt, titulo: "Verificación", ruta: "verificaciones" })),
   ];
   return <Panel title="Documentación del socio">
     <div className="panel-body stack">
@@ -39,16 +44,16 @@ export async function DocumentacionSocio({ memberId }: { memberId: string }) {
             {DOC_TIPO_LABEL[d.tipo as DocTipo] ?? d.tipo}
           </a><span className="cell-meta">{fmtDateTime(d.uploadedAt)}</span>
         </li>)}</ul> : <p className="cell-meta">Sin archivos cargados.</p>}
+        {t.revisable && <ValidacionAcciones id={t.id} faltantesTexto={textoFaltantes(faltanDocumentos(t.documents.map(d => d.tipo)))} />}
       </section>)}
     </div>
   </Panel>;
 }
 
-const secciones = { pedidos: "Pedidos", envios: "Envíos", turnos: "Turnos", entregas: "Entregas", cuenta: "Cuenta corriente", cambios: "Cambios del legajo", avisos: "Avisos" };
-type Seccion = keyof typeof secciones;
-const porPagina = 20;
+export const porPagina = 20;
+type Historial = Extract<Seccion, "pedidos" | "envios" | "turnos" | "entregas" | "cambios" | "avisos">;
 
-async function filas(memberId: string, seccion: Seccion, pagina: number) {
+async function filas(memberId: string, seccion: Historial, pagina: number, admin: boolean) {
   const filtro = { where: { memberId }, take: porPagina + 1, skip: (pagina - 1) * porPagina };
   switch (seccion) {
     case "pedidos": {
@@ -79,18 +84,22 @@ async function filas(memberId: string, seccion: Seccion, pagina: number) {
     }
     case "entregas": {
       const entregas = await prisma.dispensation.findMany({ ...filtro, orderBy: [{ occurredAt: "desc" }, { id: "desc" }], select: {
-        id: true, occurredAt: true, grams: true, voidedAt: true, voidReason: true, operator: { select: { name: true } }, batch: { select: { code: true, id: true } } } });
-      return entregas.map(d => <li key={d.id}><div>{fmtDateTime(d.occurredAt)} · {fmtGrams(d.grams)} · <Link href={`/stock/${d.batch.id}`}>{d.batch.code}</Link>
-        <div className="cell-meta">{d.operator.name}{d.voidedAt && ` · Anulada: ${d.voidReason ?? fmtDate(d.voidedAt)}`}</div></div></li>);
-    }
-    case "cuenta": {
-      const entradas = await prisma.accountEntry.findMany({ ...filtro, orderBy: [{ occurredAt: "desc" }, { id: "desc" }], select: { id: true, occurredAt: true, kind: true, concept: true, amountArs: true, note: true, voidedAt: true } });
-      return entradas.map(e => <li key={e.id}><div>{fmtDateTime(e.occurredAt)} · {texto(e.kind)} · {texto(e.concept)} · {pesos.format(Number(e.amountArs))}<div>{e.note}{e.voidedAt && " · Anulado"}</div></div></li>);
+        id: true, occurredAt: true, grams: true, signatureType: true, thcPct: true, voidedAt: true, voidReason: true, operator: { select: { name: true } }, batch: { select: { code: true, id: true, strain: { select: { name: true } } } } } });
+      return entregas.map(d => <li key={d.id}><div>{fmtDateTime(d.occurredAt)} · {fmtGrams(d.grams)} · <Link href={`/stock/${d.batch.id}`}>{d.batch.code}</Link> · {d.batch.strain.name}{d.thcPct != null && ` · ${d.thcPct}% THC`}
+        <div className="cell-meta">{d.operator.name} · {SIGNATURE[d.signatureType]}{d.voidedAt && ` · Anulada: ${d.voidReason ?? fmtDate(d.voidedAt)}`}</div></div>{admin && !d.voidedAt && <VoidButton id={d.id} label={`${fmtGrams(d.grams)} de ${d.batch.code}`} />}</li>);
     }
     case "cambios": {
       const registros = await prisma.auditLog.findMany({ where: { entity: "Member", entityId: memberId }, skip: filtro.skip, take: filtro.take,
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true, action: true, createdAt: true, actor: { select: { name: true } } } });
-      return registros.map(a => <li key={a.id}>{fmtDateTime(a.createdAt)} · {auditAction(a.action)} · {a.actor?.name ?? "Sistema"}</li>);
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true, action: true, payload: true, createdAt: true, actor: { select: { name: true } } } });
+      return registros.map(a => {
+        const detail = (a.payload ?? {}) as { reason?: string; changes?: Record<string, { to: string }> };
+        return <li key={a.id}><div><b>{auditAction(a.action)}</b>
+          {a.action === "MEMBER_STATUS" && detail.changes?.status && ` · ${MEMBER_STATUS[detail.changes.status.to]?.label ?? detail.changes.status.to}`}
+          <div className="cell-meta">{fmtDateTime(a.createdAt)} · {a.actor?.name ?? "Sistema"}</div>
+          {a.action === "MEMBER_UPDATE" && Object.keys(detail.changes ?? {}).map(k => FIELD_LABEL[k] ?? k).join(", ")}
+          {detail.reason && <p>{detail.reason}</p>}
+        </div></li>;
+      });
     }
     case "avisos": {
       const avisos = await prisma.noticeLog.findMany({ ...filtro, orderBy: [{ sentAt: "desc" }, { id: "desc" }], select: { id: true, sentAt: true, kind: true, channel: true, note: true } });
@@ -99,19 +108,20 @@ async function filas(memberId: string, seccion: Seccion, pagina: number) {
   }
 }
 
-export async function HistorialSocio({ memberId, vista, pagina }: { memberId: string; vista?: string; pagina?: string }) {
-  const seccion = vista && Object.hasOwn(secciones, vista) ? vista as Seccion : "pedidos";
-  const numero = Number(pagina);
-  const actual = Number.isInteger(numero) && numero > 0 && numero <= 100000000 ? numero : 1;
-  const registros = await filas(memberId, seccion, actual);
-  const href = (s: string, p: number) => `/socios/${memberId}?historial=${s}&pagina=${p}#historial-socio`;
-  return <div id="historial-socio"><Panel title="Historial del socio"><div className="panel-body stack">
-    <nav aria-label="Historial del socio" className="flex flex-wrap gap-2">{Object.entries(secciones).map(([key, label]) =>
-      <Link key={key} className={key === seccion ? "btn btn-sm" : "btn btn-sm btn-quiet"} aria-current={key === seccion ? "page" : undefined} href={href(key, 1)}>{label}</Link>)}</nav>
-    <h3>{secciones[seccion]}</h3>
-    {seccion === "envios" && <p className="cell-meta">Acá figuran los traslados del socio. Los pedidos a domicilio que todavía esperan despacho aparecen en <Link href={href("pedidos", 1)}>Pedidos</Link>.</p>}
+export function PaginacionLegajo({ id, seccion, pagina, siguiente }: { id: string; seccion: Seccion; pagina: number; siguiente: boolean }) {
+  if (pagina === 1 && !siguiente) return null;
+  return <nav aria-label="Páginas de registros" className="panel-body flex gap-2">
+    {pagina > 1 && <Link href={rutaLegajo(id, seccion, pagina - 1)}>Anterior</Link>}
+    <span>Página {pagina}</span>
+    {siguiente && <Link href={rutaLegajo(id, seccion, pagina + 1)}>Siguiente</Link>}
+  </nav>;
+}
+
+export async function HistorialSocio({ memberId, seccion, pagina, admin }: { memberId: string; seccion: Historial; pagina: number; admin: boolean }) {
+  const registros = await filas(memberId, seccion, pagina, admin);
+  return <Panel title={secciones[seccion]}><div className="panel-body stack">
+    {seccion === "envios" && <p className="cell-meta">Los pedidos a domicilio que esperan despacho aparecen en <Link href={rutaLegajo(memberId, "pedidos")}>Pedidos</Link>.</p>}
     {registros.length ? <ul className="rows">{registros.slice(0, porPagina)}</ul> : <p>Sin registros en esta página.</p>}
-    <div className="flex gap-2">{actual > 1 && <Link href={href(seccion, actual - 1)}>Anterior</Link>}
-      {registros.length > porPagina && <Link href={href(seccion, actual + 1)}>Siguiente</Link>}</div>
-  </div></Panel></div>;
+    <PaginacionLegajo id={memberId} seccion={seccion} pagina={pagina} siguiente={registros.length > porPagina} />
+  </div></Panel>;
 }

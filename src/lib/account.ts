@@ -41,17 +41,23 @@ export function isValidPeriod(period: string): boolean {
 
 type Tx = Prisma.TransactionClient | typeof prisma;
 
-export async function memberAccount(memberId: string, take = 50) {
-  const [entries, all] = await Promise.all([
+export async function memberBalance(memberId: string) {
+  const sums = await prisma.accountEntry.groupBy({ by: ["kind"], where: { memberId }, _sum: { amountArs: true } });
+  return balanceOf(sums.map(row => ({ kind: row.kind, amountArs: row._sum.amountArs })));
+}
+
+export async function memberAccount(memberId: string, take = 50, skip = 0) {
+  const [entries, balance, count] = await Promise.all([
     prisma.accountEntry.findMany({
       where: { memberId },
-      orderBy: { occurredAt: "desc" },
-      take,
+      orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+      take, skip,
       include: { creator: { select: { name: true } } },
     }),
-    prisma.accountEntry.findMany({ where: { memberId }, select: { kind: true, amountArs: true } }),
+    memberBalance(memberId),
+    prisma.accountEntry.count({ where: { memberId } }),
   ]);
-  return { entries, balance: balanceOf(all), count: all.length };
+  return { entries, balance, count };
 }
 
 /** Aporte de cultivo de una entrega: convierte el estimado del portal en un cargo real. */

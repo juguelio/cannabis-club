@@ -1,0 +1,18 @@
+.legajo-grid { display: grid; grid-template-columns: minmax(160px, 215px) minmax(0, 1fr); gap: 22px; align-items: start; }
+.legajo-contenido { min-width: 0; overflow-wrap: anywhere; }
+.legajo-nav { border: 1px solid var(--line); border-radius: 12px; background: var(--paper, white); padding: 12px; }
+.legajo-links { display: grid; gap: 16px; }
+.legajo-links p { font-size: .76rem; font-weight: 650; margin: 4px 10px; color: var(--muted); }
+.legajo-links a { display: block; padding: 7px 10px; border-radius: 6px; text-decoration: none; color: inherit; }
+.legajo-links a:hover, .legajo-links a:focus-visible { background: var(--mist); }
+.legajo-links a[aria-current="page"] { background: var(--ink); color: white; font-weight: 650; }
+.legajo-select { display: none; }
+.legajo-tareas { margin: 0; padding: 0; list-style: none; }
+.legajo-tareas li + li { border-top: 1px solid var(--line); }
+.legajo-tareas a { display: flex; justify-content: space-between; gap: 12px; padding: 14px 20px; color: inherit; }
+@media (max-width: 760px) {
+  .legajo-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .legajo-links { display: none; }
+  .legajo-select { display: grid; gap: 4px; font-size: .85rem; font-weight: 600; }
+  .legajo-select select { padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: white; font-size: 1rem; }
+}

@@ -152,7 +152,7 @@ test("alta pública: corrige varios datos, presenta la solicitud y reemplaza un 
     expect(aprobacion.ok(), await aprobacion.text()).toBeTruthy();
     const { socio } = await aprobacion.json();
     const ficha = await admin.newPage();
-    await ficha.goto(`/socios/${socio.id}`);
+    await ficha.goto(`/socios/${socio.id}/documentacion`);
     await expect(ficha.getByRole("heading", { name: /Solicitud de alta · aprobada/ })).toBeVisible();
     for (const name of ["DNI (frente)", "DNI (dorso)", "Credencial REPROCANN"]) {
       const href = await ficha.getByRole("link", { name, exact: true }).getAttribute("href");
