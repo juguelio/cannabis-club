@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { baseUrlDelFlujo, origenDelPedido } from "@/lib/google-base";
+import { baseUrlDelFlujo, destinoDelFlujoGoogle, origenDelPedido } from "@/lib/google-base";
 import {
   OAUTH_COOKIE,
   OAUTH_TTL_SECONDS,
@@ -15,6 +15,13 @@ export async function GET(req: Request) {
   const cfg = googleConfig();
   const url = new URL(req.url);
   const pedido = origenDelPedido(url, req.headers);
+  // Google sólo acepta el `redirect_uri` de los hosts registrados en su consola; en los demás
+  // (`.org.ar`, un deploy con hash) responde `400 redirect_uri_mismatch` y el socio ve «Acceso
+  // bloqueado». El navegador va primero al canónico para que la cookie de `state` quede **ahí**:
+  // mover sólo el `redirect_uri` dejaría la cookie en el host viejo y el ingreso moriría igual.
+  const salto = destinoDelFlujoGoogle(pedido, process.env.APP_BASE_URL);
+  if (salto) return NextResponse.redirect(salto, 307);
+
   // La base sale del pedido cuando el host es de la app: la cookie de `state` se guarda en ese host y
   // Google tiene que volver al mismo, si no la cookie no viaja y el ingreso se cae.
   const base = baseUrlDelFlujo(pedido, process.env.APP_BASE_URL);

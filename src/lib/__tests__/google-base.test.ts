@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { baseUrlDelFlujo, esHostDeLaApp, origenDelPedido } from "../google-base";
+import {
+  baseUrlDelFlujo,
+  destinoDelFlujoGoogle,
+  esHostDeLaApp,
+  hostAutorizadoParaGoogle,
+  origenDelPedido,
+} from "../google-base";
 
 const CANONICA = "https://cannabis-club-mauve.vercel.app";
 
@@ -69,6 +75,54 @@ describe("base del ingreso con Google", () => {
     expect(esHostDeLaApp("cannabis-club-njji9hhpo-patagonia-sounds.vercel.app")).toBe(true);
     expect(esHostDeLaApp("otro.vercel.app")).toBe(false);
     expect(esHostDeLaApp("araucana.com.ar")).toBe(false);
+  });
+});
+
+describe("hosts autorizados por Google", () => {
+  const PROD = "https://republicacannabis.com.ar";
+  const url = (origin: string) => ({ origin, host: new URL(origin).host });
+
+  it("los tres que Google tiene cargados no dan salto", () => {
+    for (const host of ["republicacannabis.com.ar", "www.republicacannabis.com.ar", "cannabis-club-mauve.vercel.app"]) {
+      expect(hostAutorizadoParaGoogle(host, PROD)).toBe(true);
+      expect(destinoDelFlujoGoogle({ origin: `https://${host}`, host }, PROD)).toBeNull();
+    }
+  });
+
+  it("`.org.ar`, `www.org.ar`, el deploy con hash y el alias `-git-main-` saltan al canónico", () => {
+    // Medido contra accounts.google.com el 26/11: esas cuatro respondían 400 redirect_uri_mismatch
+    // (o cruzaban la cookie de `state` a otro host).
+    for (const host of [
+      "republicacannabis.org.ar",
+      "www.republicacannabis.org.ar",
+      "cannabis-club-cgsjjnwde-patagonia-sounds.vercel.app",
+      "cannabis-club-git-main-patagonia-sounds.vercel.app",
+    ]) {
+      expect(hostAutorizadoParaGoogle(host, PROD)).toBe(false);
+      expect(destinoDelFlujoGoogle({ origin: `https://${host}`, host }, PROD)).toBe(
+        "https://republicacannabis.com.ar/api/auth/google",
+      );
+    }
+  });
+
+  it("el salto conserva los parámetros y no repite la barra del canónico", () => {
+    expect(destinoDelFlujoGoogle(url("https://republicacannabis.org.ar?alta=1"), `${PROD}/`)).toBe(
+      "https://republicacannabis.com.ar/api/auth/google?alta=1",
+    );
+  });
+
+  it("en local no salta y con el canónico apagado no hay a dónde ir", () => {
+    expect(destinoDelFlujoGoogle(url("http://localhost:3300"), "http://localhost:3300")).toBeNull();
+    expect(destinoDelFlujoGoogle(url("https://republicacannabis.org.ar"), "")).toBeNull();
+    expect(destinoDelFlujoGoogle(url("https://republicacannabis.org.ar"), null)).toBeNull();
+  });
+
+  it("si el canónico es el mismo host del pedido no rebota (sería un bucle)", () => {
+    expect(destinoDelFlujoGoogle(url("https://raro.example"), "https://raro.example")).toBeNull();
+  });
+
+  it("el host de `APP_BASE_URL` cuenta como autorizado: es el canónico", () => {
+    expect(hostAutorizadoParaGoogle("club-nuevo.test", "https://club-nuevo.test/")).toBe(true);
   });
 });
 
