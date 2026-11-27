@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getAnySession } from "@/lib/auth";
 import Link from "next/link";
 import { getBrandView } from "@/lib/brand-db";
 import { BrandMark } from "@/components/brand-mark";
 import { LoginForm } from "@/components/forms";
 import { isGoogleEnabled } from "@/lib/google";
+import { comoSalir, navegadorIntegrado } from "@/lib/navegador-integrado";
 
 export const metadata = { title: "Ingresar" };
 
@@ -30,6 +32,21 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const clave = sp.error ?? sp.aviso ?? "";
   const nota = AVISOS[clave] ?? null;
   const view = await getBrandView();
+
+  // El login con Google no funciona dentro de los navegadores integrados (Instagram, Facebook, TikTok):
+  // Google lo bloquea por política. Se detecta acá, con el User-Agent real del pedido, y se le explica cómo
+  // salir antes de que se coma el «Acceso bloqueado».
+  const h = await headers();
+  const ua = h.get("user-agent") ?? "";
+  const wv = navegadorIntegrado(ua);
+  const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "republicacannabis.com.ar").split(",")[0].trim();
+  const webview = wv.integrado
+    ? {
+        app: wv.app ?? "otra aplicación",
+        ...comoSalir(/iPhone|iPad|iPod/i.test(ua), `https://${host}/login`),
+        url: `https://${host}/login`,
+      }
+    : null;
 
   return (
     <div className="auth">
@@ -77,7 +94,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               {nota}
             </div>
           ) : null}
-          <LoginForm google={isGoogleEnabled()} />
+          <LoginForm google={isGoogleEnabled()} webview={webview} />
         </div>
       </main>
     </div>
