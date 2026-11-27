@@ -12,7 +12,7 @@ import { cache } from "react";
 import { prisma } from "./db";
 import { audit } from "./audit";
 import { docHash, docLast4 } from "./privacy";
-import { encryptDoc, encryptText, sha256 } from "./docs-crypto";
+import { DOC_TIPOS, encryptDoc, encryptText, sha256 } from "./docs-crypto";
 import { badRequest, conflict, notFound } from "./errors";
 import { getClub } from "./club";
 import { limitsFromClub } from "./club";
@@ -111,13 +111,13 @@ export async function presentarVerificacion(input: Presentacion & { memberId: st
   if (enOtroLegajo)
     throw conflict("DOC_EN_USO", "Ese DNI ya está en otro legajo del club. Escribile al club para unificarlo.");
 
-  const anterior = await prisma.memberVerification.findFirst({
-    where: { memberId: member.id },
-    orderBy: { submittedAt: "desc" },
-    select: { id: true, status: true, reviewedAt: true, reviewedById: true, supersededAt: true },
-  });
-
-  const creada = await prisma.$transaction(async (tx) => {
+  const { creada, anterior } = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Member" WHERE id = ${member.id} FOR UPDATE`;
+    const anterior = await tx.memberVerification.findFirst({
+      where: { memberId: member.id },
+      orderBy: { submittedAt: "desc" },
+      select: { id: true, status: true, reviewedAt: true, reviewedById: true, supersededAt: true },
+    });
     // Una presentación nueva saca de juego a la anterior sin reescribirla: se conservan `status`,
     // `reviewedAt`, `reviewedById` y `rejectionReason` — el rechazo del club es un asiento suyo, con su
     // motivo y su hora, y el reenvío del socio no puede atribuirle un texto que no eligió.
@@ -147,18 +147,23 @@ export async function presentarVerificacion(input: Presentacion & { memberId: st
     // anterior. Sin esto el expediente quedaba EN_REVISION y vacío —el club no tenía qué revisar— y el
     // socio veía «se borró todo» y los volvía a subir. Se copian, no se mueven: el expediente anterior
     // sigue siendo un asiento del club con sus propios documentos.
-    if (anterior) {
-      const heredados = await tx.verificationDocument.findMany({
-        where: { verificationId: anterior.id },
-        select: { tipo: true, mime: true, size: true, sha256: true, iv: true, tag: true, data: true, uploadedAt: true },
-      });
-      if (heredados.length)
-        await tx.verificationDocument.createMany({
-          data: heredados.map((d) => ({ ...d, verificationId: nueva.id })),
-        });
+    const camposArchivo = { tipo: true, mime: true, size: true, sha256: true, iv: true, tag: true, data: true, uploadedAt: true } as const;
+    const anteriores = anterior ? await tx.verificationDocument.findMany({
+      where: { verificationId: anterior.id }, select: camposArchivo,
+    }) : [];
+    const administrativos = await tx.memberFile.findMany({
+      where: { memberId: member.id, tipo: { in: DOC_TIPOS } }, select: camposArchivo,
+    });
+    const vigentes = new Map(anteriores.map(doc => [doc.tipo, doc]));
+    for (const doc of administrativos) {
+      const previo = vigentes.get(doc.tipo);
+      if (!previo || doc.uploadedAt > previo.uploadedAt) vigentes.set(doc.tipo, doc);
     }
+    if (vigentes.size) await tx.verificationDocument.createMany({
+      data: Array.from(vigentes.values(), doc => ({ ...doc, verificationId: nueva.id })),
+    });
     await tx.member.update({ where: { id: member.id }, data: { verificationStatus: "EN_REVISION" } });
-    return nueva;
+    return { creada: nueva, anterior };
   });
 
   await audit({
@@ -190,31 +195,35 @@ export async function subirDocumentoVerificacion(input: {
   actorId: string;
   ip?: string | null;
 }) {
-  const verificacion = await prisma.memberVerification.findFirst({
-    where: { memberId: input.memberId },
-    orderBy: { submittedAt: "desc" },
-    select: { id: true, status: true, supersededAt: true },
-  });
-  if (!verificacion) throw badRequest("SIN_PRESENTACION", "Primero completá tus datos y después subí los archivos.");
-  const impedimento = impedimentoParaRevisar(verificacion);
-  if (impedimento === "SUPERSEDIDA")
-    throw conflict(
-      "PRESENTACION_SUPERSEDIDA",
-      "Presentaste una versión nueva de este trámite: los archivos se suben en la última.",
-    );
-  if (impedimento === "RESUELTA")
-    throw conflict("PRESENTACION_CERRADA", "Esta presentación ya está resuelta: no se pueden cambiar los archivos.");
+  const { doc, verificacion, huella } = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM "Member" WHERE id = ${input.memberId} FOR UPDATE`;
+    const verificacion = await tx.memberVerification.findFirst({
+      where: { memberId: input.memberId },
+      orderBy: { submittedAt: "desc" },
+      select: { id: true, status: true, supersededAt: true },
+    });
+    if (!verificacion) throw badRequest("SIN_PRESENTACION", "Primero completá tus datos y después subí los archivos.");
+    const impedimento = impedimentoParaRevisar(verificacion);
+    if (impedimento === "SUPERSEDIDA")
+      throw conflict(
+        "PRESENTACION_SUPERSEDIDA",
+        "Presentaste una versión nueva de este trámite: los archivos se suben en la última.",
+      );
+    if (impedimento === "RESUELTA")
+      throw conflict("PRESENTACION_CERRADA", "Esta presentación ya está resuelta: no se pueden cambiar los archivos.");
 
-  const { data, iv, tag } = encryptDoc(input.bytes);
-  const huella = sha256(input.bytes);
-  const previo = await prisma.verificationDocument.findFirst({
-    where: { verificationId: verificacion.id, tipo: input.tipo },
-    select: { id: true },
+    const { data, iv, tag } = encryptDoc(input.bytes);
+    const huella = sha256(input.bytes);
+    const previo = await tx.verificationDocument.findFirst({
+      where: { verificationId: verificacion.id, tipo: input.tipo },
+      select: { id: true },
+    });
+    const base = { mime: input.mime, size: input.bytes.length, sha256: huella, iv, tag, data, uploadedAt: new Date() };
+    const doc = previo
+      ? await tx.verificationDocument.update({ where: { id: previo.id }, data: base, select: DOCS_SELECT })
+      : await tx.verificationDocument.create({ data: { ...base, verificationId: verificacion.id, tipo: input.tipo }, select: DOCS_SELECT });
+    return { doc, verificacion, huella };
   });
-  const base = { mime: input.mime, size: input.bytes.length, sha256: huella, iv, tag, data, uploadedAt: new Date() };
-  const doc = previo
-    ? await prisma.verificationDocument.update({ where: { id: previo.id }, data: base, select: DOCS_SELECT })
-    : await prisma.verificationDocument.create({ data: { ...base, verificationId: verificacion.id, tipo: input.tipo }, select: DOCS_SELECT });
 
   await audit({
     actorId: input.actorId,

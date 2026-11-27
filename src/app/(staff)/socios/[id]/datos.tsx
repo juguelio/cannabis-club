@@ -1,3 +1,4 @@
+import { ArchivoLegajoInput } from "@/components/archivo-legajo-input";
 import QRCode from "qrcode";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -10,6 +11,7 @@ const iso = (d: Date | null) => d?.toISOString().slice(0, 10) ?? "";
 
 export async function DatosSocio({ id, isAdmin }: { id: string; isAdmin: boolean }) {
   const member = await prisma.member.findUnique({ where: { id }, include: {
+    archivos: { where: { tipo: "PERFIL" }, select: { tipo: true } },
     user: { select: { email: true, active: true, lastLoginAt: true } },
   } });
   if (!member) notFound();
@@ -38,6 +40,10 @@ export async function DatosSocio({ id, isAdmin }: { id: string; isAdmin: boolean
               }}
             />
     </div></Panel>
+    {isAdmin && <Panel title="Foto de perfil" subtitle="JPG, PNG o WEBP de hasta 4 MB."><div className="panel-body">
+      <ArchivoLegajoInput memberId={id} tipo="PERFIL" cargado={member.archivos.length > 0} />
+    </div></Panel>}
+
           <Panel title="Datos de contacto">
             <div className="panel-body">
               <dl className="dl">

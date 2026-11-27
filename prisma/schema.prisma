@@ -498,9 +498,26 @@ model Member {
   consents      Consent[]
   notices       NoticeLog[]
   accessRequest AccessRequest?
+  archivos      MemberFile[]
 
   @@index([status])
   @@index([lastName, firstName])
+}
+
+/// Archivos que administración carga directamente al legajo, incluso si vino del padrón en papel.
+model MemberFile {
+  memberId   String
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tipo       String
+  mime       String
+  size       Int
+  sha256     String
+  iv         Bytes
+  tag        Bytes
+  data       Bytes
+  uploadedAt DateTime @default(now())
+
+  @@id([memberId, tipo])
 }
 
 model Strain {

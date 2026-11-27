@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Scale } from "lucide-react";
 import { Avatar, Chip, Note } from "@/components/ui";
@@ -23,7 +24,9 @@ export default async function Layout({ params, children }: { params: Promise<{ i
       <Link className="crumb" href="/socios"><ArrowLeft aria-hidden /> Socios</Link>
       <div className="panel" style={{ marginBottom: 16 }}>
         <div className="profile">
-          <Avatar first={member.firstName} last={member.lastName} size="lg" tone={member.status !== "ACTIVO" ? "mute" : issue.tone === "danger" ? "danger" : undefined} />
+          {member.archivos[0] ? <Image unoptimized width={64} height={64} style={{ borderRadius: "50%", objectFit: "cover" }}
+            src={`/api/members/${id}/archivos/PERFIL?v=${member.archivos[0].uploadedAt.getTime()}`} alt="Foto del socio" />
+            : <Avatar first={member.firstName} last={member.lastName} size="lg" tone={member.status !== "ACTIVO" ? "mute" : issue.tone === "danger" ? "danger" : undefined} />}
           <div style={{ minWidth: 0 }}>
             <h1 className="profile-name">{member.lastName}, {member.firstName}</h1>
             <div className="profile-meta">

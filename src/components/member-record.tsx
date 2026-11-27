@@ -1,6 +1,7 @@
+import { ArchivoLegajoInput } from "./archivo-legajo-input";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { DOC_TIPO_LABEL, type DocTipo } from "@/lib/docs-crypto";
+import { DOC_TIPO_LABEL, DOC_TIPOS, type DocTipo } from "@/lib/docs-crypto";
 import { APPOINTMENT_STATUS, auditAction, fmtDate, fmtDateTime, fmtGrams } from "@/lib/labels";
 import { VoidButton } from "./forms";
 import { ValidacionAcciones } from "./validacion-acciones";
@@ -19,9 +20,10 @@ const expediente = {
 } as const;
 
 export async function DocumentacionSocio({ memberId }: { memberId: string }) {
-  const [alta, revisiones] = await Promise.all([
+  const [alta, revisiones, archivos] = await Promise.all([
     prisma.accessRequest.findUnique({ where: { memberId }, select: expediente }),
     prisma.memberVerification.findMany({ where: { memberId }, orderBy: { submittedAt: "desc" }, select: { ...expediente, supersededAt: true } }),
+    prisma.memberFile.findMany({ where: { memberId, tipo: { in: DOC_TIPOS } }, select: { tipo: true, uploadedAt: true } }),
   ]);
   const tramites = [
     ...(alta ? [{ ...alta, revisable: false, titulo: "Solicitud de alta", ruta: "solicitudes" }] : []),
@@ -29,6 +31,19 @@ export async function DocumentacionSocio({ memberId }: { memberId: string }) {
   ];
   return <Panel title="Documentación del socio">
     <div className="panel-body stack">
+      <section className="stack">
+        <h3>Archivos cargados por administración</h3>
+        <p className="cell-meta">JPG, PNG, WEBP o PDF de hasta 4 MB por archivo.</p>
+        {DOC_TIPOS.map(tipo => {
+          const doc = archivos.find(a => a.tipo === tipo);
+          return <div key={tipo}>
+            <ArchivoLegajoInput memberId={memberId} tipo={tipo} cargado={!!doc} />
+            {doc && <a href={`/api/members/${memberId}/archivos/${tipo}`} target="_blank" rel="noreferrer">
+              Ver {DOC_TIPO_LABEL[tipo]} · {fmtDateTime(doc.uploadedAt)}
+            </a>}
+          </div>;
+        })}
+      </section>
       {tramites.length === 0 && <p>Este legajo todavía no tiene expedientes digitales.</p>}
       {tramites.map(t => <section key={t.ruta + t.id}>
         <h3>{t.titulo} · {texto(t.status)}</h3>

@@ -130,6 +130,7 @@ export const AUDIT_ACTION: Record<string, string> = {
   LOGIN: "Ingresó",
   LOGIN_FAILED: "Intento de ingreso fallido",
   LOGOUT: "Salió",
+  MEMBER_FILE_UPLOAD: "Cargó un archivo del socio",
   MEMBER_CREATE: "Alta de socio",
   MEMBER_UPDATE: "Editó el legajo",
   MEMBER_STATUS: "Cambió el estado del socio",
