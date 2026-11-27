@@ -52,10 +52,13 @@ export function SolicitudForm({
   solicitud,
   club,
   padron,
+  alta,
 }: {
   email: string;
   solicitud: EstadoSolicitud | null;
   club: string;
+  /** Cuándo entró con Google. Sin solicitud presentada, es el «ya empezaste, te falta esto». */
+  alta?: { esHoy: boolean; fecha: string } | null;
   /** Si el email ya está en el padrón, esto es un reclamo de ese legajo, no un alta nueva. */
   padron?: PadronPrevio;
 }) {
@@ -226,6 +229,24 @@ export function SolicitudForm({
   // Sin solicitud (o rechazada): formulario.
   return (
     <ValidatedForm schema={solicitudSchema} className="stack" onChange={() => setError(null)} onSubmit={presentar}>
+      {/* Siete de cada diez cuentas creadas con Google quedaron sin solicitud: entraron una vez y no
+          volvieron. Decirles que el alta ya está abierta y qué falta es lo que evita el «me sale denegado». */}
+      {!estado && alta && (
+        <p className="note">
+          {alta.esHoy ? (
+            <>
+              Ingresaste con Google y tu alta quedó abierta. Te faltan tres pasos: cargar tus datos, subir la
+              documentación y que el club la revise.
+            </>
+          ) : (
+            <>
+              Ya habías entrado con Google el {alta.fecha} y tu alta quedó a mitad de camino. Te faltan tres pasos:
+              cargar tus datos, subir la documentación y que el club la revise.
+            </>
+          )}
+        </p>
+      )}
+
       {estado?.status === "RECHAZADA" && (
         <div className="panel">
           <div className="panel-head">

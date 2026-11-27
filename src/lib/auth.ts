@@ -139,15 +139,38 @@ export async function authenticate(rawEmail: string, password: string, ip: strin
   const email = rawEmail.trim().toLowerCase();
   await assertNotLocked(email);
   const user = await prisma.user.findUnique({ where: { email } });
-  // Sin clave (cuenta creada con Google) no hay contraseña válida posible.
-  const ok =
-    Boolean(user?.active) &&
-    !(user!.role === "SOCIO" && !user!.memberId) &&
-    Boolean(user!.passwordHash) &&
-    (await verifyPassword(password, user!.passwordHash!));
-  if (!user || !ok) {
+
+  if (!user) {
     await recordFailure(email, ip);
     throw unauthorized("Email o contraseña incorrectos");
+  }
+
+  // Cuenta creada con Google: no hay clave que verificar y nunca va a haber una válida. Decirlo es la
+  // diferencia entre «me sale denegado» y «tocá el botón de Google»: once cuentas quedaron trabadas sin
+  // entender por qué fallaban (medido el 27/11 en producción).
+  if (!user.passwordHash) {
+    await recordFailure(email, ip);
+    throw unauthorized(
+      user.active
+        ? "Esa cuenta se creó con Google y no tiene clave: entrá con «Continuar con Google»."
+        : "Esa cuenta se creó con Google y tu alta quedó a mitad de camino. Entrá con «Continuar con Google» y completá tus datos.",
+    );
+  }
+
+  // Acá ya hay clave: si no coincide, la respuesta no distingue nada (no se filtra si el email existe).
+  if (!(await verifyPassword(password, user.passwordHash))) {
+    await recordFailure(email, ip);
+    throw unauthorized("Email o contraseña incorrectos");
+  }
+
+  // La clave era correcta: recién ahora se puede decir qué falta.
+  if (!user.active) {
+    await recordFailure(email, ip);
+    throw unauthorized("Tu cuenta todavía no está habilitada. El club tiene que aprobarla.");
+  }
+  if (user.role === "SOCIO" && !user.memberId) {
+    await recordFailure(email, ip);
+    throw unauthorized("Tu cuenta no está vinculada a ningún legajo del padrón. Pedí el alta en la secretaría.");
   }
   // La clave dictada en el mostrador vence: no se puede seguir usando para siempre.
   if (user.mustChangePassword && tempPasswordExpired(user.passwordChangedAt)) {
